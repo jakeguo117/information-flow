@@ -1,0 +1,26 @@
+{
+  "name": "information-flow",
+  "version": "0.1.0",
+  "description": "Daily content intake into DigitalBrain Digests, then a weekly journal discussion.",
+  "author": {
+    "name": "Jake Guo",
+    "url": "https://github.com/jakeguo117"
+  },
+  "repository": "https://github.com/jakeguo117/information-flow",
+  "license": "UNLICENSED",
+  "keywords": ["journal", "digest", "obsidian", "youtube", "snipd"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Information Flow",
+    "shortDescription": "Intake daily, journal weekly",
+    "longDescription": "Pulls Snipd, WeRead, and YouTube likes into daily Digests and a weekly Journal Brief. The journal skill reads those files, talks with Jake, and writes DigitalBrain Journal. Intake runs on its own at 21:00.",
+    "developerName": "Jake Guo",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "defaultPrompt": [
+      "写周记",
+      "跑今天的 Digest",
+      "同步 YouTube 点赞"
+    ]
+  }
+}
