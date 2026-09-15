@@ -4,7 +4,8 @@
 
 ## Vault
 
-`VAULT` = `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain`
+优先本机：`~/Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain`  
+否则当前工作区根（Cursor 云端 clone 的 DigitalBrain，须有 `📝 Journal/`）。
 
 ISO 周：本周周一 00:00 到周日 23:59（本地）。
 

@@ -15,7 +15,11 @@ description: Jake 的周记。读旧周记和本周全部 Digest / Journal Brief
 
 ### 1. 读输入
 
-`VAULT="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain"`
+Vault 目录（按这个顺序认，认到就停）：
+
+1. `$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain` 若存在且有 `📝 Journal/`
+2. 当前工作区根目录，若有 `📝 Journal/`（Cursor 云端 clone 的 GitHub DigitalBrain）
+3. 否则停下来问 Jake，不要猜路径
 
 按 `references/weekly-brief.md` 读。本周 Digest 要**全部**正式篇。跳过文件名含「非正式」「演示」的。`generator: journal-daily-digest` 的每日篇要读。周汇总在 `📊 Journal Briefs/`。没有汇总就把本周 Digest 收成 3–7 条线索。没有 Digest 就只用旧周记，照样开讨论。
 
@@ -72,4 +76,4 @@ title: "周记 {N} — {Jake 口气的一句}"
 - 不要读 Journal 以外的私人目录来「补这周发生了什么」
 - 不要同步 Notion
 - 不要把 Claude/Codex/Hermes 那几份旧 skill 一并改掉
-- 不要在没授权时改公开 GitHub `journal-skill`
+- 不要用已删除的公开仓 `jakeguo117/journal-skill`；只跟 information-flow

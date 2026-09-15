@@ -19,17 +19,20 @@
 
 不代写。不把 Digest 原文糊进周记。不自动 git push vault。Follow Builders 不做。Daily Briefing / Weekly Synthesis 不在这个 plugin 里。
 
-## 现在（2026-09-14）
+## 现在（2026-09-15）
 
 | 块 | 实际状态 |
 |---|---|
 | Plugin | `~/plugins/information-flow` → private GitHub `information-flow` |
+| Cursor 私人 skill | `~/.cursor/skills/{journal,intake}`（云端要你打开 Sync Skills for Cloud Agents） |
 | intake | launchd 21:00 跑 `run_digest_jobs.sh` |
-| journal | Grok skill；2026-09-13 已跑通一场 |
-| 手机 | 文档已探，真机未试。消费级 Grok App 不能写 vault；候选 Grok Bot iPhone + Local Computer |
+| journal | 电脑已跑通 2026-09-13；Cursor 手机待真机 |
+| 公开 journal-skill | 删除 |
+
+手机入口是 **Cursor App**，不是 Grok Bot。Mac 开着用 Remote Control；Mac 关着用 Cloud + GitHub DigitalBrain。
 
 ## 完成
 
 1. 电脑能写周记 — 已验收（2026-09-13）
 2. intake 每天 Digest + Journal Brief — 本机已接
-3. 手机 — 未真机验收
+3. 手机 — Cursor skill 已接上，真机未试
