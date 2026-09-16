@@ -1,0 +1,63 @@
+name: daily-intake
+
+on:
+  schedule:
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+
+jobs:
+  intake:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - name: Checkout information-flow
+        uses: actions/checkout@v4
+
+      - name: Checkout DigitalBrain
+        uses: actions/checkout@v4
+        with:
+          repository: jakeguo117/obsidian-digitalbrain
+          token: ${{ secrets.DIGITALBRAIN_TOKEN }}
+          path: digitalbrain
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install yt-dlp
+        run: pip install --quiet yt-dlp
+
+      - name: Write YouTube secrets
+        env:
+          YOUTUBE_TOKEN: ${{ secrets.YOUTUBE_TOKEN }}
+          YOUTUBE_CLIENT: ${{ secrets.YOUTUBE_CLIENT }}
+        run: |
+          mkdir -p "$HOME/.secrets"
+          printf '%s' "$YOUTUBE_TOKEN" > "$HOME/.secrets/youtube_token.json"
+          printf '%s' "$YOUTUBE_CLIENT" > "$HOME/.secrets/google_client.json"
+          chmod 600 "$HOME/.secrets/youtube_token.json" "$HOME/.secrets/google_client.json"
+
+      - name: Run intake
+        env:
+          YOUTUBE_TOKEN_FILE: ${{ env.HOME }}/.secrets/youtube_token.json
+          YOUTUBE_CLIENT_FILE: ${{ env.HOME }}/.secrets/google_client.json
+        run: |
+          export YOUTUBE_TOKEN_FILE="$HOME/.secrets/youtube_token.json"
+          export YOUTUBE_CLIENT_FILE="$HOME/.secrets/google_client.json"
+          python3 scripts/youtube_likes.py --vault digitalbrain
+          python3 scripts/daily_digest.py --vault digitalbrain --since "$(date -d '7 days ago' +%F)"
+          python3 scripts/weekly_rollup.py --vault digitalbrain
+
+      - name: Commit Digests
+        working-directory: digitalbrain
+        run: |
+          git config user.name "information-flow"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "📋 Digests" "📊 Journal Briefs" "📥 Inbox/YouTube-Likes" || true
+          if git diff --cached --quiet; then
+            echo "no digest changes"
+          else
+            git commit -m "intake: daily digest $(date +%F)"
+            git push
+          fi

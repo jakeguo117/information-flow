@@ -5,8 +5,8 @@
 ## 闭环
 
 ```
-21:00  intake 脚本
-  → 📋 Digests/{日期}-Digest.md   索引（日子有才写 + 内容标题）
+GitHub Actions 每天 21:00 上海
+  → 📋 Digests/{日期}-Digest.md   内容索引（无日子）
 
 你说「今天 Digest」
   → 亚里士多德式讨论

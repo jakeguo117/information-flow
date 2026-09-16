@@ -9,7 +9,7 @@ description: Daily DigitalBrain index and Aristotelian discussion. Use when Jake
 
 ## 每天生成（本机 21:00）
 
-Digest 是**索引**：日子（日历/逾期 Reminder，有才写）+ 内容（标题和 wikilink）。不堆划线、不写「本日无新增」。双空不写文件。
+Digest 是**内容索引**（Snipd / WeRead / YouTube 标题+链接）。不写日子、不读日历/Reminders。没新内容不写文件。定时在 GitHub Actions，不依赖这台 Mac 开着。
 
 ```bash
 python3 "$HOME/plugins/information-flow/scripts/youtube_likes.py"

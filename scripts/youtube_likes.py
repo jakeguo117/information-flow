@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -25,8 +26,8 @@ DEFAULT_VAULT = (
 SECRETS_DIR = (
     Path.home() / "Library/Mobile Documents/com~apple~CloudDocs/.secrets/youtube"
 )
-CLIENT_PATH = SECRETS_DIR / "google_client_secret.json"
-TOKEN_PATH = SECRETS_DIR / "youtube_token.json"
+CLIENT_PATH = Path(os.environ.get("YOUTUBE_CLIENT_FILE") or (SECRETS_DIR / "google_client_secret.json"))
+TOKEN_PATH = Path(os.environ.get("YOUTUBE_TOKEN_FILE") or (SECRETS_DIR / "youtube_token.json"))
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 STATE_PATH = PLUGIN_ROOT / "state" / "youtube-likes.json"
 MODEL_PATH = PLUGIN_ROOT / "models" / "ggml-small.bin"

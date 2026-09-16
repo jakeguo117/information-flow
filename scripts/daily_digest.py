@@ -7,7 +7,6 @@ import argparse
 import datetime as dt
 import json
 import re
-import subprocess
 import sys
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -19,7 +18,6 @@ DEFAULT_VAULT = (
 )
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 STATE_DIR = PLUGIN_ROOT / "state"
-LIFE_SCRIPT = PLUGIN_ROOT / "scripts" / "life_events.applescript"
 
 WEREAD_PIN = re.compile(r"^>\s*📌\s*\[(.+?)\]")
 WEREAD_TIME = re.compile(r"^>\s*⏱\s+(\d{4}-\d{2}-\d{2})")
@@ -48,32 +46,6 @@ def parse_frontmatter(text: str) -> dict[str, str]:
 def wiki_rel(path: Path, vault: Path) -> str:
     rel = path.relative_to(vault).as_posix()
     return rel[:-3] if rel.endswith(".md") else rel
-
-
-def collect_life(day: dt.date) -> list[dict]:
-    if not LIFE_SCRIPT.is_file():
-        return []
-    try:
-        proc = subprocess.run(
-            ["osascript", str(LIFE_SCRIPT), day.isoformat()],
-            capture_output=True,
-            text=True,
-            timeout=90,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return []
-    if proc.returncode != 0:
-        return []
-    items: list[dict] = []
-    for raw in proc.stdout.splitlines():
-        parts = raw.split("|", 2)
-        if len(parts) != 3:
-            continue
-        kind, when, title = parts[0].strip(), parts[1].strip(), parts[2].strip()
-        if kind not in {"cal", "rem"} or not title:
-            continue
-        items.append({"kind": kind, "when": when, "title": title})
-    return items
 
 
 def collect_snipd(vault: Path, day: dt.date) -> list[dict]:
@@ -160,17 +132,15 @@ def existing_discussion(dest: Path) -> str:
     return text[idx + 1 :].rstrip() + "\n"
 
 
-def render(day: dt.date, life: list, snipd: list, weread: list, youtube: list) -> str:
+def render(day: dt.date, snipd: list, weread: list, youtube: list) -> str:
     sources = []
-    if life:
-        sources.append("life")
     if snipd:
         sources.append("snipd")
     if weread:
         sources.append("weread")
     if youtube:
         sources.append("youtube")
-    count = len(life) + len(snipd) + len(weread) + len(youtube)
+    count = len(snipd) + len(weread) + len(youtube)
     src_yaml = "[" + ", ".join(sources) + "]" if sources else "[]"
     lines = [
         "---",
@@ -187,15 +157,6 @@ def render(day: dt.date, life: list, snipd: list, weread: list, youtube: list) -
         f"索引 · {iso_week(day)} · {count} 条。讨论后再 append，不在这里堆原文。",
         "",
     ]
-    if life:
-        lines.append("## 日子")
-        lines.append("")
-        for item in life:
-            if item["kind"] == "cal":
-                lines.append(f"- 日历 {item['when']} — {item['title']}")
-            else:
-                lines.append(f"- 逾期 {item['when']} — {item['title']}")
-        lines.append("")
     if snipd or weread or youtube:
         lines.append("## 内容")
         lines.append("")
@@ -251,30 +212,27 @@ def dates_between(start: dt.date, end: dt.date) -> list[dt.date]:
 
 
 def build_one(vault: Path, day: dt.date, force: bool, write_empty: bool) -> dict:
-    life = collect_life(day)
     snipd = collect_snipd(vault, day)
     weread = collect_weread(vault, day)
     youtube = collect_youtube(vault, day)
-    count = len(life) + len(snipd) + len(weread) + len(youtube)
+    count = len(snipd) + len(weread) + len(youtube)
     result = {
         "date": day.isoformat(),
-        "life": len(life),
         "snipd": len(snipd),
         "weread": len(weread),
         "youtube": len(youtube),
         "wrote": False,
         "path": None,
     }
+    dest = vault / "📋 Digests" / f"{day.isoformat()}-Digest.md"
     if count == 0 and not write_empty:
-        dest = vault / "📋 Digests" / f"{day.isoformat()}-Digest.md"
-        if dest.exists() and "generator: journal-daily-digest" in dest.read_text(
-            encoding="utf-8", errors="replace"
-        ):
-            if "## 讨论" not in dest.read_text(encoding="utf-8", errors="replace"):
+        if dest.exists():
+            existing = dest.read_text(encoding="utf-8", errors="replace")
+            if "generator: journal-daily-digest" in existing and "## 讨论" not in existing:
                 dest.unlink()
                 result["path"] = f"removed empty {dest.name}"
         return result
-    text = render(day, life, snipd, weread, youtube)
+    text = render(day, snipd, weread, youtube)
     path = write_digest(vault, day, text, force=force)
     result["wrote"] = True
     result["path"] = str(path)
@@ -303,7 +261,7 @@ def main(argv: list[str] | None = None) -> int:
     for row in results:
         if row["wrote"]:
             print(
-                f"wrote {row['path']} life={row['life']} snipd={row['snipd']} weread={row['weread']} youtube={row['youtube']}"
+                f"wrote {row['path']} snipd={row['snipd']} weread={row['weread']} youtube={row['youtube']}"
             )
         elif row.get("path"):
             print(row["path"])
