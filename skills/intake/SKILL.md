@@ -1,17 +1,15 @@
 ---
 name: intake
-description: Daily DigitalBrain content intake and discussion. Use when Jake says 「今天 Digest」「今天摄入」「跑 Digest」「同步点赞」or /intake. Discuss today's Digests. Does not write Journal.
+description: Daily DigitalBrain index and Aristotelian discussion. Use when Jake says 「今天 Digest」「讨论 Digest」「今天摄入」「跑 Digest」or /intake. Appends reflection to that day's Digest. Does not write Journal.
 ---
 
 # intake
 
-信息流。周记 skill 不开也要跑。不要救 Hermes。不要写 `📝 Journal/`。
+信息流。不要救 Hermes。不要写 `📝 Journal/`。
 
-用户说「今天 Digest」或「今天摄入」时：读当天 `📋 Digests/`（和本周 `📊 Journal Briefs/`），跟他讨论，**不落周记**。
+## 每天生成（本机 21:00）
 
-## 生成文件（只在本机）
-
-若存在 `$HOME/plugins/information-flow/scripts/`（Mac 本机），可以跑：
+Digest 是**索引**：日子（日历/逾期 Reminder，有才写）+ 内容（标题和 wikilink）。不堆划线、不写「本日无新增」。双空不写文件。
 
 ```bash
 python3 "$HOME/plugins/information-flow/scripts/youtube_likes.py"
@@ -19,16 +17,34 @@ python3 "$HOME/plugins/information-flow/scripts/daily_digest.py"
 python3 "$HOME/plugins/information-flow/scripts/weekly_rollup.py"
 ```
 
-或 `scripts/run_digest_jobs.sh`。launchd 每天 21:00 已在跑。
+Cursor 云端不要跑这些脚本。只读仓库里已有的 Digest。
 
-Cursor 云端 **不要**跑这些脚本（没有 vault 路径、没有 YouTube token、没有 Whisper）。只读仓库里已有的 Digest 来讨论。
+## 讨论（亚里士多德式）
 
-## 写出
+用户说「今天 Digest」或「讨论 YYYY-MM-DD Digest」：
 
-- `📋 Digests/{YYYY-MM-DD}-Digest.md`
-- `📊 Journal Briefs/{YYYY}-W{nn}.md`
-- `📥 Inbox/YouTube-Likes/{日期}-{video_id}.md`
+1. 只拿该篇索引当材料。需要原文再打开它链到的 Snipd / WeRead / YouTube-Likes。
+2. 先澄清前提，再追问矛盾，一次一个问题，不宣讲。
+3. 他说可以记下之后：
+   - 把 `## 讨论` **append** 到同一篇 Digest（上面的索引不动）
+   - 每条结论必须有引用（wikilink 回具体来源）。有引用的 reflection **同时**写成 `📖 Resources/concepts/{短标题}.md`
+   - 没有引用的心情句、纯逾期任务不进 wiki
 
-YouTube token 在 iCloud `.secrets/youtube/`。缺 token 先跑 `scripts/youtube_oauth.py`。Whisper 模型在 plugin `models/`，不进 git。
+Resource 卡片模板：
 
-空天跳过日 Digest。不要覆盖非 `journal-daily-digest` / `journal-weekly-rollup` 生成的文件。
+```markdown
+---
+date: {YYYY-MM-DD}
+type: concept
+source_digest: "[[📋 Digests/{YYYY-MM-DD}-Digest]]"
+---
+
+# {短标题}
+
+{几条带引用的结论}
+
+## 来源
+- [[{具体 Snipd/YouTube/WeRead/Digest 条目}]]
+```
+
+Journal Brief 只收已经有 `## 讨论` 的天。

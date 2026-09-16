@@ -69,75 +69,33 @@ def parse_daily(path: Path) -> dict | None:
     meta = parse_frontmatter(text)
     if meta.get("generator") != "journal-daily-digest":
         return None
+    idx = text.find("\n## 讨论")
+    if idx < 0 and not text.lstrip().startswith("## 讨论"):
+        return None
+    block = text[idx if idx >= 0 else 0 :]
+    start = block.find("## 讨论")
+    block = block[start + len("## 讨论") :]
+    points: list[str] = []
+    for line in block.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("## "):
+            break
+        if stripped.startswith("- "):
+            point = stripped[2:].strip()
+            if point:
+                points.append(point)
+        elif stripped.startswith("[["):
+            continue
+    if not points:
+        return None
     day = dt.date.fromisoformat(match.group(1))
-    section = None
-    items: list[dict] = []
-    current: dict | None = None
-
-    def flush() -> None:
-        nonlocal current
-        if current:
-            items.append(current)
-            current = None
-
-    for line in text.splitlines():
-        heading = HEADING.match(line)
-        if heading:
-            flush()
-            title = heading.group(1).strip()
-            if title.startswith("Snipd"):
-                section = "snipd"
-            elif title.startswith("WeRead"):
-                section = "weread"
-            elif title.startswith("YouTube"):
-                section = "youtube"
-            else:
-                section = None
-            continue
-        if section in {"snipd", "weread", "youtube"} and line.startswith("- **"):
-            flush()
-            if section == "snipd":
-                parsed = SNIP_ITEM.match(line)
-                if parsed:
-                    current = {
-                        "kind": "snipd",
-                        "show": parsed.group(1),
-                        "title": parsed.group(2),
-                        "wiki": None,
-                        "quote": None,
-                    }
-            elif section == "youtube":
-                parsed = YT_ITEM.match(line)
-                if parsed:
-                    current = {
-                        "kind": "youtube",
-                        "show": parsed.group(1),
-                        "title": parsed.group(2),
-                        "wiki": None,
-                        "quote": None,
-                    }
-            else:
-                parsed = WEREAD_ITEM.match(line)
-                if parsed:
-                    current = {
-                        "kind": "weread",
-                        "show": "WeRead",
-                        "title": parsed.group(1),
-                        "wiki": None,
-                        "quote": None,
-                    }
-            continue
-        if current is None:
-            continue
-        wiki = WIKI.search(line)
-        if wiki and not current.get("wiki"):
-            current["wiki"] = wiki.group(1)
-            continue
-        quote = QUOTE_LINE.match(line)
-        if quote and not current.get("quote"):
-            current["quote"] = quote.group(1).strip()
-    flush()
-    return {"date": day, "week": meta.get("week") or iso_week_label(day), "items": items, "path": path}
+    return {
+        "date": day,
+        "week": meta.get("week") or iso_week_label(day),
+        "points": points[:7],
+        "path": path,
+        "wiki": path.stem,
+    }
 
 
 def collect_week(vault: Path, week: str) -> list[dict]:
@@ -157,7 +115,7 @@ def collect_week(vault: Path, week: str) -> list[dict]:
 
 def render(week: str, days: list[dict], run_day: dt.date) -> str:
     covers = [d["date"].isoformat() for d in days]
-    item_count = sum(len(d["items"]) for d in days)
+    item_count = sum(len(d["points"]) for d in days)
     lines = [
         "---",
         f"date: {run_day.isoformat()}",
@@ -170,37 +128,34 @@ def render(week: str, days: list[dict], run_day: dt.date) -> str:
         "",
         f"# 周汇总 — {week}",
         "",
-        "本周每日 Digest 收成讨论燃料。一句来源 + 一句划线。原文在各日 Digest 和 vault 链接里。",
+        "只收本周已经讨论过的 Digest。没有 ## 讨论 的天不进这里。",
         "",
     ]
     if not days:
-        lines.append("本周还没有 `journal-daily-digest` 生成的每日篇。")
+        lines.append("本周还没有带讨论的 Digest。")
         lines.append("")
         return "\n".join(lines)
 
+    lines.append("## 能对线的点")
+    lines.append("")
+    cues = []
+    for day in days:
+        for point in day["points"]:
+            if point not in cues:
+                cues.append(point)
+            if len(cues) >= 7:
+                break
+        if len(cues) >= 7:
+            break
+    for point in cues:
+        lines.append(f"- {point}")
+    lines.append("")
     for day in days:
         lines.append(f"## {day['date'].isoformat()}")
         lines.append("")
-        if not day["items"]:
-            lines.append("- 无条目")
-            lines.append("")
-            continue
-        for item in day["items"]:
-            if item["kind"] == "snipd":
-                head = f"- Snipd · {item['show']} — {item['title']}"
-            elif item["kind"] == "youtube":
-                head = f"- YouTube · {item['show']} — {item['title']}"
-            else:
-                head = f"- WeRead · {item['title']}"
-            lines.append(head)
-            if item.get("wiki"):
-                lines.append(f"  - [[{item['wiki']}]]")
-            if item.get("quote"):
-                lines.append(f"  - {item['quote']}")
-        lines.append("")
-    has_youtube = any(item["kind"] == "youtube" for day in days for item in day["items"])
-    if not has_youtube:
-        lines.append("YouTube 点赞：本周无新增。")
+        lines.append(f"- [[{day['wiki']}]]")
+        for point in day["points"]:
+            lines.append(f"- {point}")
         lines.append("")
     return "\n".join(lines)
 
@@ -234,6 +189,16 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     days = collect_week(vault, week)
+    dest = vault / "📊 Journal Briefs" / f"{week}.md"
+    if not days:
+        if dest.exists():
+            existing = dest.read_text(encoding="utf-8", errors="replace")
+            if "generator: journal-weekly-rollup" in existing:
+                dest.unlink()
+                print(f"removed empty {dest}")
+        else:
+            print(f"skip {week} (no discussed digests)")
+        return 0
     text = render(week, days, run_day=today)
     dest = write_rollup(vault, week, text, force=args.force)
     STATE_DIR.mkdir(parents=True, exist_ok=True)
@@ -250,7 +215,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             + "\n"
         )
-    print(f"wrote {dest} days={len(days)} items={sum(len(d['items']) for d in days)}")
+    print(f"wrote {dest} days={len(days)} points={sum(len(d['points']) for d in days)}")
     return 0
 
 
