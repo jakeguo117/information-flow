@@ -1,5 +1,5 @@
 #!/bin/sh
-# Intake only: likes + daily digest + weekly journal brief. Does not run journal.
+# Intake only: likes + weekly intake.md append + Briefing refresh. Does not run journal.
 set -e
 PY="${PYTHON3:-python3}"
 DIR="${HOME}/plugins/information-flow/scripts"

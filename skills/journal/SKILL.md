@@ -1,11 +1,11 @@
 ---
 name: journal
-description: Jake 的周记。读旧周记和本周全部 Digest / Journal Brief，启发式讨论后写入 DigitalBrain。说「写周记」「周记」或 /journal 时用。不生成 Digest。
+description: Jake 的周记。读旧周记和本周 intake.md 已勾选条目，启发式讨论后写入 DigitalBrain。说「写周记」「周记」或 /journal 时用。不生成 Digest。
 ---
 
 # journal
 
-给 Jake 自己用。最终形状见 `references/setup.md`。读文件顺序见 `references/weekly-brief.md`。不要救 Hermes。不要抓 Snipd/YouTube/WeRead 原文。不要跑 intake 脚本，除非他明确说 Digests 缺了要补。
+给 Jake 自己用。最终形状见 `references/setup.md`。读文件顺序见 `references/weekly-brief.md`。不要救 Hermes。不要抓 Snipd/YouTube/WeRead 原文。不要跑 intake 脚本，除非他明确说本周 intake 缺了要补。
 
 ## 口气
 
@@ -21,7 +21,7 @@ Vault 目录（按这个顺序认，认到就停）：
 2. 当前工作区根目录，若有 `📝 Journal/`（Cursor 云端 clone 的 GitHub DigitalBrain）
 3. 否则停下来问 Jake，不要猜路径
 
-按 `references/weekly-brief.md` 读。优先本周已有 `## 讨论` 的 Digest 和 `📊 Journal Briefs/`。没讨论过的天当索引略过。周记 Connections 链已经进 `📖 Resources/` 的卡片，不再拦一道入库。
+按 `references/weekly-brief.md` 读。只拿本周 `📋 Digests/{YYYY-Wnn}/intake.md` 里 **`[x]`** 的条目和已有 Resource 卡片。未勾选的当索引略过。周记 Connections 链已经进 `📖 Resources/` 的卡片，不再拦一道入库。
 
 缺文件时不要自己去抓源。摄入是 `intake` skill，每天 21:00 跑。
 
@@ -31,12 +31,12 @@ Vault 目录（按这个顺序认，认到就停）：
 
 不要一上来甩摘要清单。顺序：
 
-1. 先让他把这周的事说完。可以点一下上周还悬着的线，但不要在他说完之前用 Digest 来 reflect。Digest 先只读、不上场。
-2. 他说「这周就这些」或明确讲完之后，再拿本周 **已讨论** 的 Digest / Resource 卡片去对。对不上的略过。没讨论过的索引不要当成结论。
+1. 先让他把这周的事说完。可以点一下上周还悬着的线，但不要在他说完之前用 intake 来 reflect。intake 先只读、不上场。
+2. 他说「这周就这些」或明确讲完之后，再拿本周 **已勾选** 的 intake 条目 / Resource 卡片去对。对不上的略过。未勾选的不要当成结论。
 3. 对上之后再往下挖。一次不要堆很多题。
 4. 他没说讲完、没说可以写之前，不落盘。
 
-禁止：把 Digest 原文贴进周记；没讨论就写完整篇；定时任务代写；他这周的事还没说完就开始用 Digest 解释他。
+禁止：把 intake 原文贴进周记；没讨论就写完整篇；定时任务代写；他这周的事还没说完就开始用 intake 解释他。不自动 git push 周记。
 
 ### 3. 落盘
 

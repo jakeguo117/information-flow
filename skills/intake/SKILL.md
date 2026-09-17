@@ -1,15 +1,15 @@
 ---
 name: intake
-description: Daily DigitalBrain index and Aristotelian discussion. Use when Jake says 「今天 Digest」「讨论 Digest」「今天摄入」「跑 Digest」or /intake. Appends reflection to that day's Digest. Does not write Journal.
+description: Weekly DigitalBrain intake.md and Yale-style discussion. Use when Jake says 「今天 Digest」「讨论 Digest」「今天摄入」「跑 Digest」or /intake. Appends reflection to this week's intake.md. Does not write Journal.
 ---
 
 # intake
 
-信息流。不要救 Hermes。不要写 `📝 Journal/`。
+信息流。不要救 Hermes。不要写 `📝 Journal/`。不要写日子、日历、Reminders、保险交易。
 
-## 每天生成（本机 21:00）
+## 每天生成（21:00 上海，GitHub Actions）
 
-Digest 是**内容索引**（Snipd / WeRead / YouTube 标题+链接）。不写日子、不读日历/Reminders。没新内容不写文件。定时在 GitHub Actions，不依赖这台 Mac 开着。
+主文件是 **`📋 Digests/{YYYY-Wnn}/intake.md`**（一篇累积）。有新 Snipd / WeRead / YouTube 才 append。没新增不动、不写空文件。旧的日 Digest 不是入口。
 
 ```bash
 python3 "$HOME/plugins/information-flow/scripts/youtube_likes.py"
@@ -17,18 +17,22 @@ python3 "$HOME/plugins/information-flow/scripts/daily_digest.py"
 python3 "$HOME/plugins/information-flow/scripts/weekly_rollup.py"
 ```
 
-Cursor 云端不要跑这些脚本。只读仓库里已有的 Digest。
+Cursor 云端不要跑这些脚本。只读仓库里已有的 `intake.md`。
 
-## 讨论（亚里士多德式）
+Vault：本机 `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain`；否则当前工作区根（须有 `📝 Journal/`）。
 
-用户说「今天 Digest」或「讨论 YYYY-MM-DD Digest」：
+## 讨论（Yale 式，一次一问）
 
-1. 只拿该篇索引当材料。需要原文再打开它链到的 Snipd / WeRead / YouTube-Likes。
-2. 先澄清前提，再追问矛盾，一次一个问题，不宣讲。
-3. 他说可以记下之后：
-   - 把 `## 讨论` **append** 到同一篇 Digest（上面的索引不动）
-   - 每条结论必须有引用（wikilink 回具体来源）。有引用的 reflection **同时**写成 `📖 Resources/concepts/{短标题}.md`
+用户说「今天 Digest」「讨论 Digest」或 `/intake`：
+
+1. 打开本周 `📋 Digests/{YYYY-Wnn}/intake.md`。先读 **Briefing**（只有未勾选）。需要原文再打开该条 wikilink 的 Snipd / WeRead / YouTube-Likes。
+2. 一次只问一个问题。不宣讲整周清单，不堆 CRM 流水。
+3. 可以把该条挂到 Linear issue 或笔记 wikilink。intake 里只加一行 `挂钩：[[笔记]]` 或 `挂钩：ABC-123`，不把 Linear/CRM 正文写进 intake。
+4. 他说可以记下之后：
+   - 该条改成 `[x]`，在该条下面 **append** 带引用的 reflection（wikilink 回来源）
+   - 有引用的 reflection **同时**写成 `📖 Resources/concepts/{短标题}.md`
    - 没有引用的心情句、纯逾期任务不进 wiki
+   - 然后可跑 `weekly_rollup.py` 让 Briefing 更新、`[x]` 沉底；人手改 checkbox 也可以，下次脚本会沉底
 
 Resource 卡片模板：
 
@@ -36,7 +40,7 @@ Resource 卡片模板：
 ---
 date: {YYYY-MM-DD}
 type: concept
-source_digest: "[[📋 Digests/{YYYY-MM-DD}-Digest]]"
+source_digest: "[[📋 Digests/{YYYY-Wnn}/intake]]"
 ---
 
 # {短标题}
@@ -44,7 +48,7 @@ source_digest: "[[📋 Digests/{YYYY-MM-DD}-Digest]]"
 {几条带引用的结论}
 
 ## 来源
-- [[{具体 Snipd/YouTube/WeRead/Digest 条目}]]
+- [[{具体 Snipd/YouTube/WeRead/intake 条目}]]
 ```
 
-Journal Brief 只收已经有 `## 讨论` 的天。
+Journal 只读本周 intake 里已经 `[x]` 的条目。
