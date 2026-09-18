@@ -21,6 +21,8 @@
   <string>/Users/jake/plugins/information-flow/state/intake-source-push.err.log</string>
   <key>EnvironmentVariables</key>
   <dict>
+    <key>HOME</key>
+    <string>/Users/jake</string>
     <key>PATH</key>
     <string>/opt/homebrew/bin:/usr/bin:/bin</string>
   </dict>
