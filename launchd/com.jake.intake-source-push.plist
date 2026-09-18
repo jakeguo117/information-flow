@@ -6,8 +6,8 @@
   <string>com.jake.intake-source-push</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/bin/sh</string>
-    <string>/Users/jake/plugins/information-flow/scripts/push_intake_sources.sh</string>
+    <string>/usr/bin/osascript</string>
+    <string>/Users/jake/plugins/information-flow/scripts/run_intake_source_push.applescript</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
