@@ -47,11 +47,20 @@ if [ "$WAIT" -gt 0 ]; then
   sleep "$WAIT"
 fi
 
+# launchd may start with a cwd git cannot read. Never cd into iCloud:
+# macOS then returns EPERM on getcwd() for later git calls.
+cd "$PLUGIN_ROOT" || die "cannot cd to plugin root: $PLUGIN_ROOT"
+
 [ -d "$VAULT/.git" ] || die "vault is not a git repo: $VAULT"
 command -v git >/dev/null || die "git not found"
 command -v rsync >/dev/null || die "rsync not found"
+command -v python3 >/dev/null || die "python3 not found"
 
-vault_real=$(CDPATH= cd "$VAULT" && pwd -P)
+realpath_of() {
+  python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$1"
+}
+
+vault_real=$(realpath_of "$VAULT")
 
 git -C "$VAULT" fetch origin
 
@@ -66,7 +75,7 @@ else
   git -C "$WORKTREE" fetch origin
 fi
 
-wt_real=$(CDPATH= cd "$WORKTREE" && pwd -P)
+wt_real=$(realpath_of "$WORKTREE")
 [ "$wt_real" != "$vault_real" ] || die "refusing to commit in the iCloud vault working tree"
 
 branch=$(git -C "$WORKTREE" rev-parse --abbrev-ref HEAD)

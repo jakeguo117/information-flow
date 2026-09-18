@@ -13,6 +13,8 @@
   <true/>
   <key>StartInterval</key>
   <integer>14400</integer>
+  <key>WorkingDirectory</key>
+  <string>/Users/jake/plugins/information-flow</string>
   <key>StandardOutPath</key>
   <string>/Users/jake/plugins/information-flow/state/intake-source-push.out.log</string>
   <key>StandardErrorPath</key>
