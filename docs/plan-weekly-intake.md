@@ -29,7 +29,7 @@ generator: journal-weekly-intake
   - 摄入：2026-09-08 · youtube
 ```
 
-- 每天 GitHub Actions 有新 Snipd / WeRead / YouTube 就 append；没新增不动、不写空文件。
+- 每天 GitHub Actions 有新 Snipd / WeRead / YouTube 就 append；没新增不动、不写空文件。YouTube 由 Actions 拉 API。Snipd / WeRead 须先经本机 `push_intake_sources.sh` 上到 `main`，再等下一次 Actions。
 - 每条：标题 + wikilink + 2–3 句划线 + checkbox。`[x]` 沉底。
 - 挂钩只允许一行 `挂钩：[[笔记]]` 或 Linear 标识，不写 CRM 流水。
 - 幂等：wikilink 当 id。已有条目不改 checkbox、挂钩、reflection、已有划线。
@@ -42,7 +42,8 @@ generator: journal-weekly-intake
 
 - `daily_digest.py`：append 到当周 `intake.md`。空天 skip。
 - `weekly_rollup.py`：只重写已存在 `intake.md` 的 Briefing 并把 `[x]` 沉底。不写 `📊 Journal Briefs/`。文件不存在就 skip。
-- `run_digest_jobs.sh` 仍三条命令。
+- `run_digest_jobs.sh` 仍三条命令（只给 Actions / 手动；本机 digest launchd 保持卸载）。
+- `push_intake_sources.sh` 另开 `origin/main` worktree，只同步 `Snipd/` 与 `📥 Inbox/WeRead`。禁止 `git add -A`、禁止 force-push、禁止 `--no-verify`。
 - Actions 只 `git add` `📋 Digests` 和它写入的 `📥 Inbox/YouTube-Likes`。禁止 `git add -A`。
 
 ## Skill

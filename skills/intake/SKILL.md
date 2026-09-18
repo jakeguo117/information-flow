@@ -20,6 +20,8 @@ description: Weekly DigitalBrain intake.md and Yale-style discussion. Use when J
 
 主文件是 **`📋 Digests/{YYYY-Wnn}/intake.md`**（一篇累积）。有新 Snipd / WeRead / YouTube 才 append。没新增不动、不写空文件。旧的日 Digest 不是入口。Actions 直接 `git push` 回 `main`，不经过 PR。
 
+YouTube 由 Actions 拉 API。Snipd / WeRead 靠本机插件落盘，再由 `scripts/push_intake_sources.sh`（launchd `com.jake.intake-source-push`：登录后跑，Mac 开着每 4 小时）只推这两棵树上 `main`。下一次 Actions 才 append。一周没开机，手机只能读上次已经在 `main` 上的源。不要重新加载 `com.jake.journal-daily-digest`。
+
 ```bash
 python3 "$HOME/plugins/information-flow/scripts/youtube_likes.py"
 python3 "$HOME/plugins/information-flow/scripts/daily_digest.py"
