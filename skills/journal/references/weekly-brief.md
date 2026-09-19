@@ -7,13 +7,13 @@
 优先本机：`~/Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain`  
 否则当前工作区根（Cursor 云端 clone 的 DigitalBrain，须有 `📝 Journal/`）。
 
-ISO 周：本周周一 00:00 到周日 23:59（本地）。目录名 `{YYYY}-W{nn}`，例如 `2026-W38`。
+**自己认周。** ISO 周按 Asia/Shanghai 当天（周一 00:00 到周日 23:59）。目录名 `{YYYY}-W{nn}`。不要问 Jake 是哪一周。本周 `intake.md` 不存在，就用 `📋 Digests/` 里已有的最近一周。有脚本就跑 `python3 scripts/weekly_intake.py --vault "$VAULT"`。
 
 ## 读取顺序
 
 1. `VAULT/📝 Journal/` 最近 2–3 篇（按文件名倒序）。学口气、未收的线、已经点名的老项目。不把正文写入 DigitalBrain memory。
 2. 只打开那些周记里已经出现的 `🚀 Projects/` / `📖 Resources/` wikilink（老项目、很小的线）。不要扫整个项目目录来「补这周」。
-3. `VAULT/📋 Digests/{YYYY-Wnn}/intake.md`。只读 **`[x]`** 的条目和它们下面的 reflection，用来找和旧线的 **呼应**。Briefing / 未勾选只是索引，对不上就略过。
+3. 用上面规则解析出的 `VAULT/📋 Digests/{YYYY-Wnn}/intake.md`。只读 **`[x]`** 的条目和它们下面的 reflection，用来找和旧线的 **呼应**。Briefing / 未勾选只是索引，对不上就略过。
 4. 本周相关 `VAULT/📖 Resources/` 卡片：讨论带引用时已经写进去的。周记只链，不再入库。
 
 日 Digest 和 `📊 Journal Briefs/` 不再当输入。

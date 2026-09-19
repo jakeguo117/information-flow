@@ -20,8 +20,9 @@ information-flow 的 intake / journal skill 一进 main
   → 下次打开 DigitalBrain 那个项目，读到的就是这份规则
   → 不改已经写下的 intake / 周记正文
 
-你说「今天 Digest」或「W38 有什么」
-  → 先读最近周记和已挂上的老项目，再从本周 intake 找一条呼应
+你说「今天 Digest」
+  → 上海当天自己认周；本周没有就用最近一周。不要问他 W38
+  → 先读最近周记和已挂上的老项目，再从那一周 intake 找一条呼应
   → Yale 式一次一问。禁止整周附录出文
   → 该条 [x] + reflection
   → 有引用的结论 → 📖 Resources/concepts/

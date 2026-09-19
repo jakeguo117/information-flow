@@ -23,7 +23,7 @@ Vault 目录（按这个顺序认，认到就停）：
 2. 当前工作区根目录，若有 `📝 Journal/`（Cursor 云端 clone 的 GitHub DigitalBrain）
 3. 否则停下来问 Jake，不要猜路径
 
-按 `references/weekly-brief.md` 读。先旧周记和已经挂上的老项目 / 小线，再拿本周 `📋 Digests/{YYYY-Wnn}/intake.md` 里 **`[x]`** 的条目和已有 Resource 卡片去对呼应。未勾选的当索引略过。周记 Connections 链已经进 `📖 Resources/` 的卡片，不再拦一道入库。
+按 `references/weekly-brief.md` 读。先旧周记和已经挂上的老项目 / 小线。**自己认周**：Asia/Shanghai 当天的 ISO 周，没有文件就回落到 `📋 Digests/` 里已有的最近一周。不要问他是哪一周。再拿那一周 `intake.md` 里 **`[x]`** 的条目和已有 Resource 卡片去对呼应。未勾选的当索引略过。周记 Connections 链已经进 `📖 Resources/` 的卡片，不再拦一道入库。
 
 缺文件时不要自己去抓源。摄入是 `intake` skill，每天 21:00 跑。
 
@@ -35,7 +35,7 @@ Vault 目录（按这个顺序认，认到就停）：
 
 1. 先读最近 2–3 篇周记，以及那些篇里已经点名的 `🚀 Projects/` / Resource（老项目、很小的未收线）。点一下还悬着的线。intake 先只读、不上场。
 2. 听他这周的画像。他说「这周就这些」或明确讲完之前，不要用本周 intake 解释他。
-3. 再拿本周 **已勾选** 的 intake 条目 / Resource 卡片去找 **呼应**。对不上的略过。未勾选的不要当成结论。
+3. 再拿刚解析出的那一周 **已勾选** 的 intake 条目 / Resource 卡片去找 **呼应**。对不上的略过。未勾选的不要当成结论。
 4. 对上之后再往下挖。一次不要堆很多题。
 5. **客户说「可以写 / 写吧 / OK 写」之前，不落盘。** 他说「写周记」只是开始讨论，不是授权出文。
 

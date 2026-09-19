@@ -129,6 +129,35 @@ class WeeklyIntakeTests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 daily_digest.main(["--vault", str(vault), "--date", DAY.isoformat()])
 
+    def test_resolve_intake_prefers_current_week(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            write(vault / "📋 Digests" / "2026-W37" / "intake.md", "w37\n")
+            write(vault / "📋 Digests" / "2026-W38" / "intake.md", "w38\n")
+            dest = weekly_intake.resolve_intake(vault, dt.date(2026, 9, 19))
+            self.assertEqual(dest, weekly_intake.intake_path(vault, "2026-W38"))
+            self.assertEqual(
+                weekly_intake.main(["--vault", str(vault), "--date", "2026-09-19"]),
+                0,
+            )
+
+    def test_resolve_intake_falls_back_to_latest(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            write(vault / "📋 Digests" / "2026-W37" / "intake.md", "w37\n")
+            dest = weekly_intake.resolve_intake(vault, dt.date(2026, 9, 19))
+            self.assertEqual(dest, weekly_intake.intake_path(vault, "2026-W37"))
+
+    def test_resolve_intake_none_when_empty(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            vault.mkdir(exist_ok=True)
+            self.assertIsNone(weekly_intake.resolve_intake(vault, dt.date(2026, 9, 19)))
+            self.assertEqual(
+                weekly_intake.main(["--vault", str(vault), "--date", "2026-09-19"]),
+                1,
+            )
+
 
 if __name__ == "__main__":
     raise SystemExit(unittest.main())

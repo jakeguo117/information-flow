@@ -126,9 +126,16 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertIn("先读最近 2–3 篇", text)
         self.assertIn("呼应", text)
         self.assertIn("禁止整周附录", text)
-        self.assertIn("W38 有什么", text)
+        self.assertIn("自己认周", text)
+        self.assertIn("Asia/Shanghai", text)
+        self.assertNotIn("W38 有什么", text)
+        self.assertNotIn("week 38", text)
         self.assertNotIn("立刻用 **Briefing** 里第一条未勾选问一句", text)
         self.assertIn("不要写 `📝 Journal/`", text)
+        route = (sync.SKILLS_DIR / "digitalbrain-agents-route.md").read_text(encoding="utf-8")
+        self.assertIn("自己认周", route)
+        self.assertNotIn("W38 有什么", route)
+        self.assertNotIn("week 38", route)
 
     def test_journal_waits_for_ok(self) -> None:
         text = (sync.SKILLS_DIR / "journal" / "SKILL.md").read_text(encoding="utf-8")
@@ -136,6 +143,8 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertIn("呼应", text)
         self.assertIn("可以写 / 写吧 / OK 写", text)
         self.assertIn("客户说「可以写 / 写吧 / OK 写」之前，不落盘", text)
+        self.assertIn("自己认周", text)
+        self.assertNotIn("W38 有什么", text)
 
 
 if __name__ == "__main__":

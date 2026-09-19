@@ -4,7 +4,7 @@ Jake only. Daily content in, weekly journal out.
 
 ## Skills
 
-- `intake` — discuss this week's `📋 Digests/{YYYY-Wnn}/intake.md` (portrait + old-thread echoes first; never dump the week)
+- `intake` — resolve this week's `📋 Digests/{YYYY-Wnn}/intake.md` from the Shanghai date (portrait + old-thread echoes first; never dump the week)
 - `journal` — on demand: find echoes from recent journals / already-linked projects, then write `📝 Journal/` only after Jake says OK
 
 Skill copies on DigitalBrain (`.cursor/skills/` + the AGENTS.md route block) are overwritten by `scripts/sync_digitalbrain_skills.py` when this repo's `main` changes. Existing notes are not rewritten.

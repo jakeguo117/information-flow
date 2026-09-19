@@ -3,16 +3,20 @@
 
 from __future__ import annotations
 
+import argparse
 import datetime as dt
 import re
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 GENERATOR = "journal-weekly-intake"
 DIGESTS_DIR = "📋 Digests"
 ITEM_START = re.compile(r"^- \[([ xX])\] (.+)$")
 WIKI = re.compile(r"\[\[(.+?)\]\]")
 SENTENCE_SPLIT = re.compile(r"(?<=[。！？.!?])\s+")
+WEEK_DIR = re.compile(r"^(\d{4})-W(\d{2})$")
 
 
 def iso_week(day: dt.date) -> str:
@@ -22,6 +26,29 @@ def iso_week(day: dt.date) -> str:
 
 def intake_path(vault: Path, week: str) -> Path:
     return vault / DIGESTS_DIR / week / "intake.md"
+
+
+def list_intake_weeks(vault: Path) -> list[str]:
+    root = vault / DIGESTS_DIR
+    if not root.is_dir():
+        return []
+    weeks: list[str] = []
+    for child in root.iterdir():
+        if child.is_dir() and WEEK_DIR.match(child.name) and (child / "intake.md").is_file():
+            weeks.append(child.name)
+    weeks.sort()
+    return weeks
+
+
+def resolve_intake(vault: Path, today: dt.date) -> Path | None:
+    """Current ISO week if that intake exists, else the newest existing week."""
+    current = intake_path(vault, iso_week(today))
+    if current.is_file():
+        return current
+    weeks = list_intake_weeks(vault)
+    if not weeks:
+        return None
+    return intake_path(vault, weeks[-1])
 
 
 def parse_frontmatter(text: str) -> dict[str, str]:
@@ -249,3 +276,26 @@ def new_item(heading: str, wiki: str, thread: str, day: dt.date, kind: str) -> I
         extra.append(f"  - {thread}")
     extra.append(f"  - 摄入：{day.isoformat()} · {kind}")
     return IntakeItem(checked=False, heading=heading, wiki=wiki, extra=extra)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Resolve the current weekly intake.md")
+    parser.add_argument("--vault", required=True)
+    parser.add_argument("--date", help="YYYY-MM-DD (default: today Asia/Shanghai)")
+    args = parser.parse_args(argv)
+    vault = Path(args.vault).expanduser()
+    today = (
+        dt.date.fromisoformat(args.date)
+        if args.date
+        else dt.datetime.now(ZoneInfo("Asia/Shanghai")).date()
+    )
+    dest = resolve_intake(vault, today)
+    if dest is None:
+        print("no weekly intake", file=sys.stderr)
+        return 1
+    print(dest.relative_to(vault).as_posix())
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

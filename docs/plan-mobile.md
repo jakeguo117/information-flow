@@ -16,15 +16,15 @@
 
 ## 周入口必须在 GitHub `main`
 
-「今天 Digest」只读：
+「今天 Digest」自己认周：Asia/Shanghai 当天的 ISO 周，打开
 
 `📋 Digests/{YYYY-Wnn}/intake.md`
 
-不读日 Digest，不读 Daily Briefing。本机 iCloud 有、GitHub `main` 没有，等于手机找不到入口。
+本周没有文件，就用 `📋 Digests/` 里已有的最近一周。不要问他是哪一周。不读日 Digest，不读 Daily Briefing。本机 iCloud 有、GitHub `main` 没有，等于手机找不到入口。
 
 Skill 在仓库内：`.cursor/skills/{intake,journal}/`。源在 information-flow，Actions 覆盖这两份和 `AGENTS.md` 硬路由。Cloud clone DigitalBrain 就能看见，不依赖 Sync Skills。
 
-「今天 Digest」或「W38 有什么」：先读最近周记和已挂上的老项目，再从本周 intake 挑一条呼应。禁止整周附录出文。客户没说可以写之前，不写周记。
+「今天 Digest」：先自己认周，再读最近周记和已挂上的老项目，从那一周 intake 挑一条呼应。禁止整周附录出文。客户没说可以写之前，不写周记。
 
 **YouTube** 由 Actions 自己拉 API，不依赖开机。**Snipd / WeRead** 没有同等云 API：本机插件先落到 iCloud vault，登录后 `com.jake.intake-source-push` 只把这两棵树推上 `main`，再等下一次 12:00/21:00 Actions 才会 append 进周 `intake.md`。一周没开机，手机 Digest 就还是上次 `main` 上的源。Obsidian Git 保持 `disablePush: true`。`com.jake.journal-daily-digest` 保持卸载，避免和 Actions 双写。
 
@@ -32,7 +32,7 @@ Skill 在仓库内：`.cursor/skills/{intake,journal}/`。源在 information-flo
 
 | | 电脑开着 | 电脑关着 |
 |---|---|---|
-| 今天 Digest | 本机 Cursor 可读 iCloud vault | Cloud 只读 GitHub `main` 上的本周 `intake.md` |
+| 今天 Digest | 本机 Cursor 按上海日期认周 | Cloud 按上海日期认周；本周没有就用 main 上最近一周 |
 | 记下 | 本机改文件；手机路径要 push `main` 才进下一轮 | 精确路径 commit + push `main` |
 | 写周记 | 本机写 `📝 Journal/` | Cloud 可写 Journal；**仍不自动 push** |
 
