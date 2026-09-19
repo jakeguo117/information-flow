@@ -45,8 +45,10 @@ generator: journal-weekly-intake
 - `run_digest_jobs.sh` 仍三条命令（只给 Actions / 手动；本机 digest launchd 保持卸载）。
 - `push_intake_sources.sh` 另开 `origin/main` worktree，只同步 `Snipd/` 与 `📥 Inbox/WeRead`。禁止 `git add -A`、禁止 force-push、禁止 `--no-verify`。
 - Actions 只 `git add` `📋 Digests` 和它写入的 `📥 Inbox/YouTube-Likes`。禁止 `git add -A`。
+- `sync_digitalbrain_skills.py`：把 `skills/{intake,journal}` 和 AGENTS 硬路由拷进 DigitalBrain。只动 `.cursor/skills/` 与 `AGENTS.md` 里的标记段。不改 intake / 周记正文。
 
 ## Skill
 
-- intake：读本周 `intake.md` 的 Briefing，Yale 式一次一问。记下则 `[x]` + 带引用 reflection；有引用才写 `📖 Resources/concepts/`。
-- journal：只读本周 intake 的 `[x]` 与 Resource，不再依赖日 Digest 的 `## 讨论` 或 Journal Briefs。
+- intake：先读最近周记和已挂上的老项目，再从本周 intake 挑一条呼应。Yale 式一次一问。禁止整周附录出文。记下则 `[x]` + 带引用 reflection；有引用才写 `📖 Resources/concepts/`。
+- journal：先旧线呼应，再对已勾选 intake。客户说「可以写 / 写吧 / OK 写」之前不落盘。不再依赖日 Digest 的 `## 讨论` 或 Journal Briefs。
+- DigitalBrain 项目里的 skill 副本由 Actions 覆盖。改规则只改 information-flow。

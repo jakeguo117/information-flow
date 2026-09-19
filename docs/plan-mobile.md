@@ -8,8 +8,9 @@
 |---|---|---|
 | GitHub Actions | 12:00 和 21:00 上海 | checkout `main` → YouTube 走 API；有 `main` 上已有的 Snipd/WeRead/YouTube 才 append `📋 Digests/{YYYY-Wnn}/intake.md` → `git push` 回 `main` |
 | 本机 `com.jake.intake-source-push` | 登录后；Mac 开着每 4 小时 | 只把 `Snipd/` 和 `📥 Inbox/WeRead` 从 iCloud vault 精确推到 `main`。不打开 Obsidian Git 全仓 push。 |
+| skill 同步 | information-flow `main` 上 skills 变更；每天 intake 再兜一层 | 只覆盖 DigitalBrain `.cursor/skills/{intake,journal}/` 和 `AGENTS.md` 硬路由。**不改**已写成的 intake / 周记 |
 | 手机说「记下」 | 讨论完一条 | 只暂存该条 `intake.md` 勾选/reflection，以及有引用时的 `📖 Resources/concepts/` 卡片；精确路径 commit，**push `main`** |
-| 写周记 | 你明确说写 | 改 `📝 Journal/`。**不自动 push** |
+| 写周记 | 你明确说「可以写 / 写吧 / OK 写」 | 改 `📝 Journal/`。**不自动 push** |
 
 禁止 `git add -A`。禁止为 Digest 开 PR。Cursor Cloud 若仍强制出 PR 卡，那是产品限制：停下来告诉 Jake，不要自己合，也不要去合其它 DigitalBrain PR（包括 [#3](https://github.com/jakeguo117/obsidian-digitalbrain/pull/3)）。
 
@@ -21,7 +22,9 @@
 
 不读日 Digest，不读 Daily Briefing。本机 iCloud 有、GitHub `main` 没有，等于手机找不到入口。
 
-Skill 在仓库内：`.cursor/skills/intake/SKILL.md`。Cloud clone 仓库就能看见，不依赖 Sync Skills。`AGENTS.md` 有同一条硬路由。
+Skill 在仓库内：`.cursor/skills/{intake,journal}/`。源在 information-flow，Actions 覆盖这两份和 `AGENTS.md` 硬路由。Cloud clone DigitalBrain 就能看见，不依赖 Sync Skills。
+
+「今天 Digest」或「W38 有什么」：先读最近周记和已挂上的老项目，再从本周 intake 挑一条呼应。禁止整周附录出文。客户没说可以写之前，不写周记。
 
 **YouTube** 由 Actions 自己拉 API，不依赖开机。**Snipd / WeRead** 没有同等云 API：本机插件先落到 iCloud vault，登录后 `com.jake.intake-source-push` 只把这两棵树推上 `main`，再等下一次 12:00/21:00 Actions 才会 append 进周 `intake.md`。一周没开机，手机 Digest 就还是上次 `main` 上的源。Obsidian Git 保持 `disablePush: true`。`com.jake.journal-daily-digest` 保持卸载，避免和 Actions 双写。
 

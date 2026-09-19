@@ -63,3 +63,21 @@ jobs:
             git commit -m "intake: weekly $(date +%G-W%V)"
             git push
           fi
+
+      - name: Sync skills
+        run: python3 scripts/sync_digitalbrain_skills.py --vault digitalbrain
+
+      - name: Commit skill copies
+        working-directory: digitalbrain
+        run: |
+          git config user.name "information-flow"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          while IFS= read -r path; do
+            git add -- "$path"
+          done < <(python3 ../scripts/sync_digitalbrain_skills.py --vault . --print-paths)
+          if git diff --cached --quiet; then
+            echo "no skill copy changes"
+          else
+            git commit -m "sync: information-flow skills $(date +%F)"
+            git push
+          fi

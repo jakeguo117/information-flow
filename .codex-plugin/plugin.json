@@ -13,7 +13,7 @@
   "interface": {
     "displayName": "Information Flow",
     "shortDescription": "Intake daily, journal weekly",
-    "longDescription": "Pulls Snipd, WeRead, and YouTube likes into daily Digests and a weekly Journal Brief. The journal skill reads those files, talks with Jake, and writes DigitalBrain Journal. Intake runs on its own at 21:00.",
+    "longDescription": "Pulls Snipd, WeRead, and YouTube likes into weekly intake.md. Discussion starts from recent journals and old project echoes, not a week dump. Journal writes only after Jake says OK. Skill copies sync into DigitalBrain.",
     "developerName": "Jake Guo",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],
