@@ -1,20 +1,27 @@
 ---
 name: intake
-description: Weekly DigitalBrain intake.md and Yale-style discussion. Use when Jake says 「今天 Digest」「今日digest」「讨论 Digest」「今天摄入」「跑 Digest」or /intake. Appends reflection to this week's intake.md. Does not write Journal.
+description: Weekly DigitalBrain intake.md and Yale-style discussion. Use when Jake says 「今天 Digest」「今日digest」「讨论 Digest」「今天摄入」「跑 Digest」or /intake. Resolves this week's intake from Asia/Shanghai date. Does not write Journal.
 ---
 
 # intake
 
 信息流。不要救 Hermes。不要写 `📝 Journal/`。不要写日子、日历、Reminders、保险交易。
 
+DigitalBrain `.cursor/skills/` 里的副本由 information-flow Actions 覆盖。改行为只改这个仓库。
+
 ## 硬路由（今天 Digest）
 
 用户说「今天 Digest」「今日digest」「讨论 Digest」「今天摄入」「跑 Digest」或 `/intake`：
 
-1. 立刻打开本周 `📋 Digests/{YYYY-Wnn}/intake.md`。只读这一份。立刻用 **Briefing** 里第一条未勾选问一句（Yale 式，一次一问）。
-2. 禁止问日 Digest vs Daily Briefing。禁止让 Jake 选模板。禁止新建 `📋 Digests/{YYYY-MM-DD}-Digest.md`。禁止新建或续写 Daily Briefing。禁止用 Linear、Gmail、Drive 顶替本周 intake。
-3. 找不到本周 `intake.md`：停下来，说明 GitHub `obsidian-digitalbrain` 的 `main` 还没有周入口。不要自己编一份，不要改走旧日文件。
-4. Cursor 云端不要跑生成脚本。只读仓库里已有的 `intake.md`。需要原文再打开该条 wikilink 的 Snipd / WeRead / YouTube-Likes。
+1. **自己认周。不要问他是哪一周，不要等他说 W38。** 用 Asia/Shanghai 当天算 ISO 周，打开 `📋 Digests/{YYYY-Wnn}/intake.md`。有 information-flow 脚本就先跑 `python3 scripts/weekly_intake.py --vault "$VAULT" --date YYYY-MM-DD`。本周文件不存在，就用 `📋 Digests/` 里已有的最近一周。一个都没有：停下来，说明 GitHub `main` 还没有周入口。不要自己编一份，不要改走旧日文件，不要问他选周。
+2. 先读最近 2–3 篇 `📝 Journal/`，以及那些周记里已经挂上的 `🚀 Projects/` / Resource 小线（老项目、很小的未收线）。intake 先不上场。
+3. 他如果已经说了这周画像，接住。没有就先问一句人在哪、心里在转什么。不要甩本周清单，不要出文。
+4. 再打开 **刚解析出的那一周** `intake.md`。只挑 **一条** 和旧线 / 画像呼应的未勾选来问（Yale 式，一次一问）。对不上的略过。
+5. 禁止问日 Digest vs Daily Briefing。禁止让 Jake 选模板。禁止新建 `📋 Digests/{YYYY-MM-DD}-Digest.md`。禁止新建或续写 Daily Briefing。禁止用 Linear、Gmail、Drive 顶替本周 intake。
+6. Cursor 云端不要跑生成脚本。只读仓库里已有的 `intake.md`。需要原文再打开该条 wikilink 的 Snipd / WeRead / YouTube-Likes。
+7. **客户说「可以写 / 写吧 / OK 写」之前，不要写 `📝 Journal/`。** 周记不是这条路的输出。
+
+禁止整周附录。禁止把 Briefing 贴进对话当出文。
 
 ## 每天生成（12:00 和 21:00 上海，GitHub Actions）
 
@@ -30,11 +37,11 @@ python3 "$HOME/plugins/information-flow/scripts/weekly_rollup.py"
 
 Vault：本机 `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain`；否则当前工作区根（须有 `📝 Journal/`）。
 
-## 讨论（Yale 式，一次一问）
+## 讨论（先旧线，再呼应，一次一问）
 
 用户说「今天 Digest」「讨论 Digest」或 `/intake`：
 
-1. 打开本周 `📋 Digests/{YYYY-Wnn}/intake.md`。先读 **Briefing**（只有未勾选）。需要原文再打开该条 wikilink 的 Snipd / WeRead / YouTube-Likes。
+1. 先读最近 2–3 篇周记，以及旧周记已经点名的项目 / 卡片。需要原文再打开该条 wikilink。不要为了「补这周发生了什么」去扫整个 vault。
 2. 一次只问一个问题。不宣讲整周清单，不堆 CRM 流水。
 3. 可以把该条挂到 Linear issue 或笔记 wikilink。intake 里只加一行 `挂钩：[[笔记]]` 或 `挂钩：ABC-123`，不把 Linear/CRM 正文写进 intake。
 4. 他说可以记下之后：
@@ -62,4 +69,4 @@ source_digest: "[[📋 Digests/{YYYY-Wnn}/intake]]"
 - [[{具体 Snipd/YouTube/WeRead/intake 条目}]]
 ```
 
-Journal 只读本周 intake 里已经 `[x]` 的条目。
+Journal 只读本周 intake 里已经 `[x]` 的条目。客户没说可以写周记之前，这条 skill 不写周记。
