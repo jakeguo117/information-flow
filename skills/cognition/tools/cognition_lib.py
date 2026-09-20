@@ -182,11 +182,14 @@ def tokenize(text: str) -> list[str]:
 
 def unquote(raw: str) -> str:
     text = raw.strip()
-    if len(text) >= 2 and text[0] == text[-1] and text[0] in "\"'":
-        inner = text[1:-1]
-        if text[0] == '"':
-            return bytes(inner, "utf-8").decode("unicode_escape") if "\\" in inner else inner
-        return inner
+    if len(text) >= 2 and text[0] == text[-1] and text[0] == '"':
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            return text[1:-1]
+        return parsed if isinstance(parsed, str) else text[1:-1]
+    if len(text) >= 2 and text[0] == text[-1] and text[0] == "'":
+        return text[1:-1]
     return text
 
 
@@ -369,6 +372,95 @@ def history_heading(typ: str) -> str:
     if typ == "evidence":
         return "## Validation History"
     return "## Revision History"
+
+
+MATERIAL_HISTORY_KEYS = (
+    "status",
+    "validation",
+    "confidence",
+    "statement",
+    "claim",
+    "preferred_action",
+    "trigger",
+    "rationale",
+    "supporting_evidence",
+    "contradicting_evidence",
+    "based_on",
+    "supersedes",
+    "related_to",
+    "exceptions",
+    "scope",
+    "limitations",
+    "reliability",
+    "source",
+    "source_type",
+)
+
+
+def history_entries(body: str, typ: str) -> list[str]:
+    heading = history_heading(typ)
+    if heading not in body:
+        return []
+    tail = body.split(heading, 1)[1]
+    entries: list[str] = []
+    for line in tail.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("## "):
+            break
+        if stripped.startswith("- "):
+            entries.append(stripped)
+    return entries
+
+
+def is_material_change(previous: CognitionDoc, proposed: CognitionDoc) -> bool:
+    for key in MATERIAL_HISTORY_KEYS:
+        if previous.meta.get(key) != proposed.meta.get(key):
+            return True
+    return False
+
+
+def history_update_errors(previous: CognitionDoc, proposed: CognitionDoc) -> list[str]:
+    old = history_entries(previous.body, previous.type or proposed.type)
+    new = history_entries(proposed.body, proposed.type or previous.type)
+    errors: list[str] = []
+    if len(new) < len(old) or new[: len(old)] != old:
+        errors.append(f"{proposed.path}: append-only history entries were rewritten or deleted")
+    elif is_material_change(previous, proposed) and len(new) <= len(old):
+        errors.append(f"{proposed.path}: material change requires an appended history entry")
+    return errors
+
+
+def has_symlink_below(vault: Path, path: Path) -> bool:
+    current = path
+    while current != vault:
+        if current.exists() and current.is_symlink():
+            return True
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    return False
+
+
+def write_target_error(vault: Path, path: Path, typ: str) -> str | None:
+    expected = type_dir(vault, typ)
+    root = cognition_root(vault)
+    if root.exists() and (root.is_symlink() or not root.is_dir()):
+        return "cognition root must be a real directory inside the vault"
+    if expected.exists() and (expected.is_symlink() or not expected.is_dir()):
+        return "cognition type directory must be a real directory inside the vault"
+    if path.parent != expected:
+        return f"target is not in {COGNITION_ROOT}/{TYPE_DIRS.get(typ, typ)}/"
+    if has_symlink_below(vault, path):
+        return "refusing to write through a symlink"
+    try:
+        resolved = path.resolve()
+        resolved.relative_to(vault.resolve())
+        if expected.exists():
+            resolved.relative_to(expected.resolve())
+    except ValueError:
+        return "write target is outside the vault cognition store"
+    return None
 
 
 def default_history_body(typ: str, created: str, note: str) -> str:
@@ -709,8 +801,15 @@ def find_duplicate(store: Store, proposed: CognitionDoc) -> CognitionDoc | None:
 
 def atomic_write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    if path.parent.is_symlink() or path.is_symlink():
+        raise OSError("refusing to write through a symlink")
     tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    tmp.write_text(text, encoding="utf-8")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(str(tmp), flags, 0o644)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(text)
     os.replace(tmp, path)
 
 
@@ -886,14 +985,25 @@ def retrieve(
     wanted = {item for item in (ids or []) if item}
 
     skipped_relevant = False
-    readable = [doc for doc in store.docs if not doc.parse_error and doc.id]
+    readable: list[CognitionDoc] = []
     for doc in store.docs:
-        if doc.parse_error:
-            result["skipped"].append({"path": str(doc.path), "reason": doc.parse_error})
+        version = str(doc.meta.get("schema_version") or "")
+        unsupported = (
+            not doc.parse_error
+            and bool(doc.id)
+            and version != SCHEMA_VERSION
+        )
+        if doc.parse_error or unsupported:
+            reason = doc.parse_error or f"unsupported schema_version {version!r}"
+            result["skipped"].append({"path": str(doc.path), "reason": reason})
             raw = doc.raw or doc.path.name
-            if relevant_unreadable(doc.path, raw, tokens, project, domain) or doc.path.stem in wanted:
+            relevant = relevant_unreadable(doc.path, raw, tokens, project, domain)
+            if doc.id in wanted or doc.path.stem in wanted or relevant:
                 skipped_relevant = True
                 result["warnings"].append(f"unreadable relevant file: {doc.path}")
+            continue
+        if doc.id:
+            readable.append(doc)
 
     superseded = superseded_ids(readable)
     scored: list[tuple[int, int, CognitionDoc]] = []
@@ -965,6 +1075,7 @@ def retrieve(
 
     contradicting: list[CognitionDoc] = []
     supporting: list[CognitionDoc] = []
+    historical_evidence: list[CognitionDoc] = []
     unresolved_refs = False
     seen_e: set[str] = set()
 
@@ -978,6 +1089,9 @@ def retrieve(
         if target.id in seen_e:
             return
         seen_e.add(target.id)
+        if effective_status(target, superseded) in {"retired", "superseded"}:
+            historical_evidence.append(target)
+            return
         bucket.append(target)
 
     focus_beliefs = current_beliefs[:]
@@ -996,10 +1110,31 @@ def retrieve(
     evidence: list[CognitionDoc] = list(contradicting)
     remain = max(0, evidence_budget - len(evidence))
     dropped: list[str] = []
+    evidence_ids = {doc.id for doc in evidence}
     for doc in supporting:
+        if doc.id in evidence_ids:
+            continue
         if remain > 0:
             evidence.append(doc)
+            evidence_ids.add(doc.id)
             remain -= 1
+        else:
+            dropped.append(doc.id)
+    for doc in matching:
+        if doc.type != "evidence" or doc.id in evidence_ids:
+            continue
+        if effective_status(doc, superseded) in {"retired", "superseded"}:
+            continue
+        force = bool(wanted and doc.id in wanted)
+        if doc.id in dropped and not force:
+            continue
+        if force or remain > 0:
+            if doc.id in dropped:
+                dropped = [item for item in dropped if item != doc.id]
+            evidence.append(doc)
+            evidence_ids.add(doc.id)
+            if not force:
+                remain -= 1
         else:
             dropped.append(doc.id)
     result["dropped_supporting_evidence"] = dropped
@@ -1026,6 +1161,9 @@ def retrieve(
         for doc in matching
         if effective_status(doc, superseded) in {"retired", "superseded"}
     ]
+    for doc in historical_evidence:
+        if doc not in historical:
+            historical.append(doc)
     contested_docs = [
         doc
         for doc in current_principles + current_beliefs + evidence

@@ -120,6 +120,7 @@ def call_write(
     payload: str,
     approval_data: dict,
     extra: list[str] | None = None,
+    inject_payload_hash: bool = True,
 ) -> tuple[int, dict]:
     with tempfile.TemporaryDirectory() as raw:
         work = Path(raw)
@@ -127,7 +128,8 @@ def call_write(
         payload_path = work / "payload.md"
         payload_path.write_text(text, encoding="utf-8")
         data = dict(approval_data)
-        data["payload_sha256"] = lib.fingerprint(text)
+        if inject_payload_hash:
+            data["payload_sha256"] = lib.fingerprint(text)
         approval_path = write_approval(work, data)
         cmd = [
             sys.executable,
@@ -535,6 +537,62 @@ class RetrievalTests(unittest.TestCase):
             self.assertIn("belief-20260920-widgets-need-retrieval", current)
             self.assertNotIn("belief-20260918-widgets-retired", current)
 
+    def test_evidence_id_returns_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            seed_core(vault)
+            rc, data = call_retrieve(vault, ["--id", "evidence-20260920-widget-lag"])
+            self.assertEqual(rc, 0)
+            self.assertEqual(data["status"], "found")
+            self.assertIn("evidence-20260920-widget-lag", data["matched_ids"])
+            self.assertIn(
+                "evidence-20260920-widget-lag",
+                [item["id"] for item in data["evidence"]],
+            )
+
+    def test_unsupported_schema_is_not_interpreted(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            seed_core(vault)
+            path = vault / COG / "Beliefs" / "belief-20260920-widgets-need-retrieval.md"
+            write(path, replace_field(path.read_text(encoding="utf-8"), "schema_version", '"2.0"'))
+            rc, data = call_retrieve(
+                vault,
+                ["--id", "belief-20260920-widgets-need-retrieval"],
+            )
+            self.assertEqual(rc, 0)
+            self.assertEqual(data["status"], "partial")
+            self.assertNotIn(
+                "belief-20260920-widgets-need-retrieval",
+                [item["id"] for item in data["beliefs"]],
+            )
+            self.assertTrue(data["skipped"])
+
+    def test_retired_supporting_evidence_is_historical(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            seed_core(vault)
+            path = vault / COG / "Evidence" / "evidence-20260920-widget-lag.md"
+            write(path, replace_field(path.read_text(encoding="utf-8"), "status", "retired"))
+            rc, data = call_retrieve(vault, ["--query", "synthetic widget"])
+            self.assertEqual(rc, 0)
+            evidence_ids = [item["id"] for item in data["evidence"]]
+            historical_ids = [item["id"] for item in data["historical"]]
+            self.assertNotIn("evidence-20260920-widget-lag", evidence_ids)
+            self.assertIn("evidence-20260920-widget-lag", historical_ids)
+            self.assertIn("evidence-20260920-widget-no-lag", evidence_ids)
+
+
+class ParseRoundTripTests(unittest.TestCase):
+    def test_quoted_chinese_newline_round_trips(self) -> None:
+        self.assertEqual(lib.unquote('"中文\\n下一行"'), "中文\n下一行")
+        payload = extra_evidence(3, "中文\n下一行")
+        parsed = lib.parse_markdown(payload)
+        self.assertEqual(parsed.meta.get("claim"), "中文\n下一行")
+        rendered = lib.render_markdown(parsed.meta, parsed.body)
+        again = lib.parse_markdown(rendered)
+        self.assertEqual(again.meta.get("claim"), "中文\n下一行")
+
 
 class WriteAuthTests(unittest.TestCase):
     def test_ac13_create_approval_does_not_mutate_duplicate(self) -> None:
@@ -716,6 +774,117 @@ class WriteAuthTests(unittest.TestCase):
             self.assertIn("origin_type: direct_reflection", disk)
             self.assertIn("origin_summary:", disk)
             self.assertIn("hallway demo", disk)
+
+    def test_missing_kind_does_not_write(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            write(vault / "📝 Journal" / "keep.md", "x\n")
+            payload = extra_evidence(9, "Standalone synthetic claim about widget noise.")
+            parsed = lib.parse_markdown(payload)
+            rc, data = call_write(
+                vault,
+                "create",
+                payload,
+                {"id": parsed.id, "type": parsed.type, "kind": "bogus"},
+            )
+            self.assertNotEqual(rc, 0)
+            self.assertEqual(data["status"], "unauthorized", data)
+            self.assertFalse((vault / COG / "Evidence" / f"{parsed.id}.md").exists())
+
+    def test_missing_payload_hash_does_not_write(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            write(vault / "📝 Journal" / "keep.md", "x\n")
+            payload = extra_evidence(9, "Standalone synthetic claim about widget noise.")
+            parsed = lib.parse_markdown(payload)
+            rc, data = call_write(
+                vault,
+                "create",
+                payload,
+                {"kind": "create", "id": parsed.id, "type": parsed.type},
+                inject_payload_hash=False,
+            )
+            self.assertNotEqual(rc, 0)
+            self.assertIn(data["status"], {"unauthorized", "stale_approval"}, data)
+            self.assertFalse((vault / COG / "Evidence" / f"{parsed.id}.md").exists())
+
+    def test_type_dir_symlink_write_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            vault = root / "vault"
+            outside = root / "outside"
+            write(vault / "📝 Journal" / "keep.md", "x\n")
+            (vault / COG).mkdir(parents=True)
+            outside.mkdir()
+            (vault / COG / "Evidence").symlink_to(outside, target_is_directory=True)
+            payload = extra_evidence(9, "Standalone synthetic claim about widget noise.")
+            parsed = lib.parse_markdown(payload)
+            rc, data = call_write(vault, "create", payload, approval("create", payload))
+            self.assertNotEqual(rc, 0)
+            self.assertNotEqual(data.get("status"), "success", data)
+            self.assertFalse((outside / f"{parsed.id}.md").exists())
+            self.assertFalse((vault / COG / "Evidence" / f"{parsed.id}.md").is_file())
+
+    def test_history_deletion_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            seed_core(vault)
+            path = vault / COG / "Beliefs" / "belief-20260920-widgets-need-retrieval.md"
+            original = path.read_text(encoding="utf-8")
+            fp = lib.fingerprint(original if original.endswith("\n") else original + "\n")
+            updated = replace_field(original, "confidence", "high")
+            updated = updated.replace(
+                "## Revision History\n- 2026-09-20: created; reason: fixture seed",
+                "## Revision History\n- 2026-09-21: confidence high; prior history dropped",
+            )
+            rc, data = call_write(
+                vault,
+                "update",
+                updated,
+                {
+                    "kind": "update",
+                    "id": "belief-20260920-widgets-need-retrieval",
+                    "type": "belief",
+                    "target_fingerprint": fp,
+                },
+            )
+            self.assertNotEqual(rc, 0)
+            self.assertEqual(data["status"], "validation_error", data)
+            self.assertEqual(
+                path.read_text(encoding="utf-8"),
+                original if original.endswith("\n") else original + "\n",
+            )
+
+    def test_rename_then_update_by_stable_id(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            seed_core(vault)
+            src = vault / COG / "Beliefs" / "belief-20260920-widgets-need-retrieval.md"
+            dest = vault / COG / "Beliefs" / "renamed-stable.md"
+            src.rename(dest)
+            original = dest.read_text(encoding="utf-8")
+            fp = lib.fingerprint(original if original.endswith("\n") else original + "\n")
+            updated = replace_field(original, "confidence", "high")
+            updated = updated.replace(
+                "## Revision History\n- 2026-09-20: created; reason: fixture seed",
+                "## Revision History\n- 2026-09-20: created; reason: fixture seed\n- 2026-09-21: confidence low → high; reason: rename update",
+            )
+            rc, data = call_write(
+                vault,
+                "update",
+                updated,
+                {
+                    "kind": "update",
+                    "id": "belief-20260920-widgets-need-retrieval",
+                    "type": "belief",
+                    "target_fingerprint": fp,
+                },
+            )
+            self.assertEqual(data["status"], "success", data)
+            self.assertEqual(Path(data["path"]), dest)
+            disk = dest.read_text(encoding="utf-8")
+            self.assertIn("confidence: high", disk)
+            self.assertFalse(src.exists())
 
 
 class PrivacyAndContractTests(unittest.TestCase):

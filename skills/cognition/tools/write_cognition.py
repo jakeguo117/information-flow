@@ -21,14 +21,15 @@ from cognition_lib import (
     cognition_root,
     find_duplicate,
     fingerprint,
+    history_update_errors,
     load_store,
     merge_proposed,
     parse_markdown,
     restore_snapshot,
     status_transition_allowed,
-    target_path,
     type_dir,
     validate_docs,
+    write_target_error,
 )
 
 
@@ -80,20 +81,43 @@ def perform(
             "schema_version": SCHEMA_VERSION,
         }, False
 
-    proposed.path = proposed_target(vault, proposed)
     approval_kind = str(approval.get("kind") or "")
     approval_id = str(approval.get("id") or "")
     approval_type = str(approval.get("type") or "")
     approval_fp = approval.get("target_fingerprint")
     payload_sha = approval.get("payload_sha256")
 
+    if approval_kind not in {"create", "update"}:
+        return {
+            "status": "unauthorized",
+            "message": "approval kind must be create or update",
+            "id": proposed.id,
+        }, False
+    if action == "create" and approval_kind != "create":
+        return {
+            "status": "unauthorized",
+            "message": "create requires create approval",
+            "id": proposed.id,
+        }, False
+    if action == "update" and approval_kind != "update":
+        return {
+            "status": "unauthorized",
+            "message": "update requires update approval",
+            "id": proposed.id,
+        }, False
     if approval_id != proposed.id or approval_type != proposed.type:
         return {
             "status": "unauthorized",
             "message": "approval does not bind to this type/id payload",
             "id": proposed.id,
         }, False
-    if payload_sha and payload_sha != fingerprint(payload_text):
+    if not payload_sha:
+        return {
+            "status": "unauthorized",
+            "message": "approval must include payload_sha256",
+            "id": proposed.id,
+        }, False
+    if payload_sha != fingerprint(payload_text):
         return {
             "status": "stale_approval",
             "message": "approved payload changed before write",
@@ -106,6 +130,20 @@ def perform(
             "status": "unavailable",
             "message": "vault missing; will not write cognition elsewhere",
             "id": proposed.id,
+        }, False
+
+    if store.available and proposed.id in store.by_id:
+        proposed.path = store.by_id[proposed.id].path
+    else:
+        proposed.path = proposed_target(vault, proposed)
+
+    target_err = write_target_error(vault, proposed.path, proposed.type)
+    if target_err:
+        return {
+            "status": "unavailable",
+            "message": target_err,
+            "id": proposed.id,
+            "path": str(proposed.path),
         }, False
 
     merged = merge_proposed(store, proposed) if store.available else [proposed]
@@ -198,6 +236,15 @@ def perform(
                 "observed_fingerprint": existing_fp,
             }, False
         previous = parse_markdown(existing_raw, target)
+        if previous.parse_error is None:
+            hist_errors = history_update_errors(previous, proposed)
+            if hist_errors:
+                return {
+                    "status": "validation_error",
+                    "errors": hist_errors,
+                    "id": proposed.id,
+                    "path": str(target),
+                }, False
         if previous.parse_error is None and previous.status != proposed.status:
             if not status_transition_allowed(
                 proposed.type,
