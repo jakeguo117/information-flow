@@ -41,6 +41,8 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
             write(vault / "AGENTS.md", LEGACY_AGENTS)
             write(vault / "📝 Journal" / "keep.md", "old line\n")
             write(vault / "📋 Digests" / "2026-W38" / "intake.md", "do not touch\n")
+            write(vault / "📖 Cognition" / "Beliefs" / "keep.md", "private cognition\n")
+            write(vault / "📖 Resources" / "concepts" / "keep.md", "resource stays\n")
 
             rc = sync.main(["--vault", str(vault)])
             self.assertEqual(rc, 0)
@@ -63,6 +65,33 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
             self.assertTrue(
                 (vault / ".cursor" / "skills" / "journal" / "references" / "setup.md").is_file()
             )
+            self.assertEqual(
+                (vault / ".cursor" / "skills" / "cognition" / "SKILL.md").read_text(encoding="utf-8"),
+                (sync.SKILLS_DIR / "cognition" / "SKILL.md").read_text(encoding="utf-8"),
+            )
+            self.assertTrue(
+                (vault / ".cursor" / "skills" / "cognition" / "references" / "schema.md").is_file()
+            )
+            self.assertTrue(
+                (vault / ".cursor" / "skills" / "cognition" / "references" / "retrieval.md").is_file()
+            )
+            self.assertTrue(
+                (vault / ".cursor" / "skills" / "cognition" / "references" / "layout.md").is_file()
+            )
+            self.assertTrue(
+                (
+                    vault / ".cursor" / "skills" / "cognition" / "tools" / "validate_cognition.py"
+                ).is_file()
+            )
+            self.assertTrue(
+                (vault / ".cursor" / "skills" / "cognition" / "tools" / "cognition_lib.py").is_file()
+            )
+            self.assertTrue(
+                (vault / ".cursor" / "skills" / "cognition" / "tools" / "retrieve_cognition.py").is_file()
+            )
+            self.assertTrue(
+                (vault / ".cursor" / "skills" / "cognition" / "tools" / "write_cognition.py").is_file()
+            )
             self.assertIn("Jake", agents)
             self.assertIn("## Vault 结构", agents)
             self.assertIn(sync.MARK_START, agents)
@@ -70,6 +99,8 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
             self.assertNotIn("立刻问 Briefing 第一条未勾选", agents)
             self.assertEqual((vault / "📋 Digests" / "2026-W38" / "intake.md").read_text(), "do not touch\n")
             self.assertEqual((vault / "📝 Journal" / "keep.md").read_text(), "old line\n")
+            self.assertEqual((vault / "📖 Cognition" / "Beliefs" / "keep.md").read_text(), "private cognition\n")
+            self.assertEqual((vault / "📖 Resources" / "concepts" / "keep.md").read_text(), "resource stays\n")
 
     def test_marked_section_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
@@ -92,6 +123,14 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 ".cursor/skills/journal/SKILL.md",
                 ".cursor/skills/journal/references/setup.md",
                 ".cursor/skills/journal/references/weekly-brief.md",
+                ".cursor/skills/cognition/SKILL.md",
+                ".cursor/skills/cognition/references/schema.md",
+                ".cursor/skills/cognition/references/retrieval.md",
+                ".cursor/skills/cognition/references/layout.md",
+                ".cursor/skills/cognition/tools/cognition_lib.py",
+                ".cursor/skills/cognition/tools/validate_cognition.py",
+                ".cursor/skills/cognition/tools/retrieve_cognition.py",
+                ".cursor/skills/cognition/tools/write_cognition.py",
                 "AGENTS.md",
             ],
         )
@@ -132,10 +171,14 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertNotIn("week 38", text)
         self.assertNotIn("立刻用 **Briefing** 里第一条未勾选问一句", text)
         self.assertIn("不要写 `📝 Journal/`", text)
+        self.assertIn("不是 Evidence", text)
         route = (sync.SKILLS_DIR / "digitalbrain-agents-route.md").read_text(encoding="utf-8")
         self.assertIn("自己认周", route)
         self.assertNotIn("W38 有什么", route)
         self.assertNotIn("week 38", route)
+        self.assertIn("相关认知", route)
+        self.assertIn(".cursor/skills/cognition/", route)
+        self.assertIn("partial / unavailable 不许说成", route)
 
     def test_journal_waits_for_ok(self) -> None:
         text = (sync.SKILLS_DIR / "journal" / "SKILL.md").read_text(encoding="utf-8")
@@ -144,6 +187,7 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertIn("可以写 / 写吧 / OK 写", text)
         self.assertIn("客户说「可以写 / 写吧 / OK 写」之前，不落盘", text)
         self.assertIn("自己认周", text)
+        self.assertIn("不写 `📖 Cognition/`", text)
         self.assertNotIn("W38 有什么", text)
 
 

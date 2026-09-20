@@ -70,3 +70,5 @@ source_digest: "[[📋 Digests/{YYYY-Wnn}/intake]]"
 ```
 
 Journal 只读本周 intake 里已经 `[x]` 的条目。客户没说可以写周记之前，这条 skill 不写周记。
+
+intake 条目和 `📖 Resources/concepts/` 卡片 **不是 Evidence**。Cognition 以后可以把它们当 provenance，但 Evidence 必须有具体 claim、来源和 validation。不要改 intake 文件格式来迁就 Cognition。

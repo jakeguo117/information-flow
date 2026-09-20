@@ -29,3 +29,4 @@
 - `📋 Daily Briefings/`（日子/任务线，不是周记燃料）
 - `📊 Weekly Synthesis/`（已停）
 - `📊 Journal Briefs/`（已停，改由 intake.md 的 `[x]` 承担）
+- `📖 Cognition/`（写完周记之后的另一层，不是周记输入）

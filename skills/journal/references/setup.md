@@ -14,11 +14,11 @@ GitHub Actions 每天 12:00 和 21:00 上海
   → 📋 Digests/{YYYY-Wnn}/intake.md   有新内容才 append
   → 直接 push obsidian-digitalbrain main（不经过 PR）
 
-information-flow 的 intake / journal skill 一进 main
+information-flow 的 intake / journal / cognition skill 一进 main
   → sync-digitalbrain-skills 把副本写进 DigitalBrain
-    `.cursor/skills/{intake,journal}/` 和 AGENTS.md 硬路由
+    `.cursor/skills/{intake,journal,cognition}/` 和 AGENTS.md 硬路由
   → 下次打开 DigitalBrain 那个项目，读到的就是这份规则
-  → 不改已经写下的 intake / 周记正文
+  → 不改已经写下的 intake / 周记 / Cognition 正文
 
 你说「今天 Digest」
   → 上海当天自己认周；本周没有就用最近一周。不要问他 W38
@@ -32,6 +32,7 @@ information-flow 的 intake / journal skill 一进 main
   → 先旧线呼应，再对已勾选 intake
   → 客户说「可以写 / 写吧 / OK 写」之前不落盘
   → 📝 Journal/   不自动 git push
+  → 落盘后如有可复用判断，交给 cognition propose；周记自己不写 Cognition
 ```
 
 手机 = Cursor Cloud + GitHub `obsidian-digitalbrain` 的 `main`。周入口必须已经在 `main`。找不到周文件就停，不要问日 Digest vs Daily Briefing。
@@ -43,8 +44,8 @@ Daily Briefing / Weekly Synthesis / 日 Digest / Journal Briefs 不再作为输�
 | 块 | 状态 |
 |---|---|
 | Plugin | `information-flow` private GitHub |
-| 规则源 | `information-flow/skills/{journal,intake}` |
-| 仓库 skill（手机 Cloud） | DigitalBrain `.cursor/skills/{intake,journal}/`，由 Actions 覆盖 |
+| 规则源 | `information-flow/skills/{journal,intake,cognition}` |
+| 仓库 skill（手机 Cloud） | DigitalBrain `.cursor/skills/{intake,journal,cognition}/`，由 Actions 覆盖 |
 | AGENTS 硬路由 | DigitalBrain `AGENTS.md` 里 `information-flow:digest-route` 段，由 Actions 覆盖 |
 | 主文件 | `📋 Digests/{YYYY-Wnn}/intake.md` 须在 GitHub `main` |
 | Actions | 12:00 / 21:00 上海写 intake；skill 变更另走 sync-digitalbrain-skills |
