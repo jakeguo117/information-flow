@@ -74,6 +74,10 @@ title: "周记 {N} — {Jake 口气的一句}"
 
 告诉他文件路径，问要不要改。要改就改文件，仍不自动 push。
 
+### 5. 写完之后交给 cognition propose
+
+周记已经落盘，或一次反思已经明确收束之后，可以交给 `cognition` skill 做 propose（0–3 条，0 也合法）。**Journal 不写 `📖 Cognition/`。** 接受、改写、校验、落盘只走 cognition tools。
+
 ## 不要做
 
 - 不要为了「补这周发生了什么」去扫 Journal 以外的私人目录。只跟旧周记已经出现的 wikilink 打开项目 / 卡片

@@ -1,7 +1,7 @@
 {
   "name": "information-flow",
   "version": "0.1.0",
-  "description": "Daily content intake into DigitalBrain Digests, then a weekly journal discussion.",
+  "description": "Daily intake, weekly journal, and Markdown Cognition (Evidence/Belief/Principle, schema 1.1) in DigitalBrain. Private cognition stays out of this repo.",
   "author": {
     "name": "Jake Guo",
     "url": "https://github.com/jakeguo117"
@@ -12,8 +12,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Information Flow",
-    "shortDescription": "Intake daily, journal weekly",
-    "longDescription": "Pulls Snipd, WeRead, and YouTube likes into weekly intake.md. Discussion starts from recent journals and old project echoes, not a week dump. Journal writes only after Jake says OK. Skill copies sync into DigitalBrain.",
+    "shortDescription": "Intake daily, journal weekly, retrieve cognition",
+    "longDescription": "Pulls Snipd, WeRead, and YouTube likes into weekly intake.md. Discussion starts from recent journals and old project echoes, not a week dump. Journal writes only after Jake says OK. Cognition (Evidence/Belief/Principle, schema_version 1.1) is a separate Markdown layer in DigitalBrain with a human gate; private cognition is not stored in this repo. Skill copies sync into DigitalBrain.",
     "developerName": "Jake Guo",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],

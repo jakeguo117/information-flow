@@ -3,7 +3,7 @@
 
 Source of truth stays in this repo. DigitalBrain only keeps copies so a
 Cursor Cloud session opened on obsidian-digitalbrain sees the same rules.
-Does not rewrite Journal, Digests, or Resources.
+Does not rewrite Journal, Digests, Resources, or Cognition content.
 """
 
 from __future__ import annotations
@@ -26,6 +26,14 @@ SKILL_RELATIVE_PATHS = (
     "journal/SKILL.md",
     "journal/references/setup.md",
     "journal/references/weekly-brief.md",
+    "cognition/SKILL.md",
+    "cognition/references/schema.md",
+    "cognition/references/retrieval.md",
+    "cognition/references/layout.md",
+    "cognition/tools/cognition_lib.py",
+    "cognition/tools/validate_cognition.py",
+    "cognition/tools/retrieve_cognition.py",
+    "cognition/tools/write_cognition.py",
 )
 
 MARK_START = "<!-- information-flow:digest-route:start -->"
@@ -100,7 +108,7 @@ def commit_paths(vault: Path) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Copy intake/journal skills into a DigitalBrain vault"
+        description="Copy intake/journal/cognition skills into a DigitalBrain vault"
     )
     parser.add_argument("--vault")
     parser.add_argument(
