@@ -760,7 +760,7 @@ def restic_env(
 
 
 def restic_command(args: list[str], binary: str | None = None) -> list[str]:
-    return [binary or restic_bin(), *args]
+    return [binary or restic_bin(), "--no-cache", *args]
 
 
 @dataclass
@@ -809,6 +809,9 @@ def ensure_restic_repo(run, env: dict[str, str], bag: SecretBag) -> None:
     err = bag.scrub(listed.stderr).lower()
     if "wrong password" in err or "ciphertext verification failed" in err:
         raise RecoveryError("restic rejected the keychain password")
+    repository = env["RESTIC_REPOSITORY"]
+    if not repository.startswith("s3:") and Path(repository).exists():
+        raise RecoveryError("existing local path is not a readable restic repository")
     init = run(["init"], env)
     if init.returncode != 0:
         raise RecoveryError("restic init failed: " + bag.scrub(init.stderr)[:400], code=4)
@@ -968,6 +971,10 @@ def backup_snapshot(
     if proc.returncode != 0:
         raise RecoveryError("restic backup failed: " + bag.scrub(proc.stderr)[:400], code=4)
     summary = parse_backup_summary(proc.stdout)
+    checked = command_run(["check"], env)
+    if checked.returncode != 0:
+        raise RecoveryError("restic integrity check failed: " + bag.scrub(checked.stderr)[:400], code=4)
+    summary["check_ok"] = True
     summary["repo_config_version"] = version
     summary["read"] = report.to_json()
     return summary
@@ -1021,13 +1028,13 @@ def restore_check(
     target: Path | None = None,
     run=None,
     binary: str | None = None,
-    cleanup: bool = True,
+    cleanup: bool = False,
 ) -> dict[str, object]:
     created = target is None
     destination = target or Path(tempfile.mkdtemp(prefix="if-3b-b1-restore-"))
     assert_isolated_target(destination, root)
-    if not created and destination.exists() and any(destination.iterdir()):
-        raise RecoveryError("restore target is not empty")
+    if not created and (destination.exists() or destination.is_symlink()):
+        raise RecoveryError("restore target must be a new path")
     destination.mkdir(parents=True, exist_ok=True)
     os.chmod(destination, 0o700)
     bag = SecretBag()
@@ -1064,6 +1071,7 @@ def restore_check(
             raise RecoveryError("isolated restore did not match the source tree", code=4)
         return {
             "isolated": True,
+            "restore_path": str(destination),
             "comparison": comparison,
             "structure": structure,
             "samples": {label: len(rels) for label, rels in samples.items()},
@@ -1097,8 +1105,38 @@ def default_evidence_path() -> Path:
     )
 
 
-def load_runtime(keychain: Path | None) -> tuple[KeychainStore, str, str, str, str]:
+def local_repository_path(repository: str, root: Path) -> str:
+    candidate = Path(repository).expanduser()
+    if not candidate.is_absolute() or candidate.resolve() != candidate.absolute():
+        raise RecoveryError("local repository must be an absolute, non-symlink path")
+    resolved = assert_outside_repo(candidate)
+    assert_isolated_target(resolved, root)
+    volumes = Path("/Volumes")
+    if volumes not in resolved.parents:
+        raise RecoveryError("local repository must be on a mounted volume")
+    parts = resolved.relative_to(volumes).parts
+    if len(parts) < 3:
+        raise RecoveryError("local repository needs a dedicated directory on the volume")
+    volume = volumes / parts[0]
+    if not os.path.ismount(volume):
+        raise RecoveryError("local repository volume is not mounted")
+    if resolved == Path(resolved.anchor) or resolved == Path.home():
+        raise RecoveryError("local repository path is too broad")
+    if resolved.exists() and not resolved.is_dir():
+        raise RecoveryError("local repository path is not a directory")
+    return str(resolved)
+
+
+def load_runtime(
+    keychain: Path | None, repository_arg: str | None = None, root: Path | None = None
+) -> tuple[KeychainStore, str, str, str | None, str | None]:
     store = KeychainStore(keychain=keychain)
+    if repository_arg is not None:
+        if root is None:
+            raise RecoveryError("vault root is required for a local repository")
+        repository = local_repository_path(repository_arg, root)
+        password = ensure_restic_password(store)
+        return store, password, repository, None, None
     key_id = store.get("b2-key-id")
     app_key = store.get("b2-application-key")
     if not key_id or not app_key:
@@ -1131,6 +1169,7 @@ def build_parser() -> argparse.ArgumentParser:
     for name in ("snapshot", "readback", "restore-check"):
         command = sub.add_parser(name)
         command.add_argument("--root", type=Path, required=True)
+        command.add_argument("--repository", help="absolute path to a local restic repository")
         command.add_argument("--evidence", type=Path)
         if name != "snapshot":
             command.add_argument("--snapshot", required=True)
@@ -1187,7 +1226,9 @@ def main(argv: list[str] | None = None) -> int:
                 payload["git_status_preserved"] = before == after_read
                 emit(payload)
                 return 3
-            _store, password, repository, key_id, app_key = load_runtime(keychain)
+            _store, password, repository, key_id, app_key = load_runtime(
+                keychain, args.repository, root
+            )
             summary = backup_snapshot(
                 root,
                 repository,
@@ -1201,13 +1242,24 @@ def main(argv: list[str] | None = None) -> int:
             payload["git_before"] = before
             payload["git_after"] = after
             payload["git_status_preserved"] = before == after
-            payload["bucket_checked_private"] = True
-            write_evidence(evidence, {**payload, "repository_recorded_in_keychain": True})
+            remote = repository.startswith("s3:")
+            if remote:
+                payload["bucket_checked_private"] = True
+            write_evidence(
+                evidence,
+                {
+                    **payload,
+                    "password_in_keychain": True,
+                    "repository_recorded_in_keychain": remote,
+                },
+            )
             emit(payload)
             if before != after:
                 return 4
             return 0
-        _store, password, repository, key_id, app_key = load_runtime(keychain)
+        _store, password, repository, key_id, app_key = load_runtime(
+            keychain, args.repository, root
+        )
         if args.cmd == "readback":
             payload = readback_snapshot(
                 root, args.snapshot, repository, password, key_id, app_key

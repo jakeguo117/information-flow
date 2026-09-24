@@ -13,6 +13,7 @@ import subprocess
 import tempfile
 import unittest
 import urllib.error
+from unittest import mock
 from pathlib import Path
 
 import vault_recovery as recovery
@@ -445,6 +446,7 @@ class RecoveryTests(unittest.TestCase):
             )
             snapshot_id = str(summary["snapshot_id"])
             self.assertGreaterEqual(summary["repo_config_version"], 1)
+            self.assertTrue(summary["check_ok"])
             readback = recovery.readback_snapshot(
                 vault,
                 snapshot_id,
@@ -464,7 +466,48 @@ class RecoveryTests(unittest.TestCase):
             self.assertEqual(result["comparison"]["missing"], 0)
             self.assertEqual(result["comparison"]["mismatched"], 0)
             self.assertEqual(result["structure"]["checked"], result["structure"]["matched"])
-            self.assertFalse(target.exists())
+            self.assertTrue(target.is_dir())
+            self.assertEqual(result["restore_path"], str(target))
+
+    def test_local_repository_requires_mounted_external_volume(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw) / "vault"
+            vault.mkdir()
+            with self.assertRaises(recovery.RecoveryError):
+                recovery.local_repository_path(str(Path(raw) / "repo"), vault)
+            with self.assertRaises(recovery.RecoveryError):
+                recovery.local_repository_path(str(vault / "repo"), vault)
+
+    def test_local_runtime_needs_only_restic_password(self) -> None:
+        store = MemoryStore({"restic-password": "synthetic-password"})
+        with mock.patch.object(recovery, "KeychainStore", return_value=store), mock.patch.object(
+            recovery, "local_repository_path", return_value="/Volumes/Disk/new-repo"
+        ):
+            _, password, repository, key_id, app_key = recovery.load_runtime(
+                None, "/Volumes/Disk/new-repo", Path("/tmp/vault")
+            )
+        self.assertEqual(password, "synthetic-password")
+        self.assertEqual(repository, "/Volumes/Disk/new-repo")
+        self.assertIsNone(key_id)
+        self.assertIsNone(app_key)
+
+    def test_existing_non_repo_path_is_never_initialized(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            existing = Path(raw) / "existing"
+            existing.mkdir()
+            write(existing / "unrelated.txt", "keep\n")
+            commands = []
+
+            def run(args, _env):
+                commands.append(args)
+                return recovery.CommandResult(1, b"", "not a repository")
+
+            with self.assertRaises(recovery.RecoveryError):
+                recovery.ensure_restic_repo(
+                    run, {"RESTIC_REPOSITORY": str(existing)}, recovery.SecretBag()
+                )
+            self.assertEqual(commands, [["snapshots", "--json"]])
+            self.assertEqual((existing / "unrelated.txt").read_text(), "keep\n")
 
 
 if __name__ == "__main__":
