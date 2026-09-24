@@ -1,0 +1,471 @@
+#!/usr/bin/env python3
+"""Synthetic tests for vault recovery. No live vault and no private prose."""
+
+from __future__ import annotations
+
+import contextlib
+import io
+import json
+import os
+import shutil
+import stat
+import subprocess
+import tempfile
+import unittest
+import urllib.error
+from pathlib import Path
+
+import vault_recovery as recovery
+
+
+def write(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+class MemoryStore:
+    def __init__(self, items: dict[str, str] | None = None) -> None:
+        self.items = dict(items or {})
+
+    def get(self, account: str) -> str | None:
+        return self.items.get(account)
+
+    def put(self, account: str, value: str) -> None:
+        self.items[account] = value
+
+
+class FakeResponse:
+    def __init__(self, payload: dict) -> None:
+        self.raw = json.dumps(payload).encode("utf-8")
+
+    def read(self) -> bytes:
+        return self.raw
+
+    def __enter__(self) -> "FakeResponse":
+        return self
+
+    def __exit__(self, *_args: object) -> bool:
+        return False
+
+
+class FakeOpener:
+    def __init__(self, responses: list[object]) -> None:
+        self.responses = list(responses)
+        self.requests = []
+
+    def open(self, request, timeout: int = 60):
+        self.requests.append(request)
+        item = self.responses.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return FakeResponse(item)
+
+
+def auth_payload() -> dict:
+    return {
+        "accountId": "acct",
+        "authorizationToken": "tok",
+        "apiUrl": "https://api.example.test",
+        "s3ApiUrl": "https://s3.example.test",
+        "allowed": {
+            "capabilities": ["listBuckets", "writeBuckets", "readFiles", "writeFiles"]
+        },
+    }
+
+
+class StatefulFiles:
+    def __init__(self, dataless: set[Path]) -> None:
+        self.dataless = set(dataless)
+        self.downloads: list[Path] = []
+
+    def stat(self, path: Path) -> recovery.FileStat:
+        info = recovery.file_stat(path)
+        if path in self.dataless:
+            return recovery.FileStat(info.size, 0, recovery.SF_DATALESS, info.mode, False)
+        return info
+
+    def download(self, path: Path) -> None:
+        self.downloads.append(path)
+        self.dataless.discard(path)
+
+
+class RecoveryTests(unittest.TestCase):
+    def test_dataless_flag_and_empty_blocks(self) -> None:
+        self.assertTrue(recovery.is_dataless(10, 8, recovery.SF_DATALESS))
+        self.assertTrue(recovery.is_dataless(10, 0, 0))
+        self.assertFalse(recovery.is_dataless(10, 8, 0))
+        self.assertFalse(recovery.is_dataless(0, 0, 0))
+
+    def test_download_command_never_evicts(self) -> None:
+        command = recovery.download_command(Path("/tmp/note.md"))
+        self.assertEqual(command[:2], ["/usr/bin/brctl", "download"])
+        self.assertNotIn("evict", command)
+
+    def test_read_hydrates_dataless_file_without_rewriting(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            note = root / "note.md"
+            note.write_text("synthetic bytes\n", encoding="utf-8")
+            before = note.read_bytes()
+            state = StatefulFiles({note})
+            report = recovery.read_tree(
+                root,
+                stat_fn=state.stat,
+                download_fn=state.download,
+                sleep_fn=lambda _seconds: None,
+                attempts=2,
+                workers=1,
+            )
+            self.assertTrue(report.ok)
+            self.assertEqual(report.bytes_read, len(before))
+            self.assertEqual(note.read_bytes(), before)
+            self.assertEqual(state.downloads, [note])
+
+    def test_read_blocks_when_hydration_does_not_clear_dataless(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            note = root / "note.md"
+            note.write_bytes(b"abc")
+            state = StatefulFiles({note})
+            report = recovery.read_tree(
+                root,
+                stat_fn=state.stat,
+                download_fn=lambda _path: None,
+                sleep_fn=lambda _seconds: None,
+                attempts=1,
+                workers=1,
+            )
+            self.assertFalse(report.ok)
+            self.assertEqual(report.dataless, 1)
+            self.assertEqual(note.read_bytes(), b"abc")
+
+    def test_structure_keeps_prose_out_of_the_signature(self) -> None:
+        data = (
+            "---\n"
+            "date: 2026-01-01\n"
+            "---\n"
+            "See [[Alpha]] and [[Beta#section|alias]].\n"
+            "synthetic private prose\n"
+        ).encode("utf-8")
+        signature = recovery.markdown_structure(data)
+        encoded = json.dumps(signature)
+        self.assertEqual(signature["frontmatter_keys"], ["date"])
+        self.assertEqual(signature["wikilink_count"], 2)
+        self.assertNotIn("synthetic private prose", encoded)
+        self.assertNotIn("Alpha", encoded)
+        again = recovery.markdown_structure(data)
+        self.assertEqual(signature["wikilink_digest"], again["wikilink_digest"])
+
+    def test_restore_target_must_stay_outside_the_vault(self) -> None:
+        vault = Path("/tmp/vault-root")
+        with self.assertRaises(recovery.RecoveryError):
+            recovery.assert_isolated_target(vault, vault)
+        with self.assertRaises(recovery.RecoveryError):
+            recovery.assert_isolated_target(vault / "child", vault)
+        with self.assertRaises(recovery.RecoveryError):
+            recovery.assert_isolated_target(Path("/tmp"), vault)
+        with self.assertRaises(recovery.RecoveryError):
+            recovery.assert_isolated_target(Path("/"), vault)
+        self.assertEqual(
+            recovery.assert_isolated_target(Path("/tmp/if-restore-out"), vault),
+            Path("/tmp/if-restore-out").resolve(),
+        )
+
+    def test_secret_material_stays_out_of_restic_argv_and_errors(self) -> None:
+        password = "test-password-value"
+        env = recovery.restic_env("/tmp/restic-repo", password)
+        command = recovery.restic_command(["backup", "--json"], binary="restic")
+        self.assertNotIn(password, command)
+        self.assertNotIn("AWS_ACCESS_KEY_ID", env)
+        bag = recovery.SecretBag()
+        bag.add(password)
+        self.assertNotIn(password, bag.scrub(f"failed with {password}"))
+
+    def test_backup_summary_drops_file_names(self) -> None:
+        stdout = "\n".join(
+            [
+                json.dumps(
+                    {
+                        "message_type": "status",
+                        "current_files": ["Journal/private-title.md"],
+                    }
+                ),
+                json.dumps(
+                    {
+                        "message_type": "summary",
+                        "snapshot_id": "abc123",
+                        "files_new": 1,
+                        "total_files_processed": 1,
+                        "total_bytes_processed": 4,
+                    }
+                ),
+            ]
+        ).encode("utf-8")
+        summary = recovery.parse_backup_summary(stdout)
+        self.assertEqual(summary["snapshot_id"], "abc123")
+        self.assertNotIn("private-title", json.dumps(summary))
+
+    def test_backup_refuses_unreadable_tree_before_restic(self) -> None:
+        def fail_run(*_args):
+            raise AssertionError("restic should not run")
+
+        with self.assertRaises(recovery.RecoveryError) as caught:
+            recovery.backup_snapshot(
+                Path("/tmp"),
+                "/tmp/repo",
+                "test-password-value",
+                None,
+                None,
+                run=fail_run,
+                preflight=recovery.TreeReport(files=1, dataless=1),
+            )
+        self.assertEqual(caught.exception.code, 3)
+
+    def test_provision_creates_a_private_bucket_and_stores_the_url(self) -> None:
+        store = MemoryStore(
+            {
+                "b2-key-id": "key-id-value",
+                "b2-application-key": "app-key-value",
+            }
+        )
+        opener = FakeOpener(
+            [
+                auth_payload(),
+                {"buckets": []},
+                {"bucketName": "jdw-recovery-fixedname01", "bucketType": "allPrivate"},
+                {
+                    "buckets": [
+                        {
+                            "bucketName": "jdw-recovery-fixedname01",
+                            "bucketType": "allPrivate",
+                        }
+                    ]
+                },
+            ]
+        )
+        repository = recovery.resolve_repository(
+            store,
+            opener,
+            name_fn=lambda: "jdw-recovery-fixedname01",
+        )
+        self.assertEqual(
+            repository,
+            "s3:s3.example.test/jdw-recovery-fixedname01/digitalbrain",
+        )
+        self.assertEqual(store.get("restic-repository"), repository)
+        created = json.loads(opener.requests[2].data.decode("utf-8"))
+        self.assertEqual(created["bucketType"], "allPrivate")
+        self.assertNotIn("app-key-value", repository)
+
+    def test_provision_rejects_a_public_bucket(self) -> None:
+        store = MemoryStore(
+            {
+                "b2-key-id": "key-id-value",
+                "b2-application-key": "app-key-value",
+                "restic-repository": "s3:s3.example.test/visible-bucket/digitalbrain",
+            }
+        )
+        opener = FakeOpener(
+            [
+                auth_payload(),
+                {
+                    "buckets": [
+                        {"bucketName": "visible-bucket", "bucketType": "allPublic"}
+                    ]
+                },
+            ]
+        )
+        with self.assertRaises(recovery.RecoveryError) as caught:
+            recovery.resolve_repository(store, opener)
+        self.assertIn("not private", str(caught.exception))
+        self.assertNotIn("app-key-value", str(caught.exception))
+
+    def test_authorize_failure_does_not_include_the_key(self) -> None:
+        store = MemoryStore(
+            {"b2-key-id": "key-id-value", "b2-application-key": "app-key-value"}
+        )
+        error = urllib.error.HTTPError(
+            "https://api.example.test",
+            401,
+            "unauthorized",
+            hdrs=None,
+            fp=io.BytesIO(b'{"code":"unauthorized"}'),
+        )
+        opener = FakeOpener([error])
+        with self.assertRaises(recovery.RecoveryError) as caught:
+            recovery.resolve_repository(store, opener)
+        self.assertNotIn("app-key-value", str(caught.exception))
+
+    def test_git_counts_use_a_copied_index(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            env = os.environ.copy()
+            env.update(
+                {
+                    "GIT_AUTHOR_NAME": "Test",
+                    "GIT_AUTHOR_EMAIL": "test@example.com",
+                    "GIT_COMMITTER_NAME": "Test",
+                    "GIT_COMMITTER_EMAIL": "test@example.com",
+                }
+            )
+
+            def git(*args: str) -> None:
+                subprocess.run(
+                    ["git", "-C", str(root), *args],
+                    check=True,
+                    capture_output=True,
+                    env=env,
+                )
+
+            git("init")
+            write(root / "a.txt", "a\n")
+            write(root / "b.txt", "b\n")
+            write(root / "c.txt", "c\n")
+            git("add", "a.txt", "b.txt", "c.txt")
+            git("commit", "-m", "base")
+            write(root / "a.txt", "changed\n")
+            (root / "b.txt").unlink()
+            write(root / "c.txt", "staged\n")
+            git("add", "c.txt")
+            write(root / "d.txt", "new\n")
+            before = (root / ".git" / "index").stat().st_mtime_ns
+            counts = recovery.git_status_counts(root)
+            after = (root / ".git" / "index").stat().st_mtime_ns
+            self.assertEqual(before, after)
+            self.assertEqual(counts["modified"], 2)
+            self.assertEqual(counts["deleted"], 1)
+            self.assertEqual(counts["untracked"], 1)
+            self.assertEqual(counts["staged"], 1)
+
+    def test_evidence_file_is_private_and_outside_the_repo(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            path = Path(raw) / "evidence.json"
+            recovery.write_evidence(path, {"snapshot_id": "abc", "ok": True})
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+            self.assertNotIn("prose", path.read_text(encoding="utf-8"))
+        with self.assertRaises(recovery.RecoveryError):
+            recovery.write_evidence(recovery.PLUGIN_ROOT / "evidence.json", {"ok": True})
+
+    def test_cli_scan_reports_aggregates_only(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            write(root / "📝 Journal" / "2026-01-01 synthetic.md", "hello\n")
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                code = recovery.main(["scan", "--root", str(root)])
+            self.assertEqual(code, 0)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["files"], 1)
+            self.assertEqual(payload["markdown"], 1)
+            self.assertNotIn("hello", stdout.getvalue())
+
+    def test_cli_rejects_a_keychain_inside_the_repo(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            code = recovery.main(
+                ["--keychain", str(recovery.PLUGIN_ROOT / "temp.keychain"), "scan", "--root", raw]
+            )
+        self.assertEqual(code, 2)
+
+    def test_temp_keychain_roundtrip(self) -> None:
+        if shutil.which("security") is None:
+            self.skipTest("security is not available")
+        listed = subprocess.run(
+            ["security", "list-keychains", "-d", "user"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        original = [line.strip().strip('"') for line in listed.stdout.splitlines() if line.strip()]
+        with tempfile.TemporaryDirectory() as raw:
+            keychain = Path(raw) / "recovery-test.keychain-db"
+            password = "temp-keychain-pass"
+            secret = "temp-restic-secret"
+            try:
+                created = subprocess.run(
+                    ["security", "create-keychain", "-p", password, str(keychain)],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=20,
+                )
+                if created.returncode != 0:
+                    self.skipTest("temporary keychain could not be created")
+                subprocess.run(
+                    ["security", "unlock-keychain", "-p", password, str(keychain)],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=20,
+                )
+                store = recovery.KeychainStore(
+                    service="jake.information-flow.vault-recovery-test",
+                    keychain=keychain,
+                )
+                store.put("restic-password", secret)
+                self.assertEqual(store.get("restic-password"), secret)
+                self.assertIsNone(store.get("missing-account"))
+            finally:
+                subprocess.run(
+                    ["security", "list-keychains", "-d", "user", "-s", *original],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                subprocess.run(
+                    ["security", "delete-keychain", str(keychain)],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+
+    def test_local_restic_readback_and_isolated_restore(self) -> None:
+        if shutil.which("restic") is None:
+            self.skipTest("restic is not installed")
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            vault = root / "vault"
+            repo = root / "repo"
+            journal = "---\ndate: 2026-01-01\n---\nSee [[Synthetic Target]]\n"
+            write(vault / "📝 Journal" / "2026-01-01 synthetic.md", journal)
+            write(vault / "📥 Inbox" / "source.md", "inbox synthetic\n")
+            write(
+                vault / "📖 Cognition" / "Evidence" / "evidence.md",
+                "---\nid: evidence-synthetic\n---\n[[Synthetic Target]]\n",
+            )
+            write(vault / "other.txt", "other\n")
+            (vault / "empty-dir").mkdir()
+            link = vault / "link.txt"
+            link.symlink_to("other.txt")
+            summary = recovery.backup_snapshot(
+                vault,
+                str(repo),
+                "test-password-value",
+                None,
+                None,
+            )
+            snapshot_id = str(summary["snapshot_id"])
+            self.assertGreaterEqual(summary["repo_config_version"], 1)
+            readback = recovery.readback_snapshot(
+                vault,
+                snapshot_id,
+                str(repo),
+                "test-password-value",
+            )
+            self.assertGreater(readback["checked"], 0)
+            self.assertEqual(readback["checked"], readback["byte_matches"])
+            target = root / "restore-out"
+            result = recovery.restore_check(
+                vault,
+                snapshot_id,
+                str(repo),
+                "test-password-value",
+                target=target,
+            )
+            self.assertEqual(result["comparison"]["missing"], 0)
+            self.assertEqual(result["comparison"]["mismatched"], 0)
+            self.assertEqual(result["structure"]["checked"], result["structure"]["matched"])
+            self.assertFalse(target.exists())
+
+
+if __name__ == "__main__":
+    unittest.main()
