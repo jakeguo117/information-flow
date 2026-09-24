@@ -39,8 +39,9 @@ Every retrieval ends in exactly one of:
 | `unavailable` | Store could not be accessed (including no cognition store yet) |
 
 `partial` and `unavailable` must be disclosed. They must never be summarized as “no relevant cognition.”
+Read failures (unreadable files, missing vault / cognition store, permission) are `partial` or `unavailable` — never `no_match`.
 
-Also return matched IDs, warnings/errors, skipped/unreadable files, stale dependency flags, and supersession information.
+Also return matched IDs, warnings/errors, skipped/unreadable files, stale dependency flags, supersession information, and per-hit identity/provenance fields (`id`, `path`, `status`, `source` when present). Payloads stay bounded: claim/statement/trigger summaries only — never raw Journal or note body prose.
 
 ## Contradiction, contest, stale, history
 

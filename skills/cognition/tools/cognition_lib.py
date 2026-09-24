@@ -499,7 +499,11 @@ def load_store(vault: Path) -> Store:
         return Store(vault=vault, root=root, available=False)
     if not root.is_dir():
         return Store(vault=vault, root=root, available=False)
-    inside, outside = iter_cognition_markdown(root)
+    try:
+        inside, outside = iter_cognition_markdown(root)
+    except OSError:
+        # Directory list/permission failure: store cannot be read → unavailable
+        return Store(vault=vault, root=root, available=False)
     docs: list[CognitionDoc] = []
     parse_errors: list[str] = []
     for path in inside:
@@ -925,6 +929,7 @@ def summarize(doc: CognitionDoc) -> str:
 
 
 def doc_payload(doc: CognitionDoc, superseded: set[str], stale: bool = False) -> dict[str, Any]:
+    """Bounded read payload: identity/provenance fields + summaries, never note body."""
     eff = effective_status(doc, superseded)
     return {
         "id": doc.id,
@@ -935,6 +940,8 @@ def doc_payload(doc: CognitionDoc, superseded: set[str], stale: bool = False) ->
         "stale_dependency": stale,
         "summary": summarize(doc),
         "path": str(doc.path),
+        # schema 1.1 provenance / identity (Evidence.source; absent on Belief/Principle)
+        "source": doc.meta.get("source"),
         "domains": as_list(doc.meta.get("domains")),
         "related_projects": as_list(doc.meta.get("related_projects")),
         "supporting_evidence": as_list(doc.meta.get("supporting_evidence")),
@@ -1022,12 +1029,27 @@ def retrieve(
         return rel > 0 and bool(tokens)
 
     matching = [doc for sc, rel, doc in scored if is_match(rel, doc)]
-    if not matching and not skipped_relevant:
+    read_failures = [
+        item
+        for item in result["skipped"]
+        if str(item.get("reason") or "").startswith("unreadable")
+    ]
+    # partial / unavailable / read failure must NEVER collapse into no_match
+    if not matching:
+        if skipped_relevant:
+            result["status"] = "partial"
+            result["warnings"].append(
+                "relevant files could not be read; absence claims are unsafe"
+            )
+            return result
+        if read_failures:
+            result["status"] = "partial"
+            result["errors"].append("cognition read failure; absence claims are unsafe")
+            result["warnings"].append(
+                "unreadable cognition files; do not claim no relevant cognition"
+            )
+            return result
         result["status"] = "no_match"
-        return result
-    if not matching and skipped_relevant:
-        result["status"] = "partial"
-        result["warnings"].append("relevant files could not be read; absence claims are unsafe")
         return result
 
     by_id = {doc.id: doc for doc in readable}
