@@ -1,8 +1,10 @@
 #!/bin/sh
 # Copy Snipd/ and Inbox/WeRead from the iCloud vault onto a standalone
-# origin/main clone, then commit and push only those paths. Never runs git
-# inside the iCloud vault (launchd cannot getcwd() there), and never touches
-# Journal, Digests, the dirty vault branch, or com.jake.journal-daily-digest.
+# origin/main clone, then commit and push only those paths. Never cd into the
+# iCloud vault (launchd cannot getcwd() there). After push, drop live-vault
+# untracked files that are byte-identical to origin/main so Obsidian Git pull
+# is not blocked. Never touches Journal, Digests, the dirty vault branch, or
+# com.jake.journal-daily-digest.
 set -eu
 
 PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/plugins/information-flow}"
@@ -142,9 +144,16 @@ stage_tree() {
 stage_tree "$SNIPD"
 stage_tree "$WEREAD"
 
+reconcile_live_vault() {
+  log "reconciling identical untracked files in live vault"
+  DIGITALBRAIN_RECONCILE_MERGE=1 INTAKE_VAULT="$VAULT" python3 \
+    "$PLUGIN_ROOT/scripts/reconcile_live_vault_untracked.py" || log "warn: live vault reconcile failed"
+}
+
 cached=$(gitw -c core.quotepath=false diff --cached --name-only)
 if [ -z "$cached" ]; then
   log "no source changes"
+  reconcile_live_vault
   exit 0
 fi
 
@@ -162,3 +171,4 @@ gitw commit -m "$COMMIT_MSG"
 sha=$(gitw rev-parse HEAD)
 gitw push origin main
 log "pushed $sha"
+reconcile_live_vault
