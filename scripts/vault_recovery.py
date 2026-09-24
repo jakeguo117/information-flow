@@ -3,8 +3,9 @@
 
 The live DigitalBrain vault is read for backup and compared after an isolated
 restore. This tool does not migrate, delete, rewrite notes, or change git
-state in the vault. Passwords and B2 keys stay in the macOS keychain and are
-passed to restic through the environment.
+state in the vault. Passwords and B2 keys stay in the macOS keychain. Restic
+receives them through the environment, and keychain writes do not put them on
+the command line.
 """
 
 from __future__ import annotations
@@ -19,7 +20,6 @@ import shutil
 import stat
 import subprocess
 import sys
-import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -67,12 +67,12 @@ class SecretBag:
     values: list[str] = field(default_factory=list)
 
     def add(self, value: str | None) -> None:
-        if value and len(value) >= 8:
+        if value:
             self.values.append(value)
 
     def scrub(self, text: str) -> str:
         redacted = text
-        for value in self.values:
+        for value in sorted(self.values, key=len, reverse=True):
             redacted = redacted.replace(value, "[redacted]")
         return redacted
 
@@ -156,6 +156,71 @@ def assert_isolated_target(target: Path, vault: Path) -> Path:
     if resolved_vault in resolved_target.parents or resolved_target in resolved_vault.parents:
         raise RecoveryError("restore target overlaps the live vault")
     return resolved_target
+
+
+def assert_direct_path(path: Path) -> Path:
+    absolute = path.expanduser().absolute()
+    if not absolute.is_absolute() or absolute.resolve() != absolute or absolute.is_symlink():
+        raise RecoveryError("path must be an absolute path without symlinks")
+    return absolute
+
+
+def assert_no_overlap(path: Path, other: Path, message: str) -> None:
+    if path == other or other in path.parents or path in other.parents:
+        raise RecoveryError(message)
+
+
+def private_temp_dir(vault: Path, prefix: str) -> Path:
+    parent = Path("/private/tmp")
+    if parent.is_symlink() or not parent.is_dir():
+        raise RecoveryError("isolated temp directory is unavailable")
+    path = assert_direct_path(parent / f"{prefix}{secrets.token_hex(8)}")
+    assert_isolated_target(path, vault)
+    path.mkdir(exist_ok=False)
+    os.chmod(path, 0o700)
+    return path
+
+
+def discard_private_temp_dir(path: Path, vault: Path) -> None:
+    resolved = assert_isolated_target(path, vault)
+    if Path("/private/tmp") not in resolved.parents:
+        raise RecoveryError("refusing to remove a path outside the isolated temp directory")
+    try:
+        info = resolved.lstat()
+    except FileNotFoundError:
+        return
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+        raise RecoveryError("refusing to remove a path outside the isolated temp directory")
+    shutil.rmtree(resolved)
+
+
+def create_new_directory(path: Path, vault: Path) -> Path:
+    absolute = assert_direct_path(path)
+    resolved = assert_isolated_target(absolute, vault)
+    if absolute.exists() or absolute.is_symlink():
+        raise RecoveryError("path must be a new directory")
+    try:
+        absolute.mkdir(parents=True, exist_ok=False)
+    except OSError as exc:
+        raise RecoveryError("path must be a new directory") from exc
+    os.chmod(absolute, 0o700)
+    return resolved
+
+
+def prepare_local_repo_dir(repository: Path) -> None:
+    repo_path = assert_direct_path(repository)
+    if repo_path.is_symlink() or repo_path.exists():
+        raise RecoveryError("existing local path is not a readable restic repository")
+    volumes = Path("/Volumes")
+    if volumes in repo_path.parents:
+        parts = repo_path.relative_to(volumes).parts
+        if len(parts) < 3 or not os.path.ismount(volumes / parts[0]):
+            raise RecoveryError("local repository volume is not mounted")
+    try:
+        repo_path.mkdir(parents=True, exist_ok=False)
+    except OSError as exc:
+        raise RecoveryError("existing local path is not a readable restic repository") from exc
+    os.chmod(repo_path, 0o700)
 
 
 def top_level(rel: str) -> str:
@@ -466,8 +531,9 @@ def git_status_counts(root: Path) -> dict[str, object]:
     index = git_dir / "index"
     if not git_dir.exists() or not index.is_file():
         return {"available": False, "reason": "no-index"}
-    with tempfile.TemporaryDirectory(prefix="if-git-index-") as tmp:
-        copied = Path(tmp) / "index"
+    temp_dir = private_temp_dir(root, "if-git-index-")
+    try:
+        copied = temp_dir / "index"
         try:
             shutil.copy2(index, copied)
         except OSError:
@@ -495,6 +561,8 @@ def git_status_counts(root: Path) -> dict[str, object]:
             text=True,
             env=env,
         )
+    finally:
+        discard_private_temp_dir(temp_dir, root)
     after_status = index.stat().st_mtime_ns
     if after_status != after_copy:
         raise RecoveryError("git status touched the vault index")
@@ -551,22 +619,66 @@ class KeychainStore:
         raise RecoveryError(f"keychain read failed for account {account}")
 
     def put(self, account: str, secret: str) -> None:
+        if not secret or any(char in secret for char in "\r\n\0"):
+            raise RecoveryError("refusing to store an empty or multi-line keychain secret")
+        # security documents -w PASSWORD as insecure because it is visible in argv.
+        # A bare -w reads the secret from stdin and prompts twice.
         command = [
             "security",
             "add-generic-password",
-            "-U",
             "-s",
             self.service,
             "-a",
             account,
             "-w",
-            secret,
         ]
-        if self.keychain is not None:
-            command.append(str(self.keychain))
-        proc = subprocess.run(command, check=False, capture_output=True, text=True)
+        previous = None
+        try:
+            if self.keychain is not None:
+                previous = self._default_keychain()
+                self._set_default_keychain(self.keychain)
+            try:
+                proc = subprocess.run(
+                    command,
+                    input=f"{secret}\n{secret}\n",
+                    text=True,
+                    capture_output=True,
+                    timeout=20,
+                    check=False,
+                )
+            except subprocess.TimeoutExpired:
+                raise RecoveryError(f"keychain write failed for account {account}") from None
+        finally:
+            if previous:
+                self._set_default_keychain(Path(previous))
         if proc.returncode != 0:
             raise RecoveryError(f"keychain write failed for account {account}")
+        if self.get(account) != secret:
+            raise RecoveryError(f"keychain did not return the secret for account {account}")
+
+    def _default_keychain(self) -> str:
+        proc = subprocess.run(
+            ["security", "default-keychain"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        path = proc.stdout.strip().strip('"')
+        if proc.returncode != 0 or not path:
+            raise RecoveryError("keychain default could not be read")
+        return path
+
+    def _set_default_keychain(self, path: Path) -> None:
+        proc = subprocess.run(
+            ["security", "default-keychain", "-s", str(path)],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if proc.returncode != 0:
+            raise RecoveryError("keychain default could not be restored")
 
 
 def ensure_restic_password(store: KeychainStore) -> str:
@@ -810,8 +922,8 @@ def ensure_restic_repo(run, env: dict[str, str], bag: SecretBag) -> None:
     if "wrong password" in err or "ciphertext verification failed" in err:
         raise RecoveryError("restic rejected the keychain password")
     repository = env["RESTIC_REPOSITORY"]
-    if not repository.startswith("s3:") and Path(repository).exists():
-        raise RecoveryError("existing local path is not a readable restic repository")
+    if not repository.startswith("s3:"):
+        prepare_local_repo_dir(Path(repository))
     init = run(["init"], env)
     if init.returncode != 0:
         raise RecoveryError("restic init failed: " + bag.scrub(init.stderr)[:400], code=4)
@@ -930,7 +1042,12 @@ def sample_structure(source: Path, restored: Path, samples: dict[str, list[str]]
         for rel in rels:
             source_path = source / rel
             restored_path = restored / rel
-            if not source_path.is_file() or not restored_path.is_file():
+            if (
+                source_path.is_symlink()
+                or restored_path.is_symlink()
+                or not source_path.is_file()
+                or not restored_path.is_file()
+            ):
                 raise RecoveryError("sample file is missing from the isolated restore", code=4)
             source_bytes = source_path.read_bytes()
             restored_bytes = restored_path.read_bytes()
@@ -1028,15 +1145,18 @@ def restore_check(
     target: Path | None = None,
     run=None,
     binary: str | None = None,
-    cleanup: bool = False,
 ) -> dict[str, object]:
-    created = target is None
-    destination = target or Path(tempfile.mkdtemp(prefix="if-3b-b1-restore-"))
-    assert_isolated_target(destination, root)
-    if not created and (destination.exists() or destination.is_symlink()):
-        raise RecoveryError("restore target must be a new path")
-    destination.mkdir(parents=True, exist_ok=True)
-    os.chmod(destination, 0o700)
+    chosen = assert_direct_path(
+        target or Path("/private/tmp") / f"if-3b-b1-restore-{secrets.token_hex(8)}"
+    )
+    assert_isolated_target(chosen, root)
+    if not repository.startswith("s3:"):
+        assert_no_overlap(
+            chosen,
+            assert_direct_path(Path(repository)),
+            "restore target overlaps the restic repository",
+        )
+    destination = create_new_directory(chosen, root)
     bag = SecretBag()
     bag.add(password)
     bag.add(key_id)
@@ -1046,52 +1166,48 @@ def restore_check(
     command_run = run or (
         lambda args, cmd_env: run_command(restic_command(args, binary), cmd_env)
     )
-    try:
-        proc = command_run(["restore", snapshot_id, "--target", str(destination)], env)
-        if proc.returncode != 0:
-            raise RecoveryError("restic restore failed: " + bag.scrub(proc.stderr)[:400], code=4)
-        restored = restored_root(destination, root)
-        if not restored.is_dir():
-            raise RecoveryError("isolated restore did not contain the vault tree", code=4)
-        for dirname in SAMPLE_DIRS.values():
-            if not (root / dirname).is_dir() or not (restored / dirname).is_dir():
-                raise RecoveryError("required sample tree is missing from the isolated restore", code=4)
-        comparison = compare_trees(root, restored)
-        files = [rel for rel, path in iter_names(root) if path.is_file() and not path.is_symlink()]
-        samples = choose_samples(files)
-        structure = sample_structure(root, restored, samples)
-        ok = (
-            comparison["missing"] == 0
-            and comparison["extra"] == 0
-            and comparison["mismatched"] == 0
-            and structure["checked"] == structure["matched"]
-            and structure["checked"] > 0
-        )
-        if not ok:
-            raise RecoveryError("isolated restore did not match the source tree", code=4)
-        return {
-            "isolated": True,
-            "restore_path": str(destination),
-            "comparison": comparison,
-            "structure": structure,
-            "samples": {label: len(rels) for label, rels in samples.items()},
-        }
-    finally:
-        if cleanup:
-            remove_tree(destination, root)
-
-
-def remove_tree(path: Path, vault: Path) -> None:
-    resolved = assert_isolated_target(path, vault)
-    if resolved.exists():
-        shutil.rmtree(resolved)
+    proc = command_run(["restore", snapshot_id, "--target", str(destination)], env)
+    if proc.returncode != 0:
+        raise RecoveryError("restic restore failed: " + bag.scrub(proc.stderr)[:400], code=4)
+    restored = restored_root(destination, root)
+    if not restored.is_dir():
+        raise RecoveryError("isolated restore did not contain the vault tree", code=4)
+    for dirname in SAMPLE_DIRS.values():
+        if not (root / dirname).is_dir() or not (restored / dirname).is_dir():
+            raise RecoveryError("required sample tree is missing from the isolated restore", code=4)
+    comparison = compare_trees(root, restored)
+    files = [rel for rel, path in iter_names(root) if path.is_file() and not path.is_symlink()]
+    samples = choose_samples(files)
+    structure = sample_structure(root, restored, samples)
+    ok = (
+        comparison["missing"] == 0
+        and comparison["extra"] == 0
+        and comparison["mismatched"] == 0
+        and structure["checked"] == structure["matched"]
+        and structure["checked"] > 0
+    )
+    if not ok:
+        raise RecoveryError("isolated restore did not match the source tree", code=4)
+    return {
+        "isolated": True,
+        "restore_path": str(destination),
+        "comparison": comparison,
+        "structure": structure,
+        "samples": {label: len(rels) for label, rels in samples.items()},
+    }
 
 
 def write_evidence(path: Path, payload: dict, repo_root: Path = PLUGIN_ROOT) -> None:
-    resolved = assert_outside_repo(path, repo_root)
+    resolved = assert_outside_repo(assert_direct_path(path), repo_root)
     resolved.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
-    resolved.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    os.chmod(resolved, 0o600)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW
+    try:
+        descriptor = os.open(resolved, flags, 0o600)
+    except OSError as exc:
+        raise RecoveryError("evidence file could not be created") from exc
+    with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    os.chmod(resolved, 0o600, follow_symlinks=False)
 
 
 def emit(payload: dict) -> None:
