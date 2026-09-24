@@ -140,7 +140,7 @@ class SkillDriftStatus:
 @dataclass(frozen=True)
 class DriftReport:
     skills: tuple[SkillDriftStatus, ...]
-    agents_block_status: str  # match | mismatch
+    agents_block_status: str  # match | missing | mismatch
     agents_source_hash: str
     agents_dest_hash: str | None
 
@@ -168,15 +168,21 @@ def check_skill_file(vault: Path, relative: str) -> SkillDriftStatus:
 
 
 def check_agents_block(vault: Path) -> tuple[str, str, str | None]:
+    """Status is match, missing, or mismatch.
+
+    missing: AGENTS.md is absent, or the file exists but the managed marked
+    block is absent. mismatch: the marked block is present and its bytes
+    differ from the source snippet. match: the marked block bytes match.
+    """
     expected = expected_marked_block()
     source_hash = content_hash(expected.encode("utf-8"))
     agents = vault / "AGENTS.md"
     if not agents.is_file():
-        return "mismatch", source_hash, None
+        return "missing", source_hash, None
     text = agents.read_text(encoding="utf-8")
     block = extract_marked_block(text)
     if block is None:
-        return "mismatch", source_hash, None
+        return "missing", source_hash, None
     dest_hash = content_hash(block.encode("utf-8"))
     # Compare marker-to-marker body; tolerate a single trailing newline on either side.
     if block.rstrip("\n") == expected.rstrip("\n"):

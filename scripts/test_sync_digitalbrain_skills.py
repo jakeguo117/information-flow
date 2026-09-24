@@ -280,8 +280,47 @@ class DriftCheckTests(unittest.TestCase):
             self.assertEqual(rc, 1)
             out = buf.getvalue()
             self.assertIn("agents_block mismatch", out)
+            self.assertNotIn("agents_block missing", out)
             self.assertNotIn("STALE ROUTE PLACEHOLDER", out)
             self.assertNotIn("OUTSIDE BLOCK", out)
+
+    def test_absent_agents_file_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            _seed_synced_vault(vault)
+            (vault / "AGENTS.md").unlink()
+            before = _tree_fingerprint(vault)
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                rc = sync.main(["--check", "--vault", str(vault)])
+            self.assertEqual(rc, 1)
+            out = buf.getvalue()
+            self.assertIn("agents_block missing", out)
+            self.assertNotIn("agents_block mismatch", out)
+            self.assertIn("dst=-", out)
+            self.assertEqual(before, _tree_fingerprint(vault))
+            self.assertFalse((vault / "AGENTS.md").exists())
+
+    def test_agents_without_marked_block_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            _seed_synced_vault(vault)
+            agents = vault / "AGENTS.md"
+            agents.write_text(
+                "# OUTSIDE BLOCK PREFIX\n\nNo managed route block here.\n",
+                encoding="utf-8",
+            )
+            before = _tree_fingerprint(vault)
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                rc = sync.main(["--check", "--vault", str(vault)])
+            self.assertEqual(rc, 1)
+            out = buf.getvalue()
+            self.assertIn("agents_block missing", out)
+            self.assertNotIn("agents_block mismatch", out)
+            self.assertNotIn("OUTSIDE BLOCK", out)
+            self.assertEqual(before, _tree_fingerprint(vault))
+            self.assertNotIn(sync.MARK_START, agents.read_text(encoding="utf-8"))
 
     def test_outside_agents_content_preserved_by_drift_mode(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
