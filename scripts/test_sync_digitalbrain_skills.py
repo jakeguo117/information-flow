@@ -3,8 +3,11 @@
 
 from __future__ import annotations
 
+import hashlib
+import io
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 import sync_digitalbrain_skills as sync
@@ -189,6 +192,157 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertIn("自己认周", text)
         self.assertIn("不写 `📖 Cognition/`", text)
         self.assertNotIn("W38 有什么", text)
+
+
+def _tree_fingerprint(root: Path) -> dict[str, str]:
+    """Map relative path -> sha256 of file bytes for the whole tree."""
+    out: dict[str, str] = {}
+    for path in sorted(root.rglob("*")):
+        if path.is_file():
+            rel = str(path.relative_to(root))
+            out[rel] = hashlib.sha256(path.read_bytes()).hexdigest()
+    return out
+
+
+def _seed_synced_vault(vault: Path) -> None:
+    prefix = "# OUTSIDE BLOCK PREFIX\n\n"
+    suffix = "\n\n## OUTSIDE BLOCK SUFFIX\nOUTSIDE BLOCK\n"
+    write(vault / "AGENTS.md", prefix + sync.load_route_snippet() + suffix)
+    write(vault / "📝 Journal" / "keep.md", "OUTSIDE BLOCK journal placeholder\n")
+    for relative in sync.SKILL_RELATIVE_PATHS:
+        src = sync.SKILLS_DIR / relative
+        dest = vault / ".cursor" / "skills" / relative
+        write(dest, src.read_text(encoding="utf-8"))
+
+
+class DriftCheckTests(unittest.TestCase):
+    def test_clean_match(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            _seed_synced_vault(vault)
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                rc = sync.main(["--check", "--vault", str(vault)])
+            self.assertEqual(rc, 0)
+            out = buf.getvalue()
+            self.assertIn("drift clean", out)
+            self.assertIn("agents_block match", out)
+            for relative in sync.SKILL_RELATIVE_PATHS:
+                self.assertIn(f".cursor/skills/{relative} match", out)
+
+    def test_stale_copy(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            _seed_synced_vault(vault)
+            stale = vault / ".cursor" / "skills" / "intake" / "SKILL.md"
+            stale.write_text("STALE PLACEHOLDER BYTES\n", encoding="utf-8")
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                rc = sync.main(["--drift", "--vault", str(vault)])
+            self.assertEqual(rc, 1)
+            out = buf.getvalue()
+            self.assertIn(".cursor/skills/intake/SKILL.md mismatch", out)
+            self.assertIn("drift found", out)
+            self.assertNotIn("STALE PLACEHOLDER", out)
+
+    def test_missing_copy(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            _seed_synced_vault(vault)
+            (vault / ".cursor" / "skills" / "journal" / "SKILL.md").unlink()
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                rc = sync.main(["--check", "--vault", str(vault)])
+            self.assertEqual(rc, 1)
+            out = buf.getvalue()
+            self.assertIn(".cursor/skills/journal/SKILL.md missing", out)
+            self.assertIn("drift found", out)
+
+    def test_agents_block_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            _seed_synced_vault(vault)
+            agents = vault / "AGENTS.md"
+            text = agents.read_text(encoding="utf-8")
+            start = text.index(sync.MARK_START)
+            end = text.index(sync.MARK_END) + len(sync.MARK_END)
+            mutated = (
+                text[:start]
+                + sync.MARK_START
+                + "\n## STALE ROUTE PLACEHOLDER\n"
+                + sync.MARK_END
+                + text[end:]
+            )
+            agents.write_text(mutated, encoding="utf-8")
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                rc = sync.main(["--check", "--vault", str(vault)])
+            self.assertEqual(rc, 1)
+            out = buf.getvalue()
+            self.assertIn("agents_block mismatch", out)
+            self.assertNotIn("STALE ROUTE PLACEHOLDER", out)
+            self.assertNotIn("OUTSIDE BLOCK", out)
+
+    def test_outside_agents_content_preserved_by_drift_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            _seed_synced_vault(vault)
+            agents = vault / "AGENTS.md"
+            before = agents.read_text(encoding="utf-8")
+            start = before.index(sync.MARK_START)
+            end = before.index(sync.MARK_END) + len(sync.MARK_END)
+            prefix_before = before[:start]
+            suffix_before = before[end:]
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                sync.main(["--check", "--vault", str(vault)])
+            after = agents.read_text(encoding="utf-8")
+            self.assertEqual(after[: after.index(sync.MARK_START)], prefix_before)
+            self.assertEqual(
+                after[after.index(sync.MARK_END) + len(sync.MARK_END) :],
+                suffix_before,
+            )
+            self.assertEqual(before, after)
+
+    def test_patch_agents_preserves_outside_markers(self) -> None:
+        prefix = "# OUTSIDE BLOCK PREFIX\n\n"
+        suffix = "\n\n## OUTSIDE BLOCK SUFFIX\nOUTSIDE BLOCK\n"
+        current = prefix + sync.load_route_snippet() + suffix
+        patched = sync.patch_agents(current, sync.load_route_snippet())
+        start = patched.index(sync.MARK_START)
+        end = patched.index(sync.MARK_END) + len(sync.MARK_END)
+        self.assertEqual(patched[:start], prefix)
+        self.assertIn("## OUTSIDE BLOCK SUFFIX", patched[end:])
+        self.assertIn("OUTSIDE BLOCK", patched[end:])
+        self.assertEqual(patched.count(sync.MARK_START), 1)
+        self.assertEqual(patched.count(sync.MARK_END), 1)
+
+    def test_drift_mode_zero_writes_on_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            _seed_synced_vault(vault)
+            (vault / ".cursor" / "skills" / "intake" / "SKILL.md").write_text(
+                "STALE PLACEHOLDER BYTES\n", encoding="utf-8"
+            )
+            agents = vault / "AGENTS.md"
+            text = agents.read_text(encoding="utf-8")
+            start = text.index(sync.MARK_START)
+            end = text.index(sync.MARK_END) + len(sync.MARK_END)
+            agents.write_text(
+                text[:start]
+                + sync.MARK_START
+                + "\n## STALE ROUTE PLACEHOLDER\n"
+                + sync.MARK_END
+                + text[end:],
+                encoding="utf-8",
+            )
+            before = _tree_fingerprint(vault)
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                rc = sync.main(["--check", "--vault", str(vault)])
+            self.assertEqual(rc, 1)
+            after = _tree_fingerprint(vault)
+            self.assertEqual(before, after)
 
 
 if __name__ == "__main__":
