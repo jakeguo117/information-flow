@@ -183,6 +183,24 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertIn(".cursor/skills/cognition/", route)
         self.assertIn("partial / unavailable 不许说成", route)
 
+    def test_managed_route_does_not_authorize_protected_main(self) -> None:
+        route = (sync.SKILLS_DIR / "digitalbrain-agents-route.md").read_text(encoding="utf-8")
+        lowered = route.lower()
+        self.assertNotIn("push origin main", lowered)
+        self.assertNotIn("git push origin main", lowered)
+        self.assertNotIn("可以直接写 protected main", route)
+        self.assertNotIn("可以直接 push protected main", route)
+        self.assertNotIn("直接修改 / push protected main", route)
+        self.assertNotIn("禁止为 Digest 开 PR", route)
+        self.assertIn("当前 Global Governance / project policy", route)
+        self.assertIn("task branch", route)
+        self.assertIn("精确路径暂存", route)
+        self.assertIn("禁止 `git add -A`", route)
+        self.assertIn("不直接 push protected `main`", route)
+        self.assertIn("PR 与 merge 服从当前授权和治理 gate", route)
+        self.assertIn("Journal 仍不自动 push", route)
+        self.assertIn("客户说「可以写 / 写吧 / OK 写」之前，不要写 `📝 Journal/`", route)
+
     def test_journal_waits_for_ok(self) -> None:
         text = (sync.SKILLS_DIR / "journal" / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("旧周记", text)

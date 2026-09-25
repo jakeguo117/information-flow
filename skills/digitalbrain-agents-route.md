@@ -10,7 +10,7 @@
 3. 没有画像就先问一句这周人在哪。不要甩本周清单，不要出文。
 4. 再打开 **刚解析出的那一周** `intake.md`，只挑一条和旧线 / 画像呼应的未勾选来问（Yale 式，一次一问）。
 5. 对不上的略过。禁止整周附录。禁止没讨论就出文。
-6. Jake 说记下之后：只暂存该条 `intake.md` 勾选/reflection，以及有引用时的 `📖 Resources/concepts/` 卡片。精确路径 commit，**push origin main**。禁止 `git add -A`。禁止为 Digest 开 PR。
+6. Jake 说记下之后：只暂存该条 `intake.md` 勾选/reflection，以及有引用时的 `📖 Resources/concepts/` 卡片。Agent 发起的受管文件变更遵循当前 Global Governance / project policy：使用 task branch，精确路径暂存，禁止 `git add -A`，不直接 push protected `main`。PR 与 merge 服从当前授权和治理 gate。Journal 仍不自动 push。
 7. **客户说「可以写 / 写吧 / OK 写」之前，不要写 `📝 Journal/`。** 周记不自动 push。
 
 用户说「写周记」「周记」或 `/journal`：
