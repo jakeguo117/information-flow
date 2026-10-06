@@ -5,7 +5,7 @@ Jake only. Daily content in, weekly journal out, durable Cognition in DigitalBra
 ## Skills
 
 - `intake` — resolve this week's `📋 Digests/{YYYY-Wnn}/intake.md` from the Shanghai date (portrait + old-thread echoes first; never dump the week). Intake items and concept cards are not Evidence.
-- `journal` — on demand: find echoes from recent journals / already-linked projects, then write `📝 Journal/` only after Jake says OK. After a journal is written, hand off to `cognition` propose; journal never writes Cognition files.
+- `journal` — on demand: find echoes from recent journals / already-linked projects, then write `📝 Journal/` only after Jake says OK. Persistent save goes through `write_journal.py`; without `可以写` / `写吧` / `OK 写` the tool writes 0 files. After a journal is written, hand off to `cognition` propose; journal never writes Cognition files.
 - `cognition` — propose / promote / retrieve / revise Evidence, Belief, and Principle as Markdown (`schema_version: "1.1"`) under DigitalBrain `📖 Cognition/`. Human gate. Writes go through validator + write coordinator. Retrieval returns `found | no_match | partial | unavailable`.
 
 Skill copies on DigitalBrain (`.cursor/skills/` + the AGENTS.md route block) are overwritten by `scripts/sync_digitalbrain_skills.py` when this repo's `main` changes. Existing notes — including Cognition **content** — are not rewritten.
@@ -16,6 +16,7 @@ Privacy: this public repo has schema, skills, tools, and synthetic fixtures only
 python3 skills/cognition/tools/validate_cognition.py --vault "$VAULT"
 python3 skills/cognition/tools/retrieve_cognition.py --vault "$VAULT" --query "..."
 python3 skills/cognition/tools/write_cognition.py create --vault "$VAULT" --payload FILE --approval FILE
+python3 skills/journal/tools/write_journal.py save --vault "$VAULT" --approval FILE
 ```
 
 ## Skills

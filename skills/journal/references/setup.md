@@ -30,7 +30,9 @@ information-flow 的 intake / journal / cognition skill 一进 main
 
 写周记
   → 先旧线呼应，再对已勾选 intake
+  → 未勾选即使相关也不进入材料
   → 客户说「可以写 / 写吧 / OK 写」之前不落盘
+  → 持久写入只走 skills/journal/tools/write_journal.py
   → 📝 Journal/   不自动 git push
   → 落盘后如有可复用判断，交给 cognition propose；周记自己不写 Cognition
 ```

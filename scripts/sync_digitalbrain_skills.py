@@ -5,9 +5,12 @@ Source of truth stays in this repo. DigitalBrain only keeps copies so a
 Cursor Cloud session opened on obsidian-digitalbrain sees the same rules.
 Does not rewrite Journal, Digests, Resources, or Cognition content.
 
-Default mode writes the allowlisted skill copies and patches the AGENTS
-marked route block. Pass --check / --drift for a read-only exact-file
-drift report (zero destination writes).
+Default mode writes allowlisted skill copies that exist in this tree and
+patches the AGENTS marked route block. A listed skill that is not in the
+tree (the Journal pack ships journal and cognition, not intake) is skipped.
+Existing vault copies of skipped skills are kept and never deleted.
+Pass --check / --drift for a read-only exact-file drift report of the
+skills this tree actually has (zero destination writes).
 """
 
 from __future__ import annotations
@@ -32,6 +35,8 @@ SKILL_RELATIVE_PATHS = (
     "journal/SKILL.md",
     "journal/references/setup.md",
     "journal/references/weekly-brief.md",
+    "journal/tools/journal_lib.py",
+    "journal/tools/write_journal.py",
     "cognition/SKILL.md",
     "cognition/references/schema.md",
     "cognition/references/retrieval.md",
@@ -54,10 +59,20 @@ def vault_path(raw: str | None) -> Path:
     return Path(raw).expanduser() if raw else DEFAULT_VAULT
 
 
+def route_snippet_path() -> Path:
+    """Resolve the route snippet from the active skills tree.
+
+    ``SKILLS_DIR`` is read at call time so a pack tree without intake can be
+    substituted without keeping the import-time path.
+    """
+    return SKILLS_DIR / ROUTE_SNIPPET.name
+
+
 def load_route_snippet() -> str:
-    text = ROUTE_SNIPPET.read_text(encoding="utf-8").strip() + "\n"
+    path = route_snippet_path()
+    text = path.read_text(encoding="utf-8").strip() + "\n"
     if MARK_START not in text or MARK_END not in text:
-        raise SystemExit(f"route snippet missing markers: {ROUTE_SNIPPET}")
+        raise SystemExit(f"route snippet missing markers: {path}")
     return text
 
 
@@ -65,12 +80,28 @@ def content_hash(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def present_skill_relative_paths() -> tuple[str, ...]:
+    """Allowlisted skill files that exist under the active skills tree.
+
+    Intake stays on the allowlist when this repo contains it. A Journal pack
+    tree has no ``skills/intake/``; that path is omitted instead of failing
+    the sync. Omitted paths are not copied and are never deleted from a vault.
+    """
+    present = tuple(
+        relative
+        for relative in SKILL_RELATIVE_PATHS
+        if (SKILLS_DIR / relative).is_file()
+    )
+    if not present:
+        raise SystemExit(f"no skill sources present under {SKILLS_DIR}")
+    return present
+
+
 def copy_skills(vault: Path) -> list[Path]:
+    """Copy present skill files. Never deletes other vault skill files."""
     written: list[Path] = []
-    for relative in SKILL_RELATIVE_PATHS:
+    for relative in present_skill_relative_paths():
         src = SKILLS_DIR / relative
-        if not src.is_file():
-            raise SystemExit(f"missing skill source: {src}")
         dest = vault / ".cursor" / "skills" / relative
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
@@ -112,7 +143,7 @@ def write_agents(vault: Path) -> Path:
 
 
 def commit_paths(vault: Path) -> list[str]:
-    paths = [f".cursor/skills/{relative}" for relative in SKILL_RELATIVE_PATHS]
+    paths = [f".cursor/skills/{relative}" for relative in present_skill_relative_paths()]
     paths.append("AGENTS.md")
     return paths
 
@@ -191,8 +222,14 @@ def check_agents_block(vault: Path) -> tuple[str, str, str | None]:
 
 
 def check_drift(vault: Path) -> DriftReport:
-    """Read-only exact-file drift for allowlisted skills + AGENTS marked block."""
-    skills = tuple(check_skill_file(vault, relative) for relative in SKILL_RELATIVE_PATHS)
+    """Read-only drift for skills present in this tree, plus the AGENTS block.
+
+    Vault skill files whose source is absent (an existing ``.cursor/skills/intake/``
+    when this tree has no intake) are not drift and are not modified.
+    """
+    skills = tuple(
+        check_skill_file(vault, relative) for relative in present_skill_relative_paths()
+    )
     agents_status, agents_src, agents_dst = check_agents_block(vault)
     return DriftReport(skills, agents_status, agents_src, agents_dst)
 
@@ -224,7 +261,7 @@ def validate_vault(vault: Path) -> int | None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Copy intake/journal/cognition skills into a DigitalBrain vault"
+        description="Copy skill files present in this tree into a DigitalBrain vault"
     )
     parser.add_argument("--vault")
     parser.add_argument(
@@ -238,8 +275,9 @@ def main(argv: list[str] | None = None) -> int:
         dest="check",
         action="store_true",
         help=(
-            "read-only drift check for allowlisted skill copies and the "
-            "AGENTS marked route block; never writes"
+            "read-only drift check for skill copies present in this tree and "
+            "the AGENTS marked route block; never writes or deletes vault "
+            "skills this tree does not ship"
         ),
     )
     args = parser.parse_args(argv)

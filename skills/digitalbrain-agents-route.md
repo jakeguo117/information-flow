@@ -15,8 +15,8 @@
 
 用户说「写周记」「周记」或 `/journal`：
 
-- 自己认周，先用旧周记和已经挂上的老项目找呼应，再对已勾选 intake。
-- 客户说 OK 之前不落盘周记。不自动 push 周记。
+- 自己认周，先用旧周记和已经挂上的老项目找呼应，再对已勾选 intake。未勾选即使相关也不进入周记材料。
+- 客户说 OK 之前不落盘周记。持久写入只走 `.cursor/skills/journal/tools/write_journal.py`。不写 Cognition。不自动 push 周记。
 
 详见 `.cursor/skills/intake/SKILL.md` 与 `.cursor/skills/journal/SKILL.md`。云端不要跑 YouTube / Digest 脚本，也不要把 token 写进 vault。
 
