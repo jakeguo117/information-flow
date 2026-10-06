@@ -1,17 +1,19 @@
 # Setup / Goals
 
-只给 Jake。信息流每天进当周 `intake.md`，讨论后带引用的 reflection 进 wiki，周末写成周记。
+只给 Jake。五个入口都在 Inbox。每天一份摘要，讨论后进入 Resource。当周 `intake.md` 不再追加。
 
 ## 闭环
 
 ```
 本机插件把 Snipd / WeRead 划线落到 iCloud vault
-  → 开机/登录后 com.jake.intake-source-push 只推 Snipd/ 与 Inbox/WeRead 上 main
+  → 开机/登录后 com.jake.intake-source-push 只推 📥 Inbox/Snipd/ 与 Inbox/WeRead 上 main
   → 电脑关着时这两路不会自己上 GitHub
 
-GitHub Actions 每天 12:00 和 21:00 上海
-  → YouTube 走 API；Snipd/WeRead 只看 main 上已有的源
-  → 📋 Digests/{YYYY-Wnn}/intake.md   有新内容才 append
+GitHub Actions 每天 08:00 上海
+  → 先拉 YouTube，再写前一个上海日的 `📋 Digests/daily/YYYY-MM-DD.md`
+  → Snipd 和 WeRead 只列当时已经在 main 上的文件
+  → 空日也写文件，并写明为空
+  → 不再追加 `📋 Digests/{YYYY-Wnn}/intake.md`
   → 直接 push obsidian-digitalbrain main（不经过 PR）
 
 information-flow 的 intake / journal / cognition skill 一进 main
@@ -49,9 +51,9 @@ Daily Briefing / Weekly Synthesis / 日 Digest / Journal Briefs 不再作为输�
 | 规则源 | `information-flow/skills/{journal,intake,cognition}` |
 | 仓库 skill（手机 Cloud） | DigitalBrain `.cursor/skills/{intake,journal,cognition}/`，由 Actions 覆盖 |
 | AGENTS 硬路由 | DigitalBrain `AGENTS.md` 里 `information-flow:digest-route` 段，由 Actions 覆盖 |
-| 主文件 | `📋 Digests/{YYYY-Wnn}/intake.md` 须在 GitHub `main` |
-| Actions | 12:00 / 21:00 上海写 intake；skill 变更另走 sync-digitalbrain-skills |
-| 本机 source push | `com.jake.intake-source-push`：登录 + 每 4 小时，只推 `Snipd/` 与 `Inbox/WeRead` |
+| 主文件 | `📋 Digests/daily/YYYY-MM-DD.md` 和 `📋 Digests/讨论说明.md` 在 GitHub `main`。旧的周 intake 只留历史 |
+| Actions | 08:00 上海写每日摘要；skill 变更另走 sync-digitalbrain-skills |
+| 本机 source push | `com.jake.intake-source-push`：登录 + 每 4 小时，只推 `📥 Inbox/Snipd/` 与 `Inbox/WeRead` |
 | Obsidian Git | `disablePush: true`，不整仓 push |
 | 日 Digest | 历史留盘，不再生成 |
 | 公开 journal-skill | 已 private |
@@ -60,6 +62,6 @@ Daily Briefing / Weekly Synthesis / 日 Digest / Journal Briefs 不再作为输�
 
 1. 电脑周记 2026-09-13 已跑通
 2. 摄入脚本 GitHub Actions 一天两次；`com.jake.journal-daily-digest` 保持卸载
-3. Snipd/WeRead 靠本机 `com.jake.intake-source-push` 精确 push，再等下一次 Actions append
+3. Snipd/WeRead 靠本机 `com.jake.intake-source-push` 精确 push。08:00 的摘要只收录当时已经在 main 上的文件
 4. 周入口 W37/W38 已上 GitHub `main`
 5. information-flow 改 skill 后，合进 main 就会覆盖 DigitalBrain 副本；已写成的笔记不重写

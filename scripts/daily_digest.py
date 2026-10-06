@@ -70,7 +70,7 @@ def snipd_thread(text: str) -> str:
 
 
 def collect_snipd(vault: Path, day: dt.date) -> list:
-    root = vault / "Snipd" / "Data"
+    root = vault / "📥 Inbox" / "Snipd" / "Data"
     if not root.is_dir():
         return []
     day_s = day.isoformat()

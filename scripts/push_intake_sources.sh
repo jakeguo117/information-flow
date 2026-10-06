@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copy Snipd/ and Inbox/WeRead from the iCloud vault onto a standalone
+# Copy Inbox/Snipd and Inbox/WeRead from the iCloud vault onto a standalone
 # origin/main clone, then commit and push only those paths. Never runs git
 # inside the iCloud vault (launchd cannot getcwd() there), and never touches
 # Journal, Digests, the dirty vault branch, or com.jake.journal-daily-digest.
@@ -10,7 +10,7 @@ VAULT="${INTAKE_VAULT:-$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documen
 WORKTREE="${INTAKE_SOURCE_WORKTREE:-$PLUGIN_ROOT/state/digitalbrain-main}"
 REMOTE="${INTAKE_SOURCE_REMOTE:-git@github.com:jakeguo117/obsidian-digitalbrain.git}"
 WAIT="${INTAKE_SOURCE_ICLOUD_WAIT:-45}"
-SNIPD="Snipd"
+SNIPD="📥 Inbox/Snipd"
 WEREAD="📥 Inbox/WeRead"
 COMMIT_MSG="intake: sync Snipd WeRead sources"
 

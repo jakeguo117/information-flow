@@ -26,7 +26,9 @@ python3 skills/journal/tools/write_journal.py save --vault "$VAULT" --approval F
 
 Skill copies on DigitalBrain (`.cursor/skills/` + the AGENTS.md route block) are overwritten by `scripts/sync_digitalbrain_skills.py` when this repo's `main` changes. Existing notes are not rewritten.
 
-YouTube / weekly `intake.md` append runs on GitHub Actions (12:00 and 21:00 Shanghai). Snipd and WeRead have no cloud API: launchd `com.jake.intake-source-push` runs `scripts/push_intake_sources.sh` at login and every 4 hours while the Mac is on, and pushes only those two trees to DigitalBrain `main`. It never runs `journal`. `com.jake.journal-daily-digest` stays unloaded.
+The previous Shanghai day's takeaway runs on GitHub Actions at 08:00 Shanghai: fetch YouTube likes, then write `📋 Digests/daily/YYYY-MM-DD.md`. It does not append weekly `intake.md`. Snipd and WeRead have no cloud API: launchd `com.jake.intake-source-push` runs `scripts/push_intake_sources.sh` at login and every 4 hours while the Mac is on, and pushes only those two trees to DigitalBrain `main`. It never runs `journal`. `com.jake.journal-daily-digest` stays unloaded.
+
+Obsidian Git on the iCloud vault is pull-only. Plugins and skill copies land in that working tree before `HEAD` moves, and Git then refuses the whole fast-forward. `scripts/reconcile_live_vault_untracked.py` fetches `origin/main`, clears incoming paths whose bytes already match, fast-forwards, and merges real local edits back on top. A failed fast-forward restores those files and exits non-zero. launchd `com.jake.digitalbrain-reconcile` runs it at login and every 2 minutes. The same reconcile also runs at the end of intake source push.
 
 ## Runtime (not in git)
 

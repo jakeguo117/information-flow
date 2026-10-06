@@ -37,7 +37,7 @@ def make_vault(root: Path) -> Path:
         "## Snips\n\n"
         "- Training does not guarantee aligned behavior.\n"
     )
-    write(root / "Snipd" / "Data" / "JRE" / "ep.md", snipd)
+    write(root / "📥 Inbox" / "Snipd" / "Data" / "JRE" / "ep.md", snipd)
 
     weread = (
         "---\n"
@@ -80,7 +80,7 @@ class WeeklyIntakeTests(unittest.TestCase):
             self.assertIn("应无所住而生其心。", text)
             self.assertIn("You're gonna be programmed by this thing.", text)
             self.assertNotIn("of the apartheid government who said,", text)
-            self.assertIn("[[Snipd/Data/JRE/ep]]", text)
+            self.assertIn("[[📥 Inbox/Snipd/Data/JRE/ep]]", text)
             self.assertNotIn(f"{EMPTY_DAY.isoformat()}-Digest.md", [p.name for p in dest.parent.iterdir()])
 
     def test_empty_day_does_not_create_file(self) -> None:
@@ -99,7 +99,7 @@ class WeeklyIntakeTests(unittest.TestCase):
             daily_digest.main(["--vault", str(vault), "--date", DAY.isoformat()])
             daily_digest.main(["--vault", str(vault), "--date", DAY.isoformat()])
             text = weekly_intake.intake_path(vault, WEEK).read_text(encoding="utf-8")
-            self.assertEqual(text.count("[[Snipd/Data/JRE/ep]]"), 1)
+            self.assertEqual(text.count("[[📥 Inbox/Snipd/Data/JRE/ep]]"), 1)
             self.assertIn("item_count: 3", text)
 
     def test_briefing_excludes_checked_and_sinks(self) -> None:

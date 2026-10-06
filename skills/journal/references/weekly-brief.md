@@ -22,7 +22,7 @@
 
 ## 禁止当输入
 
-- Snipd 插件 `Snipd/Data/` 全集
+- Snipd 插件 `📥 Inbox/Snipd/Data/` 全集
 - YouTube 点赞原始列表 / 全文逐字稿（只读 intake 里的划线）
 - WeRead 划线库原文
 - Journal 以外、旧周记又没点名的私人目录

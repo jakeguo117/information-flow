@@ -2,8 +2,7 @@ name: daily-intake
 
 on:
   schedule:
-    - cron: "0 4 * * *"    # 12:00 上海
-    - cron: "0 13 * * *"   # 21:00 上海
+    - cron: "0 0 * * *"    # 08:00 上海
   workflow_dispatch:
 
 jobs:
@@ -47,8 +46,7 @@ jobs:
           export YOUTUBE_TOKEN_FILE="$HOME/.secrets/youtube_token.json"
           export YOUTUBE_CLIENT_FILE="$HOME/.secrets/google_client.json"
           python3 scripts/youtube_likes.py --vault digitalbrain
-          python3 scripts/daily_digest.py --vault digitalbrain --since "$(date -d '7 days ago' +%F)"
-          python3 scripts/weekly_rollup.py --vault digitalbrain
+          python3 scripts/daily_takeaway.py --vault digitalbrain
 
       - name: Commit Digests
         working-directory: digitalbrain
@@ -60,7 +58,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "no digest changes"
           else
-            git commit -m "intake: weekly $(date +%G-W%V)"
+            git commit -m "intake: daily $(date +%F)"
             git push
           fi
 
