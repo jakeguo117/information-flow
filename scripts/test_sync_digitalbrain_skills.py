@@ -9,6 +9,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 import sync_digitalbrain_skills as sync
 
@@ -126,6 +127,8 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 ".cursor/skills/journal/SKILL.md",
                 ".cursor/skills/journal/references/setup.md",
                 ".cursor/skills/journal/references/weekly-brief.md",
+                ".cursor/skills/journal/tools/journal_lib.py",
+                ".cursor/skills/journal/tools/write_journal.py",
                 ".cursor/skills/cognition/SKILL.md",
                 ".cursor/skills/cognition/references/schema.md",
                 ".cursor/skills/cognition/references/retrieval.md",
@@ -227,10 +230,33 @@ def _seed_synced_vault(vault: Path) -> None:
     suffix = "\n\n## OUTSIDE BLOCK SUFFIX\nOUTSIDE BLOCK\n"
     write(vault / "AGENTS.md", prefix + sync.load_route_snippet() + suffix)
     write(vault / "📝 Journal" / "keep.md", "OUTSIDE BLOCK journal placeholder\n")
-    for relative in sync.SKILL_RELATIVE_PATHS:
+    for relative in sync.present_skill_relative_paths():
         src = sync.SKILLS_DIR / relative
         dest = vault / ".cursor" / "skills" / relative
         write(dest, src.read_text(encoding="utf-8"))
+
+
+def _skills_tree_without_intake(dest: Path) -> None:
+    """Copy this repo's skills tree except ``intake/``, as the Journal pack does."""
+    for path in sync.SKILLS_DIR.rglob("*"):
+        if not path.is_file():
+            continue
+        relative = path.relative_to(sync.SKILLS_DIR)
+        if relative.parts[0] == "intake":
+            continue
+        target = dest / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(path.read_bytes())
+
+
+def _file_snapshot(root: Path) -> dict[str, bytes]:
+    if not root.exists():
+        return {}
+    out: dict[str, bytes] = {}
+    for path in sorted(root.rglob("*")):
+        if path.is_file():
+            out[str(path.relative_to(root))] = path.read_bytes()
+    return out
 
 
 class DriftCheckTests(unittest.TestCase):
@@ -400,6 +426,99 @@ class DriftCheckTests(unittest.TestCase):
             self.assertEqual(rc, 1)
             after = _tree_fingerprint(vault)
             self.assertEqual(before, after)
+
+
+class PackWithoutIntakeTests(unittest.TestCase):
+    """Journal pack source has journal + cognition and no intake skill."""
+
+    def _vault_with_existing_intake(self, root: Path) -> tuple[Path, Path, bytes]:
+        vault = root / "vault"
+        write(vault / "AGENTS.md", LEGACY_AGENTS)
+        write(vault / "📝 Journal" / "keep.md", "old line\n")
+        intake = vault / ".cursor" / "skills" / "intake" / "SKILL.md"
+        extra = vault / ".cursor" / "skills" / "intake" / "references" / "note.md"
+        sentinel = b"VAULT INTAKE SENTINEL\n"
+        write(intake, sentinel.decode("utf-8"))
+        write(extra, "VAULT INTAKE EXTRA\n")
+        return vault, intake, sentinel
+
+    def test_sync_succeeds_and_keeps_existing_vault_intake(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            skills = root / "skills"
+            _skills_tree_without_intake(skills)
+            self.assertFalse((skills / "intake").exists())
+            vault, intake, sentinel = self._vault_with_existing_intake(root)
+            extra = vault / ".cursor" / "skills" / "intake" / "references" / "note.md"
+            before_intake = _file_snapshot(vault / ".cursor" / "skills" / "intake")
+            with patch.object(sync, "SKILLS_DIR", skills):
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    rc = sync.main(["--vault", str(vault), "--print-paths"])
+                listed = buf.getvalue()
+            self.assertEqual(rc, 0)
+            self.assertNotIn(".cursor/skills/intake/", listed)
+            self.assertIn(".cursor/skills/journal/SKILL.md", listed)
+            self.assertIn(".cursor/skills/journal/tools/write_journal.py", listed)
+            self.assertIn(".cursor/skills/cognition/SKILL.md", listed)
+            self.assertEqual(intake.read_bytes(), sentinel)
+            self.assertEqual(extra.read_text(encoding="utf-8"), "VAULT INTAKE EXTRA\n")
+            self.assertEqual(before_intake, _file_snapshot(vault / ".cursor" / "skills" / "intake"))
+            journal = vault / ".cursor" / "skills" / "journal" / "SKILL.md"
+            self.assertEqual(journal.read_bytes(), (skills / "journal" / "SKILL.md").read_bytes())
+            self.assertTrue((vault / ".cursor" / "skills" / "cognition" / "tools" / "write_cognition.py").is_file())
+            self.assertEqual((vault / "📝 Journal" / "keep.md").read_text(encoding="utf-8"), "old line\n")
+
+    def test_check_ignores_vault_intake_and_writes_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            skills = root / "skills"
+            _skills_tree_without_intake(skills)
+            vault = root / "vault"
+            write(vault / "📝 Journal" / "keep.md", "old line\n")
+            with patch.object(sync, "SKILLS_DIR", skills):
+                prefix = "# OUTSIDE BLOCK PREFIX\n\n"
+                suffix = "\n\n## OUTSIDE BLOCK SUFFIX\nOUTSIDE BLOCK\n"
+                write(vault / "AGENTS.md", prefix + sync.load_route_snippet() + suffix)
+                for relative in sync.present_skill_relative_paths():
+                    src = skills / relative
+                    write(
+                        vault / ".cursor" / "skills" / relative,
+                        src.read_text(encoding="utf-8"),
+                    )
+                intake = vault / ".cursor" / "skills" / "intake" / "SKILL.md"
+                write(intake, "VAULT INTAKE SENTINEL\n")
+                present = sync.present_skill_relative_paths()
+                self.assertTrue(present)
+                self.assertFalse(any(relative.startswith("intake/") for relative in present))
+                before = _tree_fingerprint(vault)
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    rc = sync.main(["--check", "--vault", str(vault)])
+                out = buf.getvalue()
+                self.assertEqual(rc, 0)
+                self.assertIn("drift clean", out)
+                self.assertIn(".cursor/skills/journal/SKILL.md match", out)
+                self.assertIn(".cursor/skills/cognition/SKILL.md match", out)
+                self.assertNotIn("intake", out)
+                self.assertEqual(before, _tree_fingerprint(vault))
+                self.assertEqual(intake.read_text(encoding="utf-8"), "VAULT INTAKE SENTINEL\n")
+
+                journal = vault / ".cursor" / "skills" / "journal" / "SKILL.md"
+                journal.unlink()
+                intake_before = intake.read_bytes()
+                tree_without_journal = _tree_fingerprint(vault)
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    rc = sync.main(["--drift", "--vault", str(vault)])
+                out = buf.getvalue()
+            self.assertEqual(rc, 1)
+            self.assertIn(".cursor/skills/journal/SKILL.md missing", out)
+            self.assertIn("drift found", out)
+            self.assertNotIn("intake", out)
+            self.assertEqual(intake.read_bytes(), intake_before)
+            self.assertEqual(tree_without_journal, _tree_fingerprint(vault))
+            self.assertFalse(journal.exists())
 
 
 if __name__ == "__main__":

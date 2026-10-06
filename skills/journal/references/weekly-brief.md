@@ -18,7 +18,7 @@
 
 日 Digest 和 `📊 Journal Briefs/` 不再当输入。
 
-客户说「可以写 / 写吧 / OK 写」之前不落盘周记。
+客户说「可以写 / 写吧 / OK 写」之前不落盘周记。持久写入只走 `skills/journal/tools/write_journal.py`。未勾选 intake 即使和旧线相关，也不进入落盘材料。
 
 ## 禁止当输入
 

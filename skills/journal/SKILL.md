@@ -23,7 +23,7 @@ Vault 目录（按这个顺序认，认到就停）：
 2. 当前工作区根目录，若有 `📝 Journal/`（Cursor 云端 clone 的 GitHub DigitalBrain）
 3. 否则停下来问 Jake，不要猜路径
 
-按 `references/weekly-brief.md` 读。先旧周记和已经挂上的老项目 / 小线。**自己认周**：Asia/Shanghai 当天的 ISO 周，没有文件就回落到 `📋 Digests/` 里已有的最近一周。不要问他是哪一周。再拿那一周 `intake.md` 里 **`[x]`** 的条目和已有 Resource 卡片去对呼应。未勾选的当索引略过。周记 Connections 链已经进 `📖 Resources/` 的卡片，不再拦一道入库。
+按 `references/weekly-brief.md` 读。先旧周记和已经挂上的老项目 / 小线。**自己认周**：Asia/Shanghai 当天的 ISO 周，没有文件就回落到 `📋 Digests/` 里已有的最近一周。不要问他是哪一周。再拿那一周 `intake.md` 里 **`[x]`** 的条目和已有 Resource 卡片去对呼应。未勾选的当索引略过，即使标题和旧线相关，也不进入这篇周记的材料。新的来源渠道样本同样先作为未勾选条目，不因为渠道名字新就落盘。周记 Connections 链已经进 `📖 Resources/` 的卡片，不再拦一道入库。
 
 缺文件时不要自己去抓源。摄入是 `intake` skill，每天 21:00 跑。
 
@@ -43,7 +43,16 @@ Vault 目录（按这个顺序认，认到就停）：
 
 ### 3. 落盘
 
-只在他说可以写之后。路径：`$VAULT/📝 Journal/{YYYY-MM-DD} {中文标题}.md`
+只在他说可以写之后。持久写入只走工具，不要手写文件绕过确认：
+
+```bash
+python3 skills/journal/tools/write_journal.py save --vault "$VAULT" --approval FILE
+python3 skills/journal/tools/write_journal.py retry --vault "$VAULT" --approval FILE
+```
+
+`FILE` 是这一次的 JSON。`confirmed` 必须是 true，并且 `phrase` 必须正好是 `可以写`、`写吧` 或 `OK 写`。「写周记」只是开始讨论，不是这句短语。不符合时工具返回 `refused`，写入数为 0，不创建 `📝 Journal/`。同一 `event_id` 重复送达只保留 1 份；内容不一致则 `conflict`，不覆盖。`retry` 在磁盘已有相同内容时直接读回，不另写一篇。工具不写 `📖 Cognition/`，不 `git commit` / `git push`。
+
+路径：`$VAULT/📝 Journal/{YYYY-MM-DD} {中文标题}.md`
 
 文件名只要日期 + 空格 + 标题。frontmatter 的 title 可以是 `周记 {N} — …`。
 
@@ -54,6 +63,7 @@ type: journal
 tags:
   - journal
 title: "周记 {N} — {Jake 口气的一句}"
+event_id: {这一次保存的事件 id}
 ---
 
 # 周记 {N} — {同上}
@@ -68,7 +78,7 @@ title: "周记 {N} — {Jake 口气的一句}"
 **Previous / 上一篇:** [[{上一篇文件名不含 .md}]]
 ```
 
-用文件工具写。不要 `git commit` / `git push` DigitalBrain，除非 Jake 这轮明确说 push。不要把周记正文写入 DigitalBrain memory。
+正文由上面的 `write_journal.py` 落盘，不要另用文件工具绕过它。不要 `git commit` / `git push` DigitalBrain，除非 Jake 这轮明确说 push。不要把周记正文写入 DigitalBrain memory。模板里的 `event_id` 由工具写入 frontmatter，用来识别同一次保存。
 
 ### 4. 给他看
 
