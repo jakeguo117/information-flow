@@ -95,6 +95,7 @@
     "ownership_violation",
     "project_mismatch",
     "repo_unverified",
+    "revision_placeholder",
     "source_unreadable"
   ],
   "continue_statuses": [

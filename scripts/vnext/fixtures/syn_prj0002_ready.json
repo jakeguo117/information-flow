@@ -37,7 +37,8 @@
         "project_id": "AIC-PRJ-0002-HK-INS-FOLLOWUP",
         "drive_file_id": "file-fake-approval-p2",
         "revision": "rev-fake-approval-p2",
-        "sha256": "ae47d539fd073dbb0562c31a0f1ad642b504c1c8cda25580158f74a2f92a401a"
+        "sha256": "ae47d539fd073dbb0562c31a0f1ad642b504c1c8cda25580158f74a2f92a401a",
+        "status": "APPROVED"
       }
     },
     "context": {

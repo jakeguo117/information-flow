@@ -424,5 +424,190 @@ class GuardTests(unittest.TestCase):
             self.assertNotIn("if project_id ==", text)
 
 
+class ApprovalGuardTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.adapter = caller.load_adapter(
+            VNEXT / "adapters" / "aic-prj-0002-hk-ins-followup.json"
+        )
+        self.payload = _load("fixtures/syn_prj0002_ready.json")
+
+    def _approval(self, payload: dict) -> dict:
+        return payload["readbacks"]["frozen_authority_or_manifest"]["approval"]
+
+    def _kinds(self, result: dict) -> list[str]:
+        return [event["event_kind"] for event in result["board_readback"]]
+
+    def test_approved_status_is_found_and_writes_events(self) -> None:
+        self.assertEqual(self._approval(self.payload)["status"], "APPROVED")
+        with tempfile.TemporaryDirectory() as tmp:
+            store = board.LocalDirectoryBoardStore(tmp)
+            result = _run(self.adapter, self.payload, store)
+        self.assertEqual(result["status"], "found")
+        self.assertTrue(result["board_writes"])
+        self.assertTrue(all(item["wrote"] for item in result["board_writes"]))
+        self.assertIn("SCOPE-SNAPSHOT", self._kinds(result))
+        approval = next(pin for pin in result["consumed_pins"] if pin["step"] == "approval")
+        self.assertTrue(approval["match"])
+
+    def test_non_approved_status_blocks_without_scope_snapshot(self) -> None:
+        cases: list[dict] = [
+            {"status": "PENDING_PM_READBACK"},
+            {"status": "PENDING"},
+            {"status": "DRAFT"},
+            {"status": "REJECTED"},
+            {"status": ""},
+            {"status": "approved"},
+            {"drop": True},
+        ]
+        for case in cases:
+            payload = copy.deepcopy(self.payload)
+            approval = self._approval(payload)
+            if case.get("drop"):
+                approval.pop("status", None)
+            else:
+                approval["status"] = case["status"]
+            with tempfile.TemporaryDirectory() as tmp:
+                store = board.LocalDirectoryBoardStore(tmp)
+                result = _run(self.adapter, payload, store)
+                names = store.list_names()
+            with self.subTest(case=case):
+                self.assertEqual(result["status"], "blocked")
+                self.assertEqual(
+                    [event["reason_code"] for event in result["board_readback"]],
+                    ["not_approved"],
+                )
+                self.assertEqual(self._kinds(result), ["BLOCKED"])
+                self.assertTrue(names)
+                self.assertTrue(all("SCOPE-SNAPSHOT" not in name for name in names))
+                approval_pin = next(
+                    pin for pin in result["consumed_pins"] if pin["step"] == "approval"
+                )
+                self.assertFalse(approval_pin["match"])
+
+    def test_placeholder_revision_blocks_each_slot(self) -> None:
+        slots = (
+            ("governance", ("governance", "revision")),
+            ("project_control", ("project_control", "revision")),
+            ("milestone_map", ("milestone_map", "revision")),
+            ("manifest", ("frozen_authority_or_manifest", "revision")),
+            ("expected_revision", ("frozen_authority_or_manifest", "expected_revision")),
+            ("approval", ("frozen_authority_or_manifest", "approval", "revision")),
+            ("context", ("context", "revision")),
+        )
+        for label, path in slots:
+            payload = copy.deepcopy(self.payload)
+            cursor = payload["readbacks"]
+            for key in path[:-1]:
+                cursor = cursor[key]
+            cursor[path[-1]] = "REVISION_ID_UNAVAILABLE"
+            with tempfile.TemporaryDirectory() as tmp:
+                store = board.LocalDirectoryBoardStore(tmp)
+                result = _run(self.adapter, payload, store)
+                blob = "\n".join(store.read_text(name) for name in store.list_names())
+            with self.subTest(slot=label):
+                self.assertEqual(result["status"], "blocked")
+                self.assertEqual(result["reason_code"], "revision_placeholder")
+                self.assertEqual(
+                    [event["reason_code"] for event in result["board_readback"]],
+                    ["revision_placeholder"],
+                )
+                self.assertEqual(self._kinds(result), ["BLOCKED"])
+                self.assertNotIn("SCOPE-SNAPSHOT", blob)
+                self.assertNotIn("REVISION_ID_UNAVAILABLE", blob)
+
+    def test_placeholder_token_shapes_block(self) -> None:
+        tokens = (
+            "",
+            "   ",
+            "unavailable",
+            "UNKNOWN",
+            "tbd",
+            "Todo",
+            "PlAcEhOlDeR",
+            "N/A",
+            "none",
+            "NULL",
+            "<revision>",
+            "<>",
+            "  <id>  ",
+        )
+        for token in tokens:
+            payload = copy.deepcopy(self.payload)
+            payload["readbacks"]["governance"]["revision"] = token
+            with tempfile.TemporaryDirectory() as tmp:
+                result = _run(self.adapter, payload, board.LocalDirectoryBoardStore(tmp))
+            with self.subTest(token=token):
+                self.assertEqual(result["status"], "blocked")
+                self.assertEqual(result["reason_code"], "revision_placeholder")
+                self.assertNotIn("SCOPE-SNAPSHOT", self._kinds(result))
+
+    def test_modified_time_and_opaque_revisions_are_accepted(self) -> None:
+        payload = copy.deepcopy(self.payload)
+        payload["readbacks"]["governance"]["revision"] = "2026-10-08T07:41:14Z"
+        manifest = payload["readbacks"]["frozen_authority_or_manifest"]
+        manifest["revision"] = "2026-10-08T07:41:14.123Z"
+        manifest["expected_revision"] = "2026-10-08T07:41:14.123Z"
+        manifest["approval"]["revision"] = "rev-opaque_1.2:abc"
+        payload["readbacks"]["project_control"]["revision"] = "rev-unavailable-1"
+        with tempfile.TemporaryDirectory() as tmp:
+            result = _run(self.adapter, payload, board.LocalDirectoryBoardStore(tmp))
+        self.assertEqual(result["status"], "found")
+        self.assertIn("SCOPE-SNAPSHOT", self._kinds(result))
+        pins = {pin["step"]: pin for pin in result["consumed_pins"]}
+        self.assertEqual(pins["governance"]["revision"], "2026-10-08T07:41:14Z")
+        self.assertTrue(pins["governance"]["match"])
+        self.assertEqual(pins["frozen_authority_or_manifest"]["revision"], "2026-10-08T07:41:14.123Z")
+        self.assertTrue(pins["frozen_authority_or_manifest"]["match"])
+        self.assertEqual(pins["approval"]["revision"], "rev-opaque_1.2:abc")
+        self.assertEqual(pins["project_control"]["revision"], "rev-unavailable-1")
+
+    def test_replay_of_approved_run_is_no_op_duplicate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            store = board.LocalDirectoryBoardStore(tmp)
+            first = _run(self.adapter, self.payload, store)
+            names = store.list_names()
+            blobs = {name: store.read_text(name) for name in names}
+            second = _run(self.adapter, self.payload, store)
+            self.assertEqual(first["status"], "found")
+            self.assertIn("SCOPE-SNAPSHOT", self._kinds(first))
+            self.assertTrue(all(item["wrote"] for item in first["board_writes"]))
+            self.assertEqual(
+                [item["effect_key"] for item in first["board_writes"]],
+                [item["effect_key"] for item in second["board_writes"]],
+            )
+            self.assertTrue(all(item["result"] == "no_op_duplicate" for item in second["board_writes"]))
+            self.assertTrue(all(item["wrote"] is False for item in second["board_writes"]))
+            self.assertEqual(store.list_names(), names)
+            for name in names:
+                self.assertEqual(store.read_text(name), blobs[name])
+
+    def test_cli_omitted_approval_status_is_not_approved(self) -> None:
+        payload = copy.deepcopy(self.payload)
+        self._approval(payload).pop("status")
+        with tempfile.TemporaryDirectory() as tmp:
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    str(VNEXT / "continue_caller.py"),
+                    "--adapter",
+                    str(VNEXT / "adapters" / "aic-prj-0002-hk-ins-followup.json"),
+                    "--board-dir",
+                    tmp,
+                ],
+                input=json.dumps(payload),
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        body = json.loads(proc.stdout)
+        self.assertEqual(body["status"], "blocked")
+        self.assertEqual(
+            [event["reason_code"] for event in body["board_readback"]],
+            ["not_approved"],
+        )
+        self.assertEqual([event["event_kind"] for event in body["board_readback"]], ["BLOCKED"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -37,7 +37,8 @@
         "project_id": "AI-AGENTS-COOPERATE",
         "drive_file_id": "file-fake-approval-aic",
         "revision": "rev-fake-approval-aic",
-        "sha256": "e441dec36ed802dc379849c4d62113d8e24851c8fdb52e2f4f40dd962219a738"
+        "sha256": "e441dec36ed802dc379849c4d62113d8e24851c8fdb52e2f4f40dd962219a738",
+        "status": "APPROVED"
       }
     },
     "repo_verification": {

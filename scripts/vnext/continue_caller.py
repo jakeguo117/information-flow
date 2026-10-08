@@ -8,6 +8,10 @@ and appends a board event through the injected store.
 
 Project differences live in the adapter JSON. This module does not branch
 on a project id literal.
+
+An approval read-back counts only when its status is exactly APPROVED.
+A missing status, or any other value, is not approved. Placeholder
+revisions are not evidence.
 """
 
 from __future__ import annotations
@@ -30,6 +34,20 @@ import status_board as board  # noqa: E402
 
 _FILE_ID = re.compile(r"[A-Za-z0-9_-]{1,128}")
 _REVISION = re.compile(r"[A-Za-z0-9._:-]{1,128}")
+_BRACKET_PLACEHOLDER = re.compile(r"^<.*>$")
+_PLACEHOLDER_REVISIONS = frozenset(
+    {
+        "revision_id_unavailable",
+        "unavailable",
+        "unknown",
+        "tbd",
+        "todo",
+        "placeholder",
+        "n/a",
+        "none",
+        "null",
+    }
+)
 _REQUEST = re.compile(r"[A-Za-z0-9:_-]{1,80}")
 _PAGE = re.compile(r"[A-Za-z0-9:_-]{1,80}")
 _DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
@@ -162,6 +180,19 @@ def continue_for_project(
         return _identity_block(adapter, project_id)
 
     moment = _shanghai(now, str(adapter["timezone"]))
+    placeholder_step = _placeholder_step(readbacks)
+    if placeholder_step is not None:
+        return _finish_blocked(
+            adapter,
+            project_id,
+            request_ref,
+            reason_code="revision_placeholder",
+            step=placeholder_step,
+            board_store=board_store,
+            now=moment,
+            pins=[],
+            pages=[],
+        )
     assembled = _assemble(project_id, adapter, readbacks)
     if assembled["tainted"]:
         return _finish_blocked(
@@ -410,6 +441,60 @@ def _assemble(
     }
 
 
+def _revision_placeholder(value: Any) -> bool:
+    """True when a revision is empty or a stand-in token, not an id.
+
+    Real Drive modifiedTime values (UTC, ending in Z) and opaque ids stay valid.
+    The comparison is the whole value, after trimming whitespace, not a substring.
+    """
+    if not isinstance(value, str):
+        return False
+    token = value.strip()
+    if token == "":
+        return True
+    if token.casefold() in _PLACEHOLDER_REVISIONS:
+        return True
+    return _BRACKET_PLACEHOLDER.fullmatch(token) is not None
+
+
+def _has_placeholder_revision(body: Any, field: str) -> bool:
+    if not isinstance(body, Mapping) or field not in body:
+        return False
+    return _revision_placeholder(body.get(field))
+
+
+def _placeholder_step(readbacks: Mapping[str, Any]) -> Optional[str]:
+    """Gap step for the first placeholder revision, including expected_revision."""
+    for key, step in (
+        ("governance", "governance"),
+        ("project_control", "project_control"),
+        ("milestone_map", "milestone_map"),
+    ):
+        if _has_placeholder_revision(readbacks.get(key), "revision"):
+            return step
+    manifest = readbacks.get("frozen_authority_or_manifest")
+    if _has_placeholder_revision(manifest, "revision") or _has_placeholder_revision(
+        manifest, "expected_revision"
+    ):
+        return "frozen_authority_or_manifest"
+    if isinstance(manifest, Mapping) and _has_placeholder_revision(
+        manifest.get("approval"), "revision"
+    ):
+        return "frozen_authority_or_manifest"
+    if _has_placeholder_revision(readbacks.get("context"), "revision"):
+        return "digitalbrain_context"
+    return None
+
+
+def _approval_is_approved(approval: Any) -> bool:
+    """Approval counts only when status is exactly the string APPROVED.
+
+    The JSON contract is readbacks.frozen_authority_or_manifest.approval.status.
+    Omitting the field, or sending any other value, is not approved.
+    """
+    return isinstance(approval, Mapping) and approval.get("status") == "APPROVED"
+
+
 def _document_pin(readback: Any, project_id: str, step: str) -> Optional[dict[str, Any]]:
     """A self-reported present/approved flag is not evidence."""
     if not isinstance(readback, Mapping):
@@ -420,6 +505,8 @@ def _document_pin(readback: Any, project_id: str, step: str) -> Optional[dict[st
         return None
     revision = readback.get("revision")
     sha = readback.get("sha256")
+    if _revision_placeholder(revision):
+        return None
     if not isinstance(revision, str) or _REVISION.fullmatch(revision) is None:
         return None
     if not isinstance(sha, str) or _SHA256.fullmatch(sha) is None:
@@ -463,7 +550,7 @@ def _manifest(
         readback.get("expected_revision") == readback.get("revision")
         and readback.get("expected_sha256") == readback.get("sha256")
     )
-    matched = hashes_match and approval_pin is not None
+    matched = hashes_match and approval_pin is not None and _approval_is_approved(approval)
     pin["match"] = matched
     pins.append(pin)
     if approval_pin is not None:
