@@ -124,6 +124,7 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
             sync.commit_paths(Path("/tmp/unused")),
             [
                 ".cursor/skills/intake/SKILL.md",
+                ".cursor/skills/digest/SKILL.md",
                 ".cursor/skills/journal/SKILL.md",
                 ".cursor/skills/journal/references/setup.md",
                 ".cursor/skills/journal/references/weekly-brief.md",
@@ -166,20 +167,18 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
 
 
 class SkillFlowContractTests(unittest.TestCase):
-    def test_intake_does_not_dump_week(self) -> None:
-        text = (sync.SKILLS_DIR / "intake" / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("先读最近 2–3 篇", text)
-        self.assertIn("呼应", text)
-        self.assertIn("禁止整周附录", text)
-        self.assertIn("自己认周", text)
+    def test_digest_discusses_yesterdays_takeaway(self) -> None:
+        text = (sync.SKILLS_DIR / "digest" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("name: digest", text)
+        self.assertIn("最多两个概念", text)
         self.assertIn("Asia/Shanghai", text)
-        self.assertNotIn("W38 有什么", text)
-        self.assertNotIn("week 38", text)
-        self.assertNotIn("立刻用 **Briefing** 里第一条未勾选问一句", text)
-        self.assertIn("不要写 `📝 Journal/`", text)
+        self.assertIn("📋 Digests/daily/", text)
+        self.assertIn("接受之前不写", text)
         self.assertIn("不是 Evidence", text)
+        self.assertNotIn("intake.md", text)
         route = (sync.SKILLS_DIR / "digitalbrain-agents-route.md").read_text(encoding="utf-8")
-        self.assertIn("自己认周", route)
+        self.assertIn("/digest", route)
+        self.assertIn("📋 Digests/daily/", route)
         self.assertNotIn("W38 有什么", route)
         self.assertNotIn("week 38", route)
         self.assertIn("相关认知", route)

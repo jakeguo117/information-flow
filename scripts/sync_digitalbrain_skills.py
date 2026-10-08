@@ -32,6 +32,7 @@ DEFAULT_VAULT = (
 
 SKILL_RELATIVE_PATHS = (
     "intake/SKILL.md",
+    "digest/SKILL.md",
     "journal/SKILL.md",
     "journal/references/setup.md",
     "journal/references/weekly-brief.md",
