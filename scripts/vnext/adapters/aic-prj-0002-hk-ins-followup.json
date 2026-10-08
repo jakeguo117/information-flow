@@ -1,0 +1,61 @@
+{
+  "board_schema_version": "aic-board/0.1",
+  "project_id": "AIC-PRJ-0002-HK-INS-FOLLOWUP",
+  "repo_step": "skip",
+  "effect_key_style": "followup",
+  "event_format": "markdown",
+  "event_prefix": "AIC-EVT-PRJ0002",
+  "timezone": "Asia/Shanghai",
+  "writer": "Grok Bot",
+  "invocation": "on_request",
+  "context_kind": "pages",
+  "no_date_event_kind": "PENDING-NO-DATE",
+  "event_kinds": [
+    "SCOPE-SNAPSHOT",
+    "FOLLOWUP-DUE",
+    "PENDING-NO-DATE",
+    "FOLLOWUP-OBSERVED",
+    "CORRECTION",
+    "BLOCKED",
+    "CONVENTION-AMEND"
+  ],
+  "continue_event_kind": "SCOPE-SNAPSHOT",
+  "blocked_event_kind": "BLOCKED",
+  "allowed_event_fields": [
+    "code_ref",
+    "consumed_pins",
+    "crm_page_ids",
+    "crm_read_at",
+    "crm_source",
+    "dates",
+    "effect_key",
+    "event_id",
+    "event_kind",
+    "followup_status",
+    "invocation",
+    "occurred_at",
+    "project_id",
+    "reason_code",
+    "request_ref",
+    "result",
+    "supersedes",
+    "writer"
+  ],
+  "status_codes": {
+    "no_date": "待处理",
+    "due": "到期",
+    "overdue": "逾期",
+    "future": "未到期",
+    "observed": "已观察更新"
+  },
+  "success_template": "Continue project: {due_count} due item(s).",
+  "unblock": {
+    "governance": "Restore pinned governance so the exact revision can be read back.",
+    "project_control": "Provide the project control pointer.",
+    "milestone_map": "Provide the schedule pointer (page ids and dates only).",
+    "frozen_authority_or_manifest": "Provide an approved manifest whose revision and sha256 match the pin.",
+    "repo_verification": "This project has no business repository. The repository step is skipped.",
+    "digitalbrain_context": "Restore context-source access (page ids and dates only).",
+    "project_id": "Project identity does not match the adapter."
+  }
+}

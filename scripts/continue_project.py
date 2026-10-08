@@ -8,6 +8,11 @@ Deterministic chain (Manifest cut D):
 
 Callers inject availability and results. This module does not fetch Drive,
 read a live vault, or invent project state.
+
+A repository step is required unless the injected repo_verification mapping
+sets required to false. That skip is for a project with no business
+repository. It does not invent a SHA. An optional project_id is echoed only
+when the caller supplies a non-empty string.
 """
 
 from __future__ import annotations
@@ -53,6 +58,17 @@ def _avail(value: Mapping[str, Any], *keys: str) -> str:
     return ""
 
 
+def _repo_skipped(repo_verification: Mapping[str, Any]) -> bool:
+    """True only when the caller explicitly marks the repo step not applicable.
+
+    The default stays required. A missing flag does not skip the step.
+    """
+    if repo_verification.get("required") is False:
+        return True
+    applicability = str(repo_verification.get("applicability") or "").strip().lower()
+    return applicability in {"skip", "skipped", "not_applicable"}
+
+
 def continue_project(
     *,
     governance: Mapping[str, Any],
@@ -62,16 +78,18 @@ def continue_project(
     repo_verification: Mapping[str, Any],
     vault_access: Mapping[str, Any],
     digitalbrain_minimum_context: Optional[Mapping[str, Any]] = None,
+    project_id: Optional[str] = None,
 ) -> dict[str, Any]:
     """Evaluate the continuation chain from injected structured inputs.
 
     Returns a structured result with:
       - status: found | partial | unavailable | blocked
-      - steps_checked: ordered present/missing marks
+      - steps_checked: ordered present/missing/skipped marks
       - gaps: list of {step, reason, severity} when not found
       - bounded_next_action: success action or unblock step
       - verified_sha: echoed only when repo_verification supplied a SHA
         and status is found (never invented)
+      - project_id: echoed only when the caller passed a non-empty string
 
     Never invents milestone status, SHA, or vault facts.
     """
@@ -150,27 +168,38 @@ def continue_project(
         )
 
     # --- 5. verified repo state ---
-    repo_status = _avail(repo_verification, "status", "availability")
-    sha_raw = repo_verification.get("sha") or repo_verification.get("verified_sha")
-    sha = str(sha_raw).strip() if sha_raw else ""
-    if repo_status == "verified" and sha:
-        verified_sha = sha
-        steps_checked.append({"step": "repo_verification", "state": "present"})
+    # Skipped only when the caller explicitly says this project has no
+    # business repository. No SHA is invented in that case.
+    if _repo_skipped(repo_verification):
+        steps_checked.append({"step": "repo_verification", "state": "skipped"})
     else:
-        steps_checked.append({"step": "repo_verification", "state": "missing"})
-        if repo_status == "verified" and not sha:
-            reason = "repo marked verified but SHA not supplied"
-        elif repo_status in {"unverified", "error", ""}:
-            reason = f"repo verification {repo_status or 'missing'}"
-        else:
-            reason = "repo verification failed"
-        gaps.append(
-            {
-                "step": "repo_verification",
-                "reason": reason,
-                "severity": "blocked",
-            }
+        repo_status = _avail(repo_verification, "status", "availability")
+        sha_raw = repo_verification.get("sha") or repo_verification.get(
+            "verified_sha"
         )
+        sha = str(sha_raw).strip() if sha_raw else ""
+        if repo_status == "verified" and sha:
+            verified_sha = sha
+            steps_checked.append(
+                {"step": "repo_verification", "state": "present"}
+            )
+        else:
+            steps_checked.append(
+                {"step": "repo_verification", "state": "missing"}
+            )
+            if repo_status == "verified" and not sha:
+                reason = "repo marked verified but SHA not supplied"
+            elif repo_status in {"unverified", "error", ""}:
+                reason = f"repo verification {repo_status or 'missing'}"
+            else:
+                reason = "repo verification failed"
+            gaps.append(
+                {
+                    "step": "repo_verification",
+                    "reason": reason,
+                    "severity": "blocked",
+                }
+            )
 
     # --- 6. minimum relevant DigitalBrain context ---
     vault = _avail(vault_access, "availability", "status")
@@ -217,6 +246,8 @@ def continue_project(
     }
     if status == "found" and verified_sha:
         result["verified_sha"] = verified_sha
+    if isinstance(project_id, str) and project_id.strip():
+        result["project_id"] = project_id.strip()
     # Explicitly do not attach invented milestone / vault body fields.
     return result
 
@@ -240,16 +271,19 @@ def _bounded_next_action(
     context: Optional[Mapping[str, Any]],
 ) -> str:
     if status == "found":
-        # Short success action: cite verified SHA only; never dump context bodies.
+        # Short success action. Cite a SHA only when one was supplied.
+        # Never dump context bodies and never invent a SHA.
         ids = []
         if isinstance(context, Mapping):
             raw_ids = context.get("relevant_ids")
             if isinstance(raw_ids, (list, tuple)):
                 ids = [str(x) for x in raw_ids if x is not None]
         id_note = f" ({len(ids)} context id(s))" if ids else ""
-        return (
-            f"Continue project at verified SHA {verified_sha}{id_note}."
-        )
+        if verified_sha:
+            return (
+                f"Continue project at verified SHA {verified_sha}{id_note}."
+            )
+        return f"Continue project{id_note}."
 
     # Unblock: most severe gap; ties break by STEP_ORDER.
     worst_rank = max(_SEVERITY_RANK[g["severity"]] for g in gaps)

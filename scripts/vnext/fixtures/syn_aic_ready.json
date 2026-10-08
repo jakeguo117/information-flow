@@ -1,0 +1,57 @@
+{
+  "project_id": "AI-AGENTS-COOPERATE",
+  "request_ref": "session-fake-0001",
+  "occurred_at": "2026-10-08T15:15:00+08:00",
+  "readbacks": {
+    "governance": {
+      "readable": true,
+      "project_id": "AI-AGENTS-COOPERATE",
+      "drive_file_id": "file-fake-gov-aic",
+      "revision": "rev-fake-gov-aic",
+      "sha256": "8b18cf8d7571775e7ac5f2207e28daadbec9babd0588518f064d29ee6e2f8f69"
+    },
+    "project_control": {
+      "readable": true,
+      "project_id": "AI-AGENTS-COOPERATE",
+      "drive_file_id": "file-fake-pc-aic",
+      "revision": "rev-fake-pc-aic",
+      "sha256": "7c39c23b5cc28fb20e611517532b45088afc9a3eaf69ad1cbb9db333b494c68c"
+    },
+    "milestone_map": {
+      "readable": true,
+      "project_id": "AI-AGENTS-COOPERATE",
+      "drive_file_id": "file-fake-mm-aic",
+      "revision": "rev-fake-mm-aic",
+      "sha256": "858049baeb3ab97f34049132b41ebf16131a40835a203bad53a75bf5dccfad1d"
+    },
+    "frozen_authority_or_manifest": {
+      "readable": true,
+      "project_id": "AI-AGENTS-COOPERATE",
+      "drive_file_id": "file-fake-manifest-aic",
+      "revision": "rev-fake-manifest-aic",
+      "sha256": "38528756faab90de7d62c9c72cb7beac85af4a0124f07542667016225581734d",
+      "expected_revision": "rev-fake-manifest-aic",
+      "expected_sha256": "38528756faab90de7d62c9c72cb7beac85af4a0124f07542667016225581734d",
+      "approval": {
+        "readable": true,
+        "project_id": "AI-AGENTS-COOPERATE",
+        "drive_file_id": "file-fake-approval-aic",
+        "revision": "rev-fake-approval-aic",
+        "sha256": "e441dec36ed802dc379849c4d62113d8e24851c8fdb52e2f4f40dd962219a738"
+      }
+    },
+    "repo_verification": {
+      "readable": true,
+      "project_id": "AI-AGENTS-COOPERATE",
+      "sha": "b069358b879c1d70af565fe0dd65939d73de43f7"
+    },
+    "context": {
+      "readable": true,
+      "project_id": "AI-AGENTS-COOPERATE",
+      "drive_file_id": "file-fake-ctx-aic",
+      "revision": "rev-fake-ctx-aic",
+      "sha256": "98595afd88e4a375586057b2cbdb952930bf43bbae74cd15b2c7258515573f50",
+      "relevant_ids": ["cog-fake-0001"]
+    }
+  }
+}

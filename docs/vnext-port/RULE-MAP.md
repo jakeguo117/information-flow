@@ -194,7 +194,7 @@ Conflict rows are also counted in migrated or not-migrated, depending on whether
 
 ## continue_project
 
-Rows WI-REQ-014, WI-REQ-032, WI-REQ-035, WI-REQ-037, WI-REQ-038, and ENTRY-RESUME are the resume-related rules. No caller was added. `scripts/continue_project.py` is unchanged.
+Rows WI-REQ-014, WI-REQ-032, WI-REQ-035, WI-REQ-037, WI-REQ-038, and ENTRY-RESUME are the resume-related rules. The VNext port added no caller. Track C later added an on-request wrapper, documented in `continue-project-trackc.md`. It is not a webhook and it does not close R10-14.
 
 ## Coverage check
 
