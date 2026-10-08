@@ -1,11 +1,24 @@
 ---
 name: journal
-description: Jake 的周记。先读旧周记和已挂上的老项目，找呼应后再讨论；客户说 OK 之前不写。说「写周记」「周记」或 /journal 时用。不生成 Digest。
+description: Jake 的周记，以及「记一下：」「想法：」/thought 的随手记。先读旧周记和已挂上的老项目，找呼应后再讨论；客户说 OK 之前不写周记。说「写周记」「周记」或 /journal 时用。随手记不分析、不追问。不生成 Digest。
 ---
 
 # journal
 
-给 Jake 自己用。最终形状见 `references/setup.md`。读文件顺序见 `references/weekly-brief.md`。不要救 Hermes。不要抓 Snipd/YouTube/WeRead 原文。不要跑 intake 脚本，除非他明确说本周 intake 缺了要补。
+给 Jake 自己用。最终形状见 `references/setup.md`。读文件顺序见 `references/weekly-brief.md`。随手记的文件布局、消化清单和自动推送见 `references/thoughts.md`。不要救 Hermes。不要抓 Snipd/YouTube/WeRead 原文。不要跑 intake 脚本，除非他明确说本周 intake 缺了要补。
+
+## 随手记
+
+只在他说「记一下：」「想法：」或 `/thought` 时记。普通聊天不记。触发词后面的内容是一条，原样保存，不拆句、不去空格、不改标点。不分析、不追问、不查旧周记、不写 Cognition、不进 Ideas / Experiments。
+
+一条一个新文件。不改、不删已有文件。回一句「记了」，把原话原样给他看。
+
+```bash
+python3 skills/journal/tools/capture_thought.py add --vault "$VAULT" --text-file FILE
+python3 skills/journal/tools/capture_thought.py publish --vault "$VAULT" --path '📝 Journal/想法/…/thought-….md'
+```
+
+`FILE` 里只有原话。写入成功后立刻 `publish` 这一个新路径。`publish` 只暂存这一个文件并推到 `main`。工作区还有别的改动、路径已经在 `main` 上、或这一步会改掉或删掉已有文件，工具拒绝，不推。拒绝之后文件留在本地，不要手改它，也不要把它并进别的提交。周记正文仍然不自动 push。
 
 DigitalBrain `.cursor/skills/` 里的副本由 information-flow Actions 覆盖。改行为只改这个仓库。
 
@@ -25,6 +38,8 @@ Vault 目录（按这个顺序认，认到就停）：
 
 按 `references/weekly-brief.md` 读。先旧周记和已经挂上的老项目 / 小线。**自己认周**：Asia/Shanghai 当天的 ISO 周，没有文件就回落到 `📋 Digests/` 里已有的最近一周。不要问他是哪一周。再拿那一周 `intake.md` 里 **`[x]`** 的条目和已有 Resource 卡片去对呼应。未勾选的当索引略过，即使标题和旧线相关，也不进入这篇周记的材料。新的来源渠道样本同样先作为未勾选条目，不因为渠道名字新就落盘。周记 Connections 链已经进 `📖 Resources/` 的卡片，不再拦一道入库。
 
+再跑 `capture_thought.py list-open`。它返回的是全部未消化想法，不限本周。未消化 = `📝 Journal/想法/` 里的想法文件，减去任何消化清单里出现过的 id。清单里标成「看过未展开」的不再出现。想法文件和消化清单都不是周记条目。
+
 缺文件时不要自己去抓源。摄入是 `intake` skill，每天 21:00 跑。
 
 从最近一篇周记标题读出「周记 N」，这篇是 N+1。
@@ -35,8 +50,8 @@ Vault 目录（按这个顺序认，认到就停）：
 
 1. 先读最近 2–3 篇周记，以及那些篇里已经点名的 `🚀 Projects/` / Resource（老项目、很小的未收线）。点一下还悬着的线。intake 先只读、不上场。
 2. 听他这周的画像。他说「这周就这些」或明确讲完之前，不要用本周 intake 解释他。
-3. 再拿刚解析出的那一周 **已勾选** 的 intake 条目 / Resource 卡片去找 **呼应**。对不上的略过。未勾选的不要当成结论。
-4. 对上之后再往下挖。一次不要堆很多题。
+3. 再拿刚解析出的那一周 **已勾选** 的 intake 条目 / Resource 卡片，以及 `list-open` 的未消化想法，去找 **呼应**。对不上的略过。未勾选的不要当成结论。想法是燃料，不整段贴进周记，也不改原话。
+4. 对上之后再往下挖。一次不要堆很多题。讨论时记下每条想法是「展开」还是「看过未展开」。没被展开的也要记下，以后不再捞。
 5. **客户说「可以写 / 写吧 / OK 写」之前，不落盘。** 他说「写周记」只是开始讨论，不是授权出文。
 
 禁止：把 intake 原文贴进周记；没讨论就写完整篇；定时任务代写；他这周的事还没说完就开始用 intake 解释他。不自动 git push 周记。
@@ -50,7 +65,18 @@ python3 skills/journal/tools/write_journal.py save --vault "$VAULT" --approval F
 python3 skills/journal/tools/write_journal.py retry --vault "$VAULT" --approval FILE
 ```
 
-`FILE` 是这一次的 JSON。`confirmed` 必须是 true，并且 `phrase` 必须正好是 `可以写`、`写吧` 或 `OK 写`。「写周记」只是开始讨论，不是这句短语。不符合时工具返回 `refused`，写入数为 0，不创建 `📝 Journal/`。同一 `event_id` 重复送达只保留 1 份；内容不一致则 `conflict`，不覆盖。`retry` 在磁盘已有相同内容时直接读回，不另写一篇。工具不写 `📖 Cognition/`，不 `git commit` / `git push`。
+`FILE` 是这一次的 JSON。`confirmed` 必须是 true，并且 `phrase` 必须正好是 `可以写`、`写吧` 或 `OK 写`。「写周记」只是开始讨论，不是这句短语。不符合时工具返回 `refused`，写入数为 0，不创建 `📝 Journal/`。同一 `event_id` 重复送达只保留 1 份；内容不一致则 `conflict`，不覆盖。`retry` 在磁盘已有相同内容时直接读回，不另写一篇。工具不写 `📖 Cognition/`，不 `git commit` / `git push`。周记文件本身仍不自动 push。
+
+`write_journal.py` 返回 `success` 之后，才把这次 `list-open` 的每一条写进一份新的消化清单。失败、拒绝、冲突都不写清单，那些想法下次还能捞到。清单必须正好覆盖当前未消化的 id，每条是 `展开` 或 `看过未展开`，并链到这篇周记。不改旧的想法文件，也不在旧文件上打勾。
+
+```bash
+python3 skills/journal/tools/capture_thought.py record-digest \
+  --vault "$VAULT" --journal-result RESULT.json --dispositions DISPOSITIONS.json
+python3 skills/journal/tools/capture_thought.py publish \
+  --vault "$VAULT" --path '📝 Journal/想法/digests/digest-….md'
+```
+
+消化清单也是新文件，写入成功后用同一条 `publish` 规则只推这一个路径。周记文件还躺在工作区里时，`publish` 会拒绝，这是对的：不要为了推清单把周记一起提交。清单留在本地，等工作区里除了这份清单没有别的改动，再单独 `publish`。没有未消化想法时不创建空清单。
 
 路径：`$VAULT/📝 Journal/{YYYY-MM-DD} {中文标题}.md`
 
@@ -78,7 +104,7 @@ event_id: {这一次保存的事件 id}
 **Previous / 上一篇:** [[{上一篇文件名不含 .md}]]
 ```
 
-正文由上面的 `write_journal.py` 落盘，不要另用文件工具绕过它。不要 `git commit` / `git push` DigitalBrain，除非 Jake 这轮明确说 push。不要把周记正文写入 DigitalBrain memory。模板里的 `event_id` 由工具写入 frontmatter，用来识别同一次保存。
+正文由上面的 `write_journal.py` 落盘，不要另用文件工具绕过它。不要把周记正文 `git commit` / `git push`，除非 Jake 这轮明确说 push。想法文件和消化清单只走 `capture_thought.py publish`。不要把周记正文写入 DigitalBrain memory。模板里的 `event_id` 由工具写入 frontmatter，用来识别同一次保存。
 
 ### 4. 给他看
 
@@ -94,3 +120,5 @@ event_id: {这一次保存的事件 id}
 - 不要同步 Notion
 - 不要把 Claude/Codex/Hermes 那几份旧 skill 一并改掉
 - 不要用已删除的公开仓 `jakeguo117/journal-skill`；只跟 information-flow
+- 不要把普通聊天记成想法。不要改、不要删 `📝 Journal/想法/` 里已有的文件
+- 不要把想法或消化清单当成周记条目。不要把想法分流进 Ideas / Experiments

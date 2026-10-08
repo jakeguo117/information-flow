@@ -35,8 +35,19 @@ information-flow 的 intake / journal / cognition skill 一进 main
   → 未勾选即使相关也不进入材料
   → 客户说「可以写 / 写吧 / OK 写」之前不落盘
   → 持久写入只走 skills/journal/tools/write_journal.py
-  → 📝 Journal/   不自动 git push
+  → 📝 Journal/ 周记正文不自动 git push
   → 落盘后如有可复用判断，交给 cognition propose；周记自己不写 Cognition
+
+随手记
+  → 触发只有「记一下：」「想法：」/thought。普通聊天不记
+  → 原话原样写入 📝 Journal/想法/{YYYY}-W{nn}/thought-YYYYMMDD-HHmm[-n].md
+  → 新文件。不改、不删旧文件。同一个 id 不写第二次
+  → capture_thought.py publish 只把这一个新路径推到 main
+  → 周记正文仍不自动 push
+  → write_journal.py 成功之后才写消化清单。每条是「展开」或「看过未展开」，并链到那篇周记
+  → 清单也是新文件，按同一条单文件规则推送。推的时候工作区还有别的改动就拒绝
+  → 未消化 = 全部想法文件减去任何清单里的 id。看过未展开不再捞
+  → 不写 Cognition，不进 Ideas / Experiments
 ```
 
 手机 = Cursor Cloud + GitHub `obsidian-digitalbrain` 的 `main`。周入口必须已经在 `main`。找不到周文件就停，不要问日 Digest vs Daily Briefing。

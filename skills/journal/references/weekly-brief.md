@@ -15,10 +15,11 @@
 2. 只打开那些周记里已经出现的 `🚀 Projects/` / `📖 Resources/` wikilink（老项目、很小的线）。不要扫整个项目目录来「补这周」。
 3. 用上面规则解析出的 `VAULT/📋 Digests/{YYYY-Wnn}/intake.md`。只读 **`[x]`** 的条目和它们下面的 reflection，用来找和旧线的 **呼应**。Briefing / 未勾选只是索引，对不上就略过。
 4. 本周相关 `VAULT/📖 Resources/` 卡片：讨论带引用时已经写进去的。周记只链，不再入库。
+5. `VAULT/📝 Journal/想法/` 里所有未消化想法。用 `skills/journal/tools/capture_thought.py list-open`。未消化 = 想法文件的 id，减去 `想法/digests/` 任一清单里出现过的 id，不限本周。清单里是「看过未展开」的不再读。想法是燃料，不整段贴进周记，原话保持文件里的字节。消化清单和想法文件都不是周记。
 
 日 Digest 和 `📊 Journal Briefs/` 不再当输入。
 
-客户说「可以写 / 写吧 / OK 写」之前不落盘周记。持久写入只走 `skills/journal/tools/write_journal.py`。未勾选 intake 即使和旧线相关，也不进入落盘材料。
+客户说「可以写 / 写吧 / OK 写」之前不落盘周记。周记持久写入只走 `skills/journal/tools/write_journal.py`。未勾选 intake 即使和旧线相关，也不进入落盘材料。想法的新文件只走 `capture_thought.py`。消化清单只在 `write_journal.py` 成功之后写。
 
 ## 禁止当输入
 
