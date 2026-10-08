@@ -1,0 +1,192 @@
+# NOT a live GitHub workflow. Not installed under .github/workflows.
+# Merge permission from the VNext original is removed.
+# Source: .specify/workflows/change-lifecycle/workflow.yml @ c99355daf4889148dc517704bb6423de221d0770
+schema_version: "1.0"
+workflow:
+  id: "change-lifecycle"
+  name: "Change lifecycle"
+  version: "1.0.0"
+  description: "Architecture section F states. Roles are SPEC_OWNER, PLANNER, IMPLEMENTER, REVIEWER, VERIFIER, and RUNTIME_OPERATOR. Resume with specify workflow resume."
+
+requires:
+  speckit_version: ">=1.0.13"
+  integrations:
+    any:
+      - "cursor-agent"
+
+inputs:
+  change_id:
+    type: string
+    required: true
+    prompt: "Change id WI-CHG-NNNN"
+  review_result:
+    type: string
+    default: "unset"
+  verification_result:
+    type: string
+    default: "unset"
+
+steps:
+  - id: draft
+    type: prompt
+    integration: cursor-agent
+    model: grok-4.7-high
+    prompt: "SPEC_OWNER records the problem and the candidate outcome in the change record. Do not implement."
+
+  - id: jake-before-approved
+    type: gate
+    message: "Jake gate before Approved. The decision record and the delta against the pinned base are required. Reject stays history."
+    options: [approve, reject]
+    on_reject: abort
+
+  - id: approved-preflight
+    type: shell
+    run: bash scripts/vnext/wi_preflight.sh --check
+
+  - id: plan
+    type: prompt
+    integration: cursor-agent
+    model: grok-4.7-high
+    prompt: "PLANNER maps the approved intent to files and checks. Repo preflight must match the expected SHA. Resolve authorities from the approved AIC documents. PROJECT_STATE.md is not imported."
+
+  - id: tasks
+    type: prompt
+    integration: cursor-agent
+    model: grok-4.7-high
+    prompt: "PLANNER fills owners, files, and stop conditions."
+
+  - id: implement
+    type: prompt
+    integration: cursor-agent
+    model: grok-4.7-high
+    prompt: "IMPLEMENTER uses .cursor/agents/implementer.md, stays inside the allowed files, and commits the handoff."
+
+  - id: lookup-pr
+    type: do-while
+    max_iterations: 3
+    condition: "{{ steps.lookup-pr-once.output.stdout | contains('NOT_VERIFIED') }}"
+    steps:
+      - id: lookup-pr-once
+        type: shell
+        run: bash scripts/vnext/wi_pr_lookup.sh "{{ inputs.change_id }}"
+
+  - id: read-review
+    type: shell
+    run: bash scripts/vnext/wi_review_route.sh review
+
+  - id: read-verification
+    type: shell
+    run: bash scripts/vnext/wi_review_route.sh verification
+
+  - id: review-route
+    type: switch
+    expression: "{{ steps.read-review.output.stdout | trim }}"
+    cases:
+      pass:
+        - id: verify-route
+          type: switch
+          expression: "{{ steps.read-verification.output.stdout | trim }}"
+          cases:
+            verified:
+              - id: durable-proof
+                type: shell
+                run: bash scripts/vnext/wi_durable_proof.sh --check
+              - id: merge
+                type: prompt
+                integration: cursor-agent
+                model: grok-4.7-high
+                prompt: "Do not merge. This port does not grant merge, push, or standing Git write. Exact-head review and verification are preconditions only when a separate applicable authority allows the write. Caller-supplied pass inputs are not proof. A durable-proof script exit is not merge permission."
+              - id: converge
+                type: prompt
+                integration: cursor-agent
+                model: grok-4.7-high
+                prompt: "RUNTIME_OPERATOR reads the remote merge SHA. speckit.converge only appends tasks. New Baseline is the header update after intent, SHA, review, and verification agree."
+            failed:
+              - id: repair-after-verify
+                type: prompt
+                integration: cursor-agent
+                model: grok-4.7-high
+                prompt: "This route applies only because the verification record sha equals the exact evaluated pull request head. IMPLEMENTER repairs a routine verification failure on the same branch and pull request. No Jake gate on this repair."
+            material_stop:
+              - id: stop-after-material-verify
+                type: prompt
+                integration: cursor-agent
+                model: grok-4.7-high
+                prompt: "STOP — JAKE DECISION REQUIRED. This stop applies only because the verification record sha equals the exact evaluated pull request head. A material architecture, authority, requirement, or permission conflict is not routine repair. Do not continue affected work."
+            cost_stop:
+              - id: stop-after-cost-verify
+                type: prompt
+                integration: cursor-agent
+                model: grok-4.7-high
+                prompt: "STOP — JAKE COST APPROVAL REQUIRED. This stop applies only because the verification record sha equals the exact evaluated pull request head. Do not start paid work."
+            unverified:
+              - id: stop-unverified-head
+                type: prompt
+                integration: cursor-agent
+                model: grok-4.7-high
+                prompt: "The current pull request head is UNVERIFIED. A verification record applies only when its recorded sha equals the exact evaluated pull request head. An older FAILED result is not a material stop. An older VERIFIED result does not authorize this head. Do not delete the historical verification record."
+          default:
+            - id: stop-missing-verification
+              type: prompt
+              integration: cursor-agent
+              model: grok-4.7-high
+              prompt: "Missing exact-head verification stops the transition. A verification record applies only when its recorded sha equals the exact evaluated pull request head."
+      content_pass:
+        - id: envelope-next
+          type: switch
+          expression: "{{ steps.read-verification.output.stdout | trim }}"
+          cases:
+            content_verified:
+              - id: follow-handoff
+                type: prompt
+                integration: cursor-agent
+                model: grok-4.7-high
+                prompt: "The checkout is an evidence envelope. Review and verification name the implementation/content commit and remain current. Do not request another review or verification of that same content. Do not merge. Follow the handoff next action."
+            unverified:
+              - id: verify-named-content
+                type: prompt
+                integration: cursor-agent
+                model: grok-4.7-high
+                prompt: "The review record names the implementation/content commit. Verification of that content commit is missing. Verify that content commit. Do not treat the evidence envelope as a new implementation head."
+            failed:
+              - id: repair-named-content
+                type: prompt
+                integration: cursor-agent
+                model: grok-4.7-high
+                prompt: "The verification record names the implementation/content commit and failed. Repair that content on the same branch. An evidence-only commit does not clear the failure."
+            material_stop:
+              - id: stop-envelope-material
+                type: prompt
+                integration: cursor-agent
+                model: grok-4.7-high
+                prompt: "STOP — JAKE DECISION REQUIRED. The verification record names the implementation/content commit. The evidence envelope does not clear a material stop."
+            cost_stop:
+              - id: stop-envelope-cost
+                type: prompt
+                integration: cursor-agent
+                model: grok-4.7-high
+                prompt: "STOP — JAKE COST APPROVAL REQUIRED. The verification record names the implementation/content commit."
+          default:
+            - id: stop-envelope-verification
+              type: prompt
+              integration: cursor-agent
+              model: grok-4.7-high
+              prompt: "The evidence envelope has review for the implementation/content commit, but verification does not. Do not merge."
+      changes_requested:
+        - id: repair-after-review
+          type: prompt
+          integration: cursor-agent
+          model: grok-4.7-high
+          prompt: "This route applies only because the review record sha equals the exact evaluated pull request head. IMPLEMENTER repairs on the same branch and pull request. No Jake gate on this repair. Do not delete historical review records."
+      unreviewed:
+        - id: stop-unreviewed-head
+          type: prompt
+          integration: cursor-agent
+          model: grok-4.7-high
+          prompt: "The current pull request head is UNREVIEWED. A review record applies only when its recorded sha equals the exact evaluated pull request head. An older PASS result does not start verification. An older CHANGES_REQUESTED result does not start repair. Do not delete the historical review record."
+    default:
+      - id: stop-missing-evidence
+        type: prompt
+        integration: cursor-agent
+        model: grok-4.7-high
+        prompt: "Missing exact-head review evidence stops the transition. A review record applies only when its recorded sha equals the exact evaluated pull request head. Two consecutive equivalent failed proofs use STOP — JAKE DECISION REQUIRED."
