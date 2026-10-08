@@ -1,0 +1,119 @@
+{
+  "board_schema_version": "aic-board/0.1",
+  "additionalProperties": false,
+  "event_keys": [
+    "authority_ref",
+    "code_ref",
+    "consumed_pins",
+    "crm_page_ids",
+    "crm_read_at",
+    "crm_source",
+    "dates",
+    "effect_key",
+    "event_id",
+    "event_kind",
+    "followup_status",
+    "gap_steps",
+    "invocation",
+    "item_refs",
+    "occurred_at",
+    "project_id",
+    "reason_code",
+    "request_ref",
+    "result",
+    "status",
+    "supersedes",
+    "writer"
+  ],
+  "header_keys": [
+    "authority_pins",
+    "board_schema_version",
+    "code_ref",
+    "effect_key",
+    "invocation",
+    "project_id",
+    "written_at",
+    "writer"
+  ],
+  "pin_keys": [
+    "drive_file_id",
+    "match",
+    "project_id",
+    "revision",
+    "sha256",
+    "source_ref",
+    "step"
+  ],
+  "authority_pin_keys": [
+    "doc_id",
+    "drive_file_id",
+    "revision",
+    "sha256",
+    "version"
+  ],
+  "date_keys": [
+    "last_contact",
+    "next_followup"
+  ],
+  "gap_keys": [
+    "severity",
+    "step"
+  ],
+  "deny_keys": [
+    "姓名",
+    "微信",
+    "备注",
+    "下次行动",
+    "预估金额",
+    "来源",
+    "阶段",
+    "amount",
+    "body",
+    "contact",
+    "email",
+    "name",
+    "note",
+    "notes",
+    "phone",
+    "policy",
+    "prose",
+    "wechat"
+  ],
+  "results": [
+    "blocked",
+    "no_op_duplicate",
+    "ok"
+  ],
+  "invocations": [
+    "on_request"
+  ],
+  "reason_codes": [
+    "field_rule",
+    "manifest_mismatch",
+    "missing_evidence",
+    "not_approved",
+    "ownership_violation",
+    "project_mismatch",
+    "repo_unverified",
+    "source_unreadable"
+  ],
+  "continue_statuses": [
+    "blocked",
+    "found",
+    "partial",
+    "unavailable"
+  ],
+  "gap_steps": [
+    "digitalbrain_context",
+    "frozen_authority_or_manifest",
+    "governance",
+    "milestone_map",
+    "project_control",
+    "repo_verification"
+  ],
+  "severities": [
+    "blocked",
+    "partial",
+    "unavailable"
+  ]
+}

@@ -10,7 +10,7 @@ fail=0
 say() { printf '%s\n' "$*"; }
 
 say "py_compile"
-python3 -m py_compile scripts/vnext/wi_authority_check.py scripts/vnext/wi_bootstrap.py scripts/vnext/wi_event_check.py || fail=1
+python3 -m py_compile scripts/vnext/wi_authority_check.py scripts/vnext/wi_bootstrap.py scripts/vnext/wi_event_check.py scripts/vnext/status_board.py scripts/vnext/continue_caller.py || fail=1
 
 say "bash -n"
 for f in scripts/vnext/*.sh; do

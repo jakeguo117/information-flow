@@ -1,0 +1,64 @@
+{
+  "project_id": "AIC-PRJ-0002-HK-INS-FOLLOWUP",
+  "request_ref": "session-fake-0002",
+  "occurred_at": "2026-10-08T15:15:00+08:00",
+  "readbacks": {
+    "governance": {
+      "readable": true,
+      "project_id": "AIC-PRJ-0002-HK-INS-FOLLOWUP",
+      "drive_file_id": "file-fake-gov-p2",
+      "revision": "rev-fake-gov-p2",
+      "sha256": "17324ce17557bd65eabd1e041543934b8f978592047fd46a55da971218bd95d3"
+    },
+    "project_control": {
+      "readable": true,
+      "project_id": "AIC-PRJ-0002-HK-INS-FOLLOWUP",
+      "drive_file_id": "file-fake-pc-p2",
+      "revision": "rev-fake-pc-p2",
+      "sha256": "a061091c17ad927d2747bfe3c20b991e0a46e8869625eb6e20bcd16d0f4ce67e"
+    },
+    "milestone_map": {
+      "readable": true,
+      "project_id": "AIC-PRJ-0002-HK-INS-FOLLOWUP",
+      "drive_file_id": "file-fake-mm-p2",
+      "revision": "rev-fake-mm-p2",
+      "sha256": "7bd5793e2997bacdb567b95399115168b312d994e28e5625644872078e85c4a4"
+    },
+    "frozen_authority_or_manifest": {
+      "readable": true,
+      "project_id": "AIC-PRJ-0002-HK-INS-FOLLOWUP",
+      "drive_file_id": "file-fake-manifest-p2",
+      "revision": "rev-fake-manifest-p2",
+      "sha256": "afa376307b2306bf16495895e304048eb363fbed90ab2e3096692a6b1af5e98a",
+      "expected_revision": "rev-fake-manifest-p2",
+      "expected_sha256": "afa376307b2306bf16495895e304048eb363fbed90ab2e3096692a6b1af5e98a",
+      "approval": {
+        "readable": true,
+        "project_id": "AIC-PRJ-0002-HK-INS-FOLLOWUP",
+        "drive_file_id": "file-fake-approval-p2",
+        "revision": "rev-fake-approval-p2",
+        "sha256": "ae47d539fd073dbb0562c31a0f1ad642b504c1c8cda25580158f74a2f92a401a"
+      }
+    },
+    "context": {
+      "readable": true,
+      "project_id": "AIC-PRJ-0002-HK-INS-FOLLOWUP",
+      "revision": "rev-fake-ctx-p2",
+      "sha256": "74e056750ada4212fc50cd7222692cc978ac06c4e5dc707da8d21754fa709cfd",
+      "source_ref": "collection://crm-fake-source",
+      "as_of": "2026-10-08",
+      "pages": [
+        {
+          "page_id": "crm-fake-0001",
+          "next_followup": "2026-10-08",
+          "last_contact": "2026-10-01"
+        },
+        {
+          "page_id": "crm-fake-0002",
+          "next_followup": null,
+          "last_contact": null
+        }
+      ]
+    }
+  }
+}

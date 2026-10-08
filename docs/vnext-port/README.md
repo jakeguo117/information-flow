@@ -18,7 +18,7 @@
 - The VNext baseline (v0.3.0 and implementation SHA `b9e339f65a718a00121842e531632c5c2e34e904`).
 - WI-CHG-0009 execution state (`PROJECT_STATE.md`, DEC-0004, pull request 25, native-run status, review PASS, verification VERIFIED).
 - Standing Git merge, push, or write permission.
-- A `continue_project` caller. Related rules are mapped in `continue-project.md`. `scripts/continue_project.py` is unchanged.
+- A `continue_project` caller imported from VNext. Related rules are mapped in `continue-project.md`. A later on-request wrapper lives in `continue-project-trackc.md`. It is not a webhook and it does not close R10-14.
 
 ## Where to read
 
