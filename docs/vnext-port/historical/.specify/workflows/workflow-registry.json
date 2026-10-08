@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "workflows": {
+    "speckit": {
+      "name": "Full SDD Cycle",
+      "version": "1.0.1",
+      "description": "Runs specify \u2192 plan \u2192 tasks \u2192 implement with review gates",
+      "source": "bundled",
+      "installed_at": "2026-09-30T07:48:57.717535+00:00",
+      "updated_at": "2026-09-30T07:48:57.717543+00:00"
+    },
+    "change-lifecycle": {
+      "name": "Change lifecycle",
+      "version": "1.0.0",
+      "description": "Architecture section F states. Resume with specify workflow resume.",
+      "source": "project",
+      "installed_at": "2026-09-30T11:40:00+00:00",
+      "updated_at": "2026-09-30T11:40:00+00:00"
+    }
+  }
+}
