@@ -10,10 +10,16 @@
 3. 接受之后写成 `📖 Resources/` 已有领域目录下的一页。`sources` 指回 Inbox 原文，更新 `index.md` 和 `log.md`，每页至少两个链接。不改类型。
 4. 不改 `📝 Journal/`。这条不写 Cognition。Agent 发起的受管文件变更遵循当前 Global Governance / project policy：使用 task branch，精确路径暂存，禁止 `git add -A`，不直接 push protected `main`。PR 与 merge 服从当前授权和治理 gate。
 
+用户说「想法」「听完播客的一些感想」「先记一下」「追加到周记」，或明确收尾这类讨论：
+
+- 使用 `.cursor/skills/journal/SKILL.md` 的素材流程，读取 `📝 Journal/素材/同步约定.md`。有有效持续授权时，将本次素材追加到上海事件日期对应的 `📝 Journal/素材/YYYY-Www.md`，精确提交并同步授权的 main，读回确认；不重复要 push 批准。
+- 没有本机 vault 时可核验已获授权的 GitHub DigitalBrain 仓库后经连接读写。相同事件不重复追加；冲突先核对，不强推。私人正文不进入 information-flow。
+- 素材不占周记编号；正式周记时先读当周及未整合素材，留待对话找呼应。用户临时说不保存／不推送时，以该指示为准。
+
 用户说「写周记」「周记」或 `/journal`：
 
 - 自己认周，先用旧周记和已经挂上的老项目找呼应，再对已勾选 intake。未勾选即使相关也不进入周记材料。
-- 客户说「可以写 / 写吧 / OK 写」之前，不要写 `📝 Journal/`。持久写入只走 `.cursor/skills/journal/tools/write_journal.py`。不写 Cognition。Journal 仍不自动 push。
+- 客户说「可以写 / 写吧 / OK 写」之前，不要写正式周记篇章；素材按上面的独立流程。持久写入只走 `.cursor/skills/journal/tools/write_journal.py`。不写 Cognition。正式周记不默认自动 push；想法素材的持续同步授权单独适用。
 
 详见 `.cursor/skills/digest/SKILL.md` 与 `.cursor/skills/journal/SKILL.md`。云端不要跑 YouTube / Digest 脚本，也不要把 token 写进 vault。
 

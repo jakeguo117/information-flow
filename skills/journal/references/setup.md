@@ -30,18 +30,25 @@ information-flow 的 intake / journal / cognition skill 一进 main
   → 有引用的结论 → 📖 Resources/concepts/
   → 精确路径 commit + push main。不为 Digest 开 PR。
 
+随手想法讨论明确收尾
+  → 读取 📝 Journal/素材/同步约定.md 的有效授权
+  → 追加到上海事件日期所属周的 📝 Journal/素材/YYYY-Www.md
+  → 按授权精确提交、push main、从 main 读回
+  → 没有本机 vault 时可使用已核验的 GitHub 连接
+  → 后续周记读取这些素材；不等同于后台监听或自动成文
+
 写周记
-  → 先旧线呼应，再对已勾选 intake
+  → 先旧线呼应与已保存的想法素材，再对已勾选 intake
   → 未勾选即使相关也不进入材料
   → 客户说「可以写 / 写吧 / OK 写」之前不落盘
   → 持久写入只走 skills/journal/tools/write_journal.py
-  → 📝 Journal/   不自动 git push
+  → 正式周记不默认自动 git push；素材另按持续授权
   → 落盘后如有可复用判断，交给 cognition propose；周记自己不写 Cognition
 ```
 
 手机 = Cursor Cloud + GitHub `obsidian-digitalbrain` 的 `main`。周入口必须已经在 `main`。找不到周文件就停，不要问日 Digest vs Daily Briefing。
 
-Daily Briefing / Weekly Synthesis / 日 Digest / Journal Briefs 不再作为输出。不硬凑空段。不自动 git push 周记。
+Daily Briefing / Weekly Synthesis / 日 Digest / Journal Briefs 不再作为输出。不硬凑空段。正式周记不默认自动 git push；素材另按持续授权。
 
 ## 现在（2026-09-19）
 
