@@ -728,6 +728,8 @@ def _publish_text_problem(posix: str, text: str) -> str | None:
             return "thought file id does not match its path"
         if path.parent.name != meta.get("week"):
             return "thought file week does not match its path"
+        if "verbatim_sha256" not in meta:
+            return "thought file verbatim_sha256 is missing"
         claimed = meta.get("verbatim_sha256") or ""
         try:
             original = verbatim_of(text)
@@ -968,19 +970,20 @@ _PARK_COMMAND = f"git branch {_TASK_BRANCH} HEAD && git reset --keep origin/main
 def _divergence_reason(vault: Path, blocking: str, *, allow_replay_command: bool) -> str:
     """Name the blocking commits and both sides.
 
-    A rebase followed by a push is offered only when every local commit is a
-    valid add-only thought or digest, those paths are absent on origin, and
-    the replay itself failed in git. A modify, delete, rename, merge, existing
-    path, or bad file gets a task-branch example and no push command.
+    No refusal offers a push. When the replay itself failed in git after the
+    commits already passed validation, the recovery is to fix that cause and
+    run publish again, so the tool checks the commits again. A modify, delete,
+    rename, merge, existing path, or bad file gets a task-branch example.
     """
     local = _log_side(vault, "origin/main..HEAD")
     remote = _log_side(vault, "HEAD..origin/main")
     base = _merge_base(vault)
     if allow_replay_command and base:
         recovery = (
-            "manual recovery: git fetch origin main && "
-            f"git rebase --no-update-refs --onto origin/main {base} && "
-            "git push origin HEAD:main"
+            "manual recovery: fix the cause, then re-run publish so the tool "
+            "checks these commits again and pushes. Do not push main yourself "
+            "and do not rebase by hand. If a rebase is left midway, run "
+            "git rebase --abort"
         )
     elif "would overwrite ignored file" in blocking:
         recovery = (
@@ -999,7 +1002,9 @@ def _divergence_reason(vault: Path, blocking: str, *, allow_replay_command: bool
             "manual recovery: move these commits to a task branch and open a PR, "
             "or hand them to Jake. Do not push main, do not rebase onto main, and "
             "do not force-push. The commits stay on that branch. "
-            f"Example: {_PARK_COMMAND}"
+            f"Example: {_PARK_COMMAND}. "
+            "If the branch is created but reset --keep fails, re-run only "
+            "git reset --keep origin/main"
         )
     return (
         "local main has diverged from origin/main; fast-forward refused; not pushed. "
@@ -1040,6 +1045,28 @@ def _rebase_in_progress(vault: Path) -> bool:
 def _abort_rebase(vault: Path) -> None:
     if _rebase_in_progress(vault):
         _git(vault, ["rebase", "--abort"])
+
+
+def _rebase_extra_env() -> dict[str, str]:
+    """Force rebase.autoStash=false without dropping the caller's GIT_CONFIG_* pairs.
+
+    Git reads GIT_CONFIG_KEY_<n> only while n is below GIT_CONFIG_COUNT. Setting
+    the count back to 1 would hide a configuration the caller already passed.
+    """
+    raw = os.environ.get("GIT_CONFIG_COUNT", "").strip()
+    try:
+        count = int(raw) if raw else 0
+    except ValueError:
+        count = 0
+    if count < 0:
+        count = 0
+    return {
+        "GIT_EDITOR": "true",
+        "GIT_SEQUENCE_EDITOR": "true",
+        "GIT_CONFIG_COUNT": str(count + 1),
+        f"GIT_CONFIG_KEY_{count}": "rebase.autoStash",
+        f"GIT_CONFIG_VALUE_{count}": "false",
+    }
 
 
 def _replay_add_only(vault: Path) -> tuple[str, str] | None:
@@ -1089,13 +1116,7 @@ def _replay_add_only(vault: Path) -> tuple[str, str] | None:
     proc = _git(
         vault,
         ["rebase", "--onto", "origin/main", base, "--no-update-refs"],
-        extra_env={
-            "GIT_EDITOR": "true",
-            "GIT_SEQUENCE_EDITOR": "true",
-            "GIT_CONFIG_COUNT": "1",
-            "GIT_CONFIG_KEY_0": "rebase.autoStash",
-            "GIT_CONFIG_VALUE_0": "false",
-        },
+        extra_env=_rebase_extra_env(),
     )
     if proc.returncode != 0:
         _abort_rebase(vault)

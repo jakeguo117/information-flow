@@ -1555,6 +1555,7 @@ class PublishTests(unittest.TestCase):
             self.assertNotIn("push origin HEAD:main", data["reason"])
             self.assertIn(park, data["reason"])
             self.assertIn("hand them to Jake", data["reason"])
+            self.assertIn("re-run only git reset --keep origin/main", data["reason"])
             subprocess.check_call(park, cwd=vault, shell=True)
             remote_readme = subprocess.check_output(
                 ["git", "--git-dir", str(remote), "show", "main:README.md"], text=True
@@ -1642,7 +1643,7 @@ class PublishTests(unittest.TestCase):
                     self.assertFalse((vault / ".git" / "rebase-merge").exists())
                     self.assertFalse((vault / ".git" / "rebase-apply").exists())
 
-    def test_replay_git_failure_offers_push_and_aborts(self) -> None:
+    def test_replay_git_failure_says_rerun_publish_and_aborts(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
             vault, remote = init_repo(root)
@@ -1664,8 +1665,10 @@ class PublishTests(unittest.TestCase):
             head_before = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=vault, text=True).strip()
             rc, data = self._publish_words(vault, root, "签名失败时", "2026-10-08T13:03:00+08:00")
             self.assertEqual(rc, 2, data)
-            self.assertIn("push origin HEAD:main", data["reason"])
-            self.assertIn("git rebase --no-update-refs --onto origin/main", data["reason"])
+            self.assertNotIn("push origin HEAD:main", data["reason"])
+            self.assertNotIn("git rebase --onto", data["reason"])
+            self.assertIn("fix the cause, then re-run publish", data["reason"])
+            self.assertIn("git rebase --abort", data["reason"])
             self.assertEqual(
                 subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=vault, text=True).strip(),
                 head_before,
@@ -1686,6 +1689,114 @@ class PublishTests(unittest.TestCase):
                 subprocess.check_output(["git", "rev-parse", "jake-backup"], cwd=vault, text=True).strip(),
                 kept,
             )
+            write_text(vault / "README.md", "Jake 看到原因之后的修改\n")
+            subprocess.check_call(["git", "add", "README.md"], cwd=vault)
+            subprocess.check_call(["git", "commit", "-q", "-m", "later edit"], cwd=vault)
+            hook.unlink()
+            again = run_json(
+                [
+                    sys.executable,
+                    str(JOURNAL_TOOLS / "capture_thought.py"),
+                    "publish",
+                    "--vault",
+                    str(vault),
+                    "--path",
+                    data["relative"],
+                ]
+            )
+            self.assertEqual(again[0], 2, again[1])
+            self.assertNotIn("push origin HEAD:main", again[1]["reason"])
+            self.assertEqual(
+                subprocess.check_output(
+                    ["git", "--git-dir", str(remote), "rev-parse", "main"], text=True
+                ).strip(),
+                before,
+            )
+            self.assertEqual(
+                subprocess.check_output(
+                    ["git", "--git-dir", str(remote), "show", "main:README.md"], text=True
+                ),
+                "synthetic\n",
+            )
+            self.assertFalse((vault / ".git" / "rebase-merge").exists())
+
+    def test_replay_failure_rerun_publish_after_the_cause_is_fixed(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            vault, remote = init_repo(root)
+            other = clone_other(root, remote)
+            commit_thought(vault, "2026-10-08T13:11:00+08:00", "修好后再推")
+            write_text(other / "daily.md", "daily\n")
+            subprocess.check_call(["git", "add", "daily.md"], cwd=other)
+            subprocess.check_call(["git", "commit", "-q", "-m", "daily"], cwd=other)
+            subprocess.check_call(["git", "push", "-q", "origin", "main"], cwd=other)
+            hook = vault / ".git" / "hooks" / "pre-rebase"
+            hook.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+            hook.chmod(0o755)
+            rc, data = self._publish_words(vault, root, "原因排除后再 publish", "2026-10-08T13:12:00+08:00")
+            self.assertEqual(rc, 2, data)
+            self.assertIn("re-run publish", data["reason"])
+            hook.unlink()
+            again = run_json(
+                [
+                    sys.executable,
+                    str(JOURNAL_TOOLS / "capture_thought.py"),
+                    "publish",
+                    "--vault",
+                    str(vault),
+                    "--path",
+                    data["relative"],
+                ]
+            )
+            self.assertEqual(again[0], 0, again[1])
+            self.assertEqual(
+                subprocess.check_output(
+                    ["git", "--git-dir", str(remote), "show", "main:README.md"], text=True
+                ),
+                "synthetic\n",
+            )
+            names = remote_paths(remote)
+            self.assertIn("thought-20261008-1311.md", names)
+            self.assertIn("thought-20261008-1312.md", names)
+
+    def test_replay_keeps_caller_git_config_count(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            vault, remote = init_repo(root)
+            other = clone_other(root, remote)
+            commit_thought(vault, "2026-10-08T13:21:00+08:00", "环境配置还在")
+            subprocess.check_call(["git", "config", "rebase.autoStash", "true"], cwd=vault)
+            write_text(other / "daily.md", "daily\n")
+            subprocess.check_call(["git", "add", "daily.md"], cwd=other)
+            subprocess.check_call(["git", "commit", "-q", "-m", "daily"], cwd=other)
+            subprocess.check_call(["git", "push", "-q", "origin", "main"], cwd=other)
+            env = os.environ.copy()
+            env["GIT_CONFIG_COUNT"] = "1"
+            env["GIT_CONFIG_KEY_0"] = "user.email"
+            env["GIT_CONFIG_VALUE_0"] = "env-jake@example.com"
+            rc, data = run_json(
+                [
+                    sys.executable,
+                    str(JOURNAL_TOOLS / "capture_thought.py"),
+                    "add",
+                    "--vault",
+                    str(vault),
+                    "--text-file",
+                    str(write_words(root, "新的一条也用这个环境")),
+                    "--at",
+                    "2026-10-08T13:22:00+08:00",
+                    "--publish",
+                ],
+                env=env,
+            )
+            self.assertEqual(rc, 0, data)
+            log = subprocess.check_output(
+                ["git", "--git-dir", str(remote), "log", "--format=%s|%ce", "main"],
+                text=True,
+            )
+            replayed = [line for line in log.splitlines() if line.startswith("thought-20261008-1321|")]
+            self.assertEqual(replayed, ["thought-20261008-1321|env-jake@example.com"])
+            self.assertIn("thought-20261008-1321", log)
 
     def test_replay_does_not_move_other_branches(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
@@ -1765,13 +1876,51 @@ class PublishTests(unittest.TestCase):
                 ]
             )
             self.assertEqual(rc, 2, data)
-            self.assertIn("verbatim_sha256", data["reason"])
+            self.assertIn("thought file verbatim does not match verbatim_sha256", data["reason"])
             self.assertNotIn(thought_id, remote_paths(remote))
             subprocess.check_call(["git", "add", "--", relative], cwd=vault)
             subprocess.check_call(["git", "commit", "-q", "-m", "bad sha"], cwd=vault)
             rc2, data2 = self._publish_words(vault, root, "后面这条", "2026-10-08T13:46:00+08:00")
             self.assertEqual(rc2, 2, data2)
-            self.assertIn("verbatim_sha256", data2["reason"])
+            self.assertIn("thought file verbatim does not match verbatim_sha256", data2["reason"])
+            self.assertNotIn("push origin HEAD:main", data2["reason"])
+            self.assertEqual(remote_head_count(remote), 1)
+
+    def test_missing_verbatim_sha256_says_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            vault, remote = init_repo(root)
+            instant = at("2026-10-08T13:47:00+08:00")
+            thought_id = thought_lib.thought_id_for(instant)
+            body = "没有哈希字段"
+            text = thought_lib.render_thought(thought_id, instant, body)
+            text = "".join(
+                line for line in text.splitlines(keepends=True) if not line.startswith("verbatim_sha256:")
+            )
+            path = thought_lib.thought_path(vault, thought_lib.week_id(instant), thought_id)
+            write_text(path, text)
+            relative = path.relative_to(vault).as_posix()
+            rc, data = run_json(
+                [
+                    sys.executable,
+                    str(JOURNAL_TOOLS / "capture_thought.py"),
+                    "publish",
+                    "--vault",
+                    str(vault),
+                    "--path",
+                    relative,
+                ]
+            )
+            self.assertEqual(rc, 2, data)
+            self.assertIn("thought file verbatim_sha256 is missing", data["reason"])
+            self.assertNotIn("does not match", data["reason"])
+            self.assertNotIn("push origin HEAD:main", data["reason"])
+            subprocess.check_call(["git", "add", "--", relative], cwd=vault)
+            subprocess.check_call(["git", "commit", "-q", "-m", "missing sha"], cwd=vault)
+            rc2, data2 = self._publish_words(vault, root, "后面这条", "2026-10-08T13:48:00+08:00")
+            self.assertEqual(rc2, 2, data2)
+            self.assertIn("thought file verbatim_sha256 is missing", data2["reason"])
+            self.assertNotIn("does not match", data2["reason"])
             self.assertNotIn("push origin HEAD:main", data2["reason"])
             self.assertEqual(remote_head_count(remote), 1)
 

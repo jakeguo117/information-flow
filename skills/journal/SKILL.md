@@ -23,7 +23,7 @@ python3 skills/journal/tools/capture_thought.py add --vault "$VAULT" --text-file
 
 只有这一步的退出码是 0、并且状态是成功，才说「记了」，并把原话原样给他看。推送或 publish 因任何原因失败（没有 git、没有推送权限、网络、工作区不干净、工具拒绝、路径已在 main、提交里有修改或删除、快进不了），都要清楚告诉他「没存上」，给一个短原因，再把他的原话原样念回去，让他自己留着。不要说已经存上，也不要说「记了」。
 
-没存上之后：退出码 4 是 git 不在 PATH，或 git 调用本身报了网络失败，文件还在本地。不靠异常消息里的词来判断。远端如果没动，网络恢复后可以对同一路径 `publish`。远端如果已经前进（竞态，或断网之后赶上 08:00 日摘要），「对同一路径再 publish」本身不是恢复办法：只新增且路径还不在 origin 上时，工具会重放后再推。条件不满足时退出码 2。挡路的是修改、删除、重命名、合并、路径已在 origin 上或内容不合格时，reason 不给 push 命令：把这些提交移到 task branch 开 PR，或交给 Jake，例子是 `git branch task/thought-recovery HEAD && git reset --keep origin/main`，不推 main。只有校验已经通过、失败出在 git 重放本身时，reason 才给出 rebase 后再普通 push。退出码 3 是远端拒绝，不要强推。退出码 2 是门禁拒绝，reason 里会点名路径或提交；别人暂存的修改或删除留在原地，不要为了推想法把周记一起提交。退出码 5 是工具自己的异常，reason 是异常类名和消息，原话仍在 verbatim 里，这不是 git 不可用。
+没存上之后：退出码 4 是 git 不在 PATH，或 git 调用本身报了网络失败，文件还在本地。不靠异常消息里的词来判断。远端如果没动，网络恢复后可以对同一路径 `publish`。远端如果已经前进（竞态，或断网之后赶上 08:00 日摘要），「对同一路径再 publish」本身不是恢复办法：只新增且路径还不在 origin 上时，工具会重放后再推。条件不满足时退出码 2。挡路的是修改、删除、重命名、合并、路径已在 origin 上或内容不合格时，reason 不给 push 命令：把这些提交移到 task branch 开 PR，或交给 Jake，例子是 `git branch task/thought-recovery HEAD && git reset --keep origin/main`，不推 main。分支已经建好、但 `reset --keep` 失败时，只再跑 `git reset --keep origin/main`。校验已经通过、失败出在 git 重放本身时，reason 也不给 push 命令：先排除原因，再重新 `publish`，让工具重新校验后推送。如果 rebase 停在半路，运行 `git rebase --abort`。退出码 3 是远端拒绝，不要强推。退出码 2 是门禁拒绝，reason 里会点名路径或提交；别人暂存的修改或删除留在原地，不要为了推想法把周记一起提交。退出码 5 是工具自己的异常，reason 是异常类名和消息，原话仍在 verbatim 里，这不是 git 不可用。
 
 DigitalBrain `.cursor/skills/` 里的副本由 information-flow Actions 覆盖。改行为只改这个仓库。
 
