@@ -1002,9 +1002,9 @@ def _divergence_reason(vault: Path, blocking: str, *, allow_replay_command: bool
             "manual recovery: move these commits to a task branch and open a PR, "
             "or hand them to Jake. Do not push main, do not rebase onto main, and "
             "do not force-push. The commits stay on that branch. "
-            f"Example: {_PARK_COMMAND}. "
             "If the branch is created but reset --keep fails, re-run only "
-            "git reset --keep origin/main"
+            "git reset --keep origin/main. "
+            f"Example: {_PARK_COMMAND}"
         )
     return (
         "local main has diverged from origin/main; fast-forward refused; not pushed. "
