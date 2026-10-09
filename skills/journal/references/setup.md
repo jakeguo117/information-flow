@@ -43,7 +43,7 @@ information-flow 的 intake / journal / cognition skill 一进 main
   → 原话原样写入 📝 Journal/想法/{YYYY}-W{nn}/thought-YYYYMMDD-HHmm[-n].md
   → 新文件。不改、不删旧文件。同一个 id 不写第二次
   → capture_thought.py publish 只把这一个新路径做成只新增的提交并推到 main。修改、删除、重命名不推，不强推
-  → 本地 main 只是落后、且没有已跟踪文件的修改时，先 fast-forward。已有的只新增想法或消化清单提交可以一起推
+  → 本地 main 只是落后、且没有已跟踪文件的修改时，先 fast-forward，并且不覆盖被忽略的本地文件。远端也前进时，已有的只新增想法或消化清单提交会重放到 origin/main 再一起推；修改、删除或路径已在 origin 上则拒绝，不强推
   → 失败要告诉 Jake「没存上」，说明原因，并把他的原话原样念回去
   → 周记正文仍不自动 push
   → write_journal.py 成功之后才写消化清单。每条是「展开」或「看过未展开」，并链到那篇周记

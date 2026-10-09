@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 JOURNAL_TOOLS = ROOT / "skills" / "journal" / "tools"
 sys.path.insert(0, str(JOURNAL_TOOLS))
 
+import capture_thought  # noqa: E402
 import journal_lib  # noqa: E402
 import thought_lib  # noqa: E402
 
@@ -128,6 +129,37 @@ def remote_names(remote: Path, rev: str = "main") -> list[tuple[str, str]]:
     for offset in range(0, len(parts), 2):
         rows.append((parts[offset].decode(), parts[offset + 1].decode()))
     return rows
+
+
+def commit_thought(vault: Path, when: str, body: str) -> tuple[str, str]:
+    instant = at(when)
+    thought_id = thought_lib.thought_id_for(instant)
+    path = thought_lib.thought_path(vault, thought_lib.week_id(instant), thought_id)
+    write_text(path, thought_lib.render_thought(thought_id, instant, body))
+    relative = path.relative_to(vault).as_posix()
+    subprocess.check_call(["git", "add", "--", relative], cwd=vault)
+    subprocess.check_call(["git", "commit", "-q", "-m", thought_id], cwd=vault)
+    sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=vault, text=True).strip()
+    return relative, sha
+
+
+def clone_other(root: Path, remote: Path) -> Path:
+    other = root / "other"
+    subprocess.check_call(["git", "clone", "-q", str(remote), str(other)])
+    for args in (
+        ["config", "user.email", "other@example.com"],
+        ["config", "user.name", "Other"],
+        ["config", "commit.gpgsign", "false"],
+    ):
+        subprocess.check_call(["git", *args], cwd=other)
+    return other
+
+
+def remote_paths(remote: Path) -> str:
+    return subprocess.check_output(
+        ["git", "--git-dir", str(remote), "ls-tree", "-r", "--name-only", "main"],
+        text=True,
+    )
 
 
 def remote_head_count(remote: Path) -> int:
@@ -533,6 +565,7 @@ class PublishTests(unittest.TestCase):
     def test_cli_reports_not_saved_until_push_succeeds(self) -> None:
         source = (JOURNAL_TOOLS / "thought_lib.py").read_text(encoding="utf-8")
         self.assertIn('["push", "origin", "HEAD:main"]', source)
+        self.assertIn('"--no-overwrite-ignore"', source)
         self.assertNotIn("--force", source)
         self.assertNotIn("push --force", source)
         self.assertNotIn("push -f", source)
@@ -913,6 +946,12 @@ class PublishTests(unittest.TestCase):
             self.assertEqual(rc, 2, data)
             self.assertEqual(data["status"], "not_saved")
             self.assertIn("fast-forward", data["reason"])
+            self.assertIn("local commits not on origin/main:", data["reason"])
+            self.assertIn("origin/main commits not local:", data["reason"])
+            self.assertIn("manual recovery:", data["reason"])
+            self.assertIn("git rebase --onto origin/main", data["reason"])
+            self.assertNotIn("--force", data["reason"])
+            self.assertFalse((vault / ".git" / "rebase-merge").exists())
             self.assertEqual(remote_head_count(remote), before)
             files = subprocess.check_output(
                 ["git", "--git-dir", str(remote), "ls-tree", "-r", "--name-only", "main"], text=True
@@ -1033,6 +1072,451 @@ class PublishTests(unittest.TestCase):
                 b"synthetic\n",
                 "thought: nope",
             )
+
+    def test_later_modify_or_delete_in_the_unpushed_range_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            vault, remote = init_repo(root)
+            before = remote_head_count(remote)
+            relative, _first = commit_thought(vault, "2026-10-08T12:01:00+08:00", "先新增")
+            write_text(vault / relative, "改掉了\n")
+            subprocess.check_call(["git", "commit", "-q", "-am", "modify"], cwd=vault)
+            modified = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=vault, text=True).strip()
+            rc, data = run_json(
+                [
+                    sys.executable,
+                    str(JOURNAL_TOOLS / "capture_thought.py"),
+                    "add",
+                    "--vault",
+                    str(vault),
+                    "--text-file",
+                    str(write_words(root, "新的一条")),
+                    "--at",
+                    "2026-10-08T12:02:00+08:00",
+                    "--publish",
+                ]
+            )
+            self.assertEqual(rc, 2, data)
+            self.assertIn(modified[:12], data["reason"])
+            self.assertIn("M ", data["reason"])
+            self.assertEqual(remote_head_count(remote), before)
+
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            vault, remote = init_repo(root)
+            before = remote_head_count(remote)
+            relative, _first = commit_thought(vault, "2026-10-08T12:03:00+08:00", "会被删")
+            subprocess.check_call(["git", "rm", "-q", "--", relative], cwd=vault)
+            subprocess.check_call(["git", "commit", "-q", "-m", "delete"], cwd=vault)
+            deleted = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=vault, text=True).strip()
+            rc, data = run_json(
+                [
+                    sys.executable,
+                    str(JOURNAL_TOOLS / "capture_thought.py"),
+                    "add",
+                    "--vault",
+                    str(vault),
+                    "--text-file",
+                    str(write_words(root, "新的一条")),
+                    "--at",
+                    "2026-10-08T12:04:00+08:00",
+                    "--publish",
+                ]
+            )
+            self.assertEqual(rc, 2, data)
+            self.assertIn(deleted[:12], data["reason"])
+            self.assertEqual(remote_head_count(remote), before)
+
+    def test_merge_commit_in_the_unpushed_range_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            vault, remote = init_repo(root)
+            before = remote_head_count(remote)
+            subprocess.check_call(["git", "checkout", "-q", "-b", "side"], cwd=vault)
+            commit_thought(vault, "2026-10-08T12:12:00+08:00", "旁边")
+            subprocess.check_call(["git", "checkout", "-q", "main"], cwd=vault)
+            commit_thought(vault, "2026-10-08T12:13:00+08:00", "主干")
+            subprocess.check_call(["git", "merge", "-q", "--no-ff", "-m", "merge side", "side"], cwd=vault)
+            merge = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=vault, text=True).strip()
+            rc, data = run_json(
+                [
+                    sys.executable,
+                    str(JOURNAL_TOOLS / "capture_thought.py"),
+                    "add",
+                    "--vault",
+                    str(vault),
+                    "--text-file",
+                    str(write_words(root, "merge 之后")),
+                    "--at",
+                    "2026-10-08T12:14:00+08:00",
+                    "--publish",
+                ]
+            )
+            self.assertEqual(rc, 2, data)
+            self.assertIn(merge[:12], data["reason"])
+            self.assertIn("merge", data["reason"])
+            self.assertEqual(remote_head_count(remote), before)
+
+    def test_fast_forward_does_not_overwrite_an_ignored_file(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            vault, remote = init_repo(root)
+            write_text(vault / ".gitignore", "private.md\n")
+            subprocess.check_call(["git", "add", ".gitignore"], cwd=vault)
+            subprocess.check_call(["git", "commit", "-q", "-m", "ignore"], cwd=vault)
+            subprocess.check_call(["git", "push", "-q", "origin", "main"], cwd=vault)
+            other = clone_other(root, remote)
+            local_note = "Jake 本地被忽略的私人笔记\n"
+            write_text(vault / "private.md", local_note)
+            write_text(other / "private.md", "远端提交的同名文件\n")
+            subprocess.check_call(["git", "add", "-f", "private.md"], cwd=other)
+            subprocess.check_call(["git", "commit", "-q", "-m", "track private"], cwd=other)
+            subprocess.check_call(["git", "push", "-q", "origin", "main"], cwd=other)
+            before = subprocess.check_output(
+                ["git", "--git-dir", str(remote), "rev-parse", "main"], text=True
+            ).strip()
+            rc, data = run_json(
+                [
+                    sys.executable,
+                    str(JOURNAL_TOOLS / "capture_thought.py"),
+                    "add",
+                    "--vault",
+                    str(vault),
+                    "--text-file",
+                    str(write_words(root, "落后加被忽略的本地文件")),
+                    "--at",
+                    "2026-10-08T12:17:00+08:00",
+                    "--publish",
+                ]
+            )
+            self.assertEqual(rc, 2, data)
+            self.assertIn("private.md", data["reason"])
+            self.assertEqual((vault / "private.md").read_text(encoding="utf-8"), local_note)
+            self.assertEqual(
+                subprocess.check_output(
+                    ["git", "--git-dir", str(remote), "rev-parse", "main"], text=True
+                ).strip(),
+                before,
+            )
+            self.assertNotIn("thought-20261008-1217.md", remote_paths(remote))
+
+    def test_race_then_retry_replays_the_add_only_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            vault, remote = init_repo(root)
+            other = clone_other(root, remote)
+            real_git = shutil.which("git")
+            self.assertTrue(real_git)
+            shim = root / "shim"
+            shim.mkdir()
+            flag = root / "flag"
+            (shim / "git").write_text(
+                "#!/bin/sh\n"
+                f'if [ "$1" = "push" ] && [ ! -e "{flag}" ]; then\n'
+                f'  touch "{flag}"\n'
+                f'  ( cd "{other}" && echo r >> race.md && {real_git} add race.md && {real_git} commit -q -m race && {real_git} push -q origin main ) >/dev/null 2>&1\n'
+                f'  exec {real_git} "$@"\n'
+                "fi\n"
+                f'exec {real_git} "$@"\n',
+                encoding="utf-8",
+            )
+            (shim / "git").chmod(0o755)
+            env = os.environ.copy()
+            env["PATH"] = f"{shim}{os.pathsep}{env['PATH']}"
+            tool = str(JOURNAL_TOOLS / "capture_thought.py")
+            first = "竞态的一条"
+            rc1, data1 = run_json(
+                [
+                    sys.executable,
+                    tool,
+                    "add",
+                    "--vault",
+                    str(vault),
+                    "--text-file",
+                    str(write_words(root, first)),
+                    "--at",
+                    "2026-10-08T12:24:00+08:00",
+                    "--publish",
+                ],
+                env=env,
+            )
+            self.assertEqual(rc1, 3, data1)
+            self.assertEqual(data1["verbatim"], first)
+            self.assertIn("race.md", remote_paths(remote))
+            self.assertNotIn("thought-20261008-1224.md", remote_paths(remote))
+            rc2, data2 = run_json(
+                [sys.executable, tool, "publish", "--vault", str(vault), "--path", data1["relative"]]
+            )
+            self.assertEqual(rc2, 0, data2)
+            self.assertTrue(data2["pushed"])
+            self.assertIn("race.md", remote_paths(remote))
+            self.assertIn("thought-20261008-1224.md", remote_paths(remote))
+            rc3, data3 = run_json(
+                [
+                    sys.executable,
+                    tool,
+                    "add",
+                    "--vault",
+                    str(vault),
+                    "--text-file",
+                    str(write_words(root, "再记一条")),
+                    "--at",
+                    "2026-10-08T12:25:00+08:00",
+                    "--publish",
+                ]
+            )
+            self.assertEqual(rc3, 0, data3)
+            files = remote_paths(remote)
+            self.assertIn("thought-20261008-1225.md", files)
+            self.assertIn("race.md", files)
+            parents = subprocess.check_output(
+                ["git", "--git-dir", str(remote), "log", "--format=%P", "main"],
+                text=True,
+            )
+            self.assertTrue(all(len(line.split()) <= 1 for line in parents.splitlines()))
+
+    def test_network_loss_then_remote_advance_replays(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            vault, remote = init_repo(root)
+            other = clone_other(root, remote)
+            real_git = shutil.which("git")
+            self.assertTrue(real_git)
+            shim = root / "shim"
+            shim.mkdir()
+            flag = root / "flag"
+            (shim / "git").write_text(
+                "#!/bin/sh\n"
+                f'if [ "$1" = "push" ] && [ ! -e "{flag}" ]; then\n'
+                f'  touch "{flag}"\n'
+                "  echo \"fatal: unable to access 'https://github.com/x/y.git/': Could not resolve host: github.com\" >&2\n"
+                "  exit 128\n"
+                "fi\n"
+                f'exec {real_git} "$@"\n',
+                encoding="utf-8",
+            )
+            (shim / "git").chmod(0o755)
+            env = os.environ.copy()
+            env["PATH"] = f"{shim}{os.pathsep}{env['PATH']}"
+            verbatim = "push 时断网"
+            rc1, data1 = run_json(
+                [
+                    sys.executable,
+                    str(JOURNAL_TOOLS / "capture_thought.py"),
+                    "add",
+                    "--vault",
+                    str(vault),
+                    "--text-file",
+                    str(write_words(root, verbatim)),
+                    "--at",
+                    "2026-10-08T12:26:00+08:00",
+                    "--publish",
+                ],
+                env=env,
+            )
+            self.assertEqual(rc1, 4, data1)
+            self.assertEqual(data1["status"], "not_saved")
+            self.assertEqual(data1["verbatim"], verbatim)
+            write_text(other / "daily-0800.md", "08:00 日摘要\n")
+            subprocess.check_call(["git", "add", "daily-0800.md"], cwd=other)
+            subprocess.check_call(["git", "commit", "-q", "-m", "daily"], cwd=other)
+            subprocess.check_call(["git", "push", "-q", "origin", "main"], cwd=other)
+            rc2, data2 = run_json(
+                [
+                    sys.executable,
+                    str(JOURNAL_TOOLS / "capture_thought.py"),
+                    "add",
+                    "--vault",
+                    str(vault),
+                    "--text-file",
+                    str(write_words(root, "网络恢复后第二天记的")),
+                    "--at",
+                    "2026-10-09T09:00:00+08:00",
+                    "--publish",
+                ]
+            )
+            self.assertEqual(rc2, 0, data2)
+            files = remote_paths(remote)
+            self.assertIn("daily-0800.md", files)
+            self.assertIn("thought-20261008-1226.md", files)
+            self.assertIn("thought-20261009-0900.md", files)
+            parents = subprocess.check_output(
+                ["git", "--git-dir", str(remote), "log", "--format=%P", "main"],
+                text=True,
+            )
+            self.assertTrue(all(len(line.split()) <= 1 for line in parents.splitlines()))
+
+    def test_symlink_or_garbage_in_an_unpushed_commit_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            vault, remote = init_repo(root)
+            before = subprocess.check_output(
+                ["git", "--git-dir", str(remote), "rev-parse", "main"], text=True
+            ).strip()
+            relative = "📝 Journal/想法/2026-W41/thought-20261008-1232.md"
+            (vault / relative).parent.mkdir(parents=True)
+            os.symlink("../../../README.md", vault / relative)
+            subprocess.check_call(["git", "add", "--", relative], cwd=vault)
+            subprocess.check_call(["git", "commit", "-q", "-m", "symlink thought"], cwd=vault)
+            rc, data = run_json(
+                [
+                    sys.executable,
+                    str(JOURNAL_TOOLS / "capture_thought.py"),
+                    "add",
+                    "--vault",
+                    str(vault),
+                    "--text-file",
+                    str(write_words(root, "符号链接提交在前")),
+                    "--at",
+                    "2026-10-08T12:33:00+08:00",
+                    "--publish",
+                ]
+            )
+            self.assertEqual(rc, 2, data)
+            self.assertIn("symlink", data["reason"])
+            self.assertEqual(
+                subprocess.check_output(
+                    ["git", "--git-dir", str(remote), "rev-parse", "main"], text=True
+                ).strip(),
+                before,
+            )
+            mode = subprocess.check_output(
+                ["git", "--git-dir", str(remote), "ls-tree", "main", "--", relative],
+                text=True,
+            )
+            self.assertNotIn("120000", mode)
+
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            vault, remote = init_repo(root)
+            before = subprocess.check_output(
+                ["git", "--git-dir", str(remote), "rev-parse", "main"], text=True
+            ).strip()
+            relative = "📝 Journal/想法/2026-W41/thought-20261008-1234.md"
+            write_text(vault / relative, "placeholder")
+            (vault / relative).write_bytes(b"\x00\x01 not a thought")
+            subprocess.check_call(["git", "add", "--", relative], cwd=vault)
+            subprocess.check_call(["git", "commit", "-q", "-m", "garbage"], cwd=vault)
+            rc, data = run_json(
+                [
+                    sys.executable,
+                    str(JOURNAL_TOOLS / "capture_thought.py"),
+                    "add",
+                    "--vault",
+                    str(vault),
+                    "--text-file",
+                    str(write_words(root, "垃圾内容提交在前")),
+                    "--at",
+                    "2026-10-08T12:35:00+08:00",
+                    "--publish",
+                ]
+            )
+            self.assertEqual(rc, 2, data)
+            self.assertIn("not a thought or digest", data["reason"])
+            self.assertEqual(
+                subprocess.check_output(
+                    ["git", "--git-dir", str(remote), "rev-parse", "main"], text=True
+                ).strip(),
+                before,
+            )
+
+    def test_internal_error_reports_the_exception_and_keeps_verbatim(self) -> None:
+        import io
+        from contextlib import redirect_stdout
+
+        def boom(*_args: object, **_kwargs: object) -> None:
+            raise RuntimeError("synthetic internal bug")
+
+        original = thought_lib.add_thought
+        thought_lib.add_thought = boom
+        try:
+            with tempfile.TemporaryDirectory() as raw:
+                root = Path(raw)
+                words = write_words(root, "原话还在")
+                vault = root / "vault"
+                vault.mkdir()
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    code = capture_thought.main(
+                        [
+                            "add",
+                            "--vault",
+                            str(vault),
+                            "--text-file",
+                            str(words),
+                            "--at",
+                            "2026-10-08T12:00:00+08:00",
+                            "--publish",
+                        ]
+                    )
+        finally:
+            thought_lib.add_thought = original
+        data = json.loads(buf.getvalue())
+        self.assertEqual(code, 5, data)
+        self.assertEqual(data["status"], "not_saved")
+        self.assertIn("RuntimeError", data["reason"])
+        self.assertIn("synthetic internal bug", data["reason"])
+        self.assertNotIn("git is not available", data["reason"])
+        self.assertEqual(data["verbatim"], "原话还在")
+
+        def missing_git(*_args: object, **_kwargs: object) -> None:
+            raise FileNotFoundError(2, "No such file or directory", "git")
+
+        thought_lib.add_thought = missing_git
+        try:
+            with tempfile.TemporaryDirectory() as raw:
+                root = Path(raw)
+                words = write_words(root, "git 丢了但原话在")
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    code = capture_thought.main(
+                        [
+                            "add",
+                            "--vault",
+                            str(root / "vault"),
+                            "--text-file",
+                            str(words),
+                            "--publish",
+                        ]
+                    )
+        finally:
+            thought_lib.add_thought = original
+        data = json.loads(buf.getvalue())
+        self.assertEqual(code, 4, data)
+        self.assertIn("FileNotFoundError", data["reason"])
+        self.assertEqual(data["verbatim"], "git 丢了但原话在")
+
+        def other(*_args: object, **_kwargs: object) -> None:
+            raise OSError("disk full")
+
+        thought_lib.add_thought = other
+        try:
+            with tempfile.TemporaryDirectory() as raw:
+                root = Path(raw)
+                words = write_words(root, "磁盘满了")
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    code = capture_thought.main(
+                        ["add", "--vault", str(root), "--text-file", str(words), "--publish"]
+                    )
+        finally:
+            thought_lib.add_thought = original
+        data = json.loads(buf.getvalue())
+        self.assertEqual(code, 5, data)
+        self.assertIn("OSError: disk full", data["reason"])
+        self.assertEqual(data["verbatim"], "磁盘满了")
+
+    def test_argument_error_prints_json(self) -> None:
+        proc = subprocess.run(
+            [sys.executable, str(JOURNAL_TOOLS / "capture_thought.py"), "publish"],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(proc.returncode, 2)
+        data = json.loads(proc.stdout)
+        self.assertEqual(data["status"], "not_saved")
+        self.assertIn("vault", data["reason"])
+        self.assertNotIn("usage:", proc.stderr.lower())
 
 
 if __name__ == "__main__":

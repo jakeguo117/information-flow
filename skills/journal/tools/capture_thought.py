@@ -23,6 +23,7 @@ EXIT_SAVED = 0
 EXIT_REFUSED = 2
 EXIT_PUSH_FAILED = 3
 EXIT_UNAVAILABLE = 4
+EXIT_INTERNAL = 5
 
 
 def emit(payload: dict[str, Any], code: int) -> int:
@@ -91,15 +92,103 @@ def _saved_or_not(result: dict[str, Any], verbatim: str) -> int:
     })
 
 
+def _looks_like_missing_git(exc: BaseException) -> bool:
+    if not isinstance(exc, FileNotFoundError):
+        return False
+    filename = str(getattr(exc, "filename", "") or "")
+    base = Path(filename).name if filename else ""
+    return base == "git"
+
+
+def _looks_like_network(text: str) -> bool:
+    lowered = text.lower()
+    return any(
+        token in lowered
+        for token in (
+            "unable to access",
+            "could not connect",
+            "failed to connect",
+            "connection refused",
+            "connection timed out",
+            "operation timed out",
+            "network is unreachable",
+            "could not resolve",
+            "name or service not known",
+            "the remote end hung up",
+            "no route to host",
+            "connection reset",
+        )
+    )
+
+
+def _exception_code(exc: BaseException) -> int:
+    """Exit 4 only when git or the network is unavailable. Anything else is 5."""
+    text = str(exc)
+    if _looks_like_missing_git(exc) or "git is not available" in text.lower() or _looks_like_network(text):
+        return EXIT_UNAVAILABLE
+    return EXIT_INTERNAL
+
+
+def _verbatim_from_argv(argv: list[str] | None) -> str:
+    """Original words from --text-file, or from a thought --path, when those flags are present."""
+    source = list(sys.argv[1:] if argv is None else argv)
+    text_file: str | None = None
+    vault: str | None = None
+    path: str | None = None
+    index = 0
+    while index < len(source):
+        token = source[index]
+        if token == "--text-file" and index + 1 < len(source):
+            text_file = source[index + 1]
+            index += 2
+            continue
+        if token == "--vault" and index + 1 < len(source):
+            vault = source[index + 1]
+            index += 2
+            continue
+        if token == "--path" and index + 1 < len(source):
+            path = source[index + 1]
+            index += 2
+            continue
+        index += 1
+    if text_file:
+        try:
+            return _read_text(Path(text_file).expanduser())
+        except (OSError, UnicodeError):
+            return ""
+    if vault and path:
+        return _verbatim_of_file(Path(vault).expanduser() / path)
+    return ""
+
+
+class _JsonArgumentParser(argparse.ArgumentParser):
+    """Argument errors are not_saved JSON. They do not print usage."""
+
+    thought_argv: list[str] | None = None
+
+    def error(self, message: str) -> None:
+        _not_saved(message, _verbatim_from_argv(self.thought_argv), EXIT_REFUSED)
+        raise SystemExit(EXIT_REFUSED)
+
+
 def main(argv: list[str] | None = None) -> int:
     try:
         return _main(argv)
+    except SystemExit as exc:
+        if isinstance(exc.code, int):
+            return exc.code
+        return EXIT_REFUSED
     except Exception as exc:
-        return _not_saved(f"git is not available: {exc}", "", EXIT_UNAVAILABLE)
+        return _not_saved(
+            f"{type(exc).__name__}: {exc}",
+            _verbatim_from_argv(argv),
+            _exception_code(exc),
+        )
 
 
 def _main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Append-only journal thought capture")
+    parser = _JsonArgumentParser(description="Append-only journal thought capture")
+    parser.thought_argv = argv
     parser.add_argument("action", choices=["add", "list-open", "record-digest", "publish", "contents-body"])
     parser.add_argument("--vault", required=True)
     parser.add_argument("--text-file")

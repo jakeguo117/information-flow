@@ -604,9 +604,15 @@ def github_contents_create_body(path: str, content: bytes, message: str, branch:
     return body
 
 
-def _git(repo: Path, args: list[str]) -> subprocess.CompletedProcess[bytes]:
+def _git(
+    repo: Path,
+    args: list[str],
+    extra_env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[bytes]:
     env = os.environ.copy()
     env["GIT_TERMINAL_PROMPT"] = "0"
+    if extra_env:
+        env.update(extra_env)
     try:
         return subprocess.run(
             ["git", *args],
@@ -705,21 +711,35 @@ def _relative_publish_path(vault: Path, relative: str) -> tuple[Path, str] | str
         text = _read(target)
     except OSError as exc:
         return str(exc)
+    problem = _publish_text_problem(posix, text)
+    if problem:
+        return problem
+    return target, posix
+
+
+def _publish_text_problem(posix: str, text: str) -> str | None:
+    """Same frontmatter rules as a single-file publish."""
     meta = _frontmatter(text)
     kind = meta.get("type")
+    path = Path(posix)
     if kind == THOUGHT_TYPE:
         thought_id = meta.get("id") or ""
-        if target.stem != thought_id or not ID_RE.match(thought_id):
+        if path.stem != thought_id or not ID_RE.match(thought_id):
             return "thought file id does not match its path"
-        if target.parent.name != meta.get("week"):
+        if path.parent.name != meta.get("week"):
             return "thought file week does not match its path"
-    elif kind == DIGEST_TYPE:
+        return None
+    if kind == DIGEST_TYPE:
         event_id = meta.get("journal_event_id") or ""
-        if target.parent.name != DIGEST_DIR_NAME or target.name != f"digest-{event_id}.md":
+        if path.parent.name != DIGEST_DIR_NAME or path.name != f"digest-{event_id}.md":
             return "digest file name does not match its journal event"
-    else:
-        return "publish path is not a thought or digest file"
-    return target, posix
+        return None
+    return "publish path is not a thought or digest file"
+
+
+def _origin_has(repo: Path, relative: str) -> bool:
+    proc = _git(repo, ["cat-file", "-e", f"origin/main:{relative}"])
+    return proc.returncode == 0
 
 
 def _origin_bytes(repo: Path, relative: str) -> bytes | None:
@@ -840,7 +860,12 @@ def _ahead_behind(vault: Path) -> tuple[int, int] | str:
 
 
 def _range_problem(vault: Path) -> tuple[str, str] | None:
-    """Reject the push unless every unpushed commit only adds thought or digest files."""
+    """Reject the push unless every unpushed commit only adds a valid thought or digest.
+
+    Each added file must be a regular file (mode 100644, not a symlink) whose
+    bytes pass the same frontmatter checks as a single-file publish, and the
+    path must not already exist on origin/main.
+    """
     listed = _git(vault, ["rev-list", "--reverse", "origin/main..HEAD"])
     if _git_unavailable_message(listed):
         return "unavailable", _git_error(listed)
@@ -865,6 +890,160 @@ def _range_problem(vault: Path) -> tuple[str, str] | None:
                     "refused",
                     f"unpushed commit {sha[:12]} adds {path}, which is not a thought or digest; not pushed",
                 )
+            blob = _added_blob_problem(vault, sha, path)
+            if blob:
+                return "refused", blob
+            if _origin_has(vault, path):
+                return (
+                    "refused",
+                    f"unpushed commit {sha[:12]} adds {path}, which already exists on origin/main; not pushed",
+                )
+    return None
+
+
+def _added_blob_problem(vault: Path, sha: str, path: str) -> str | None:
+    """None when this commit's added path is a regular thought or digest file."""
+    listed = _git(vault, ["ls-tree", "-z", sha, "--", path])
+    if listed.returncode != 0 or not listed.stdout:
+        return f"unpushed commit {sha[:12]} adds {path}, which is not a regular file; not pushed"
+    record = listed.stdout.split(b"\0", 1)[0]
+    if b"\t" not in record:
+        return f"unpushed commit {sha[:12]} adds {path}, which is not a regular file; not pushed"
+    meta, name = record.split(b"\t", 1)
+    parts = meta.split(b" ")
+    if len(parts) < 3 or name.decode("utf-8", "surrogateescape") != path:
+        return f"unpushed commit {sha[:12]} adds {path}, which is not a regular file; not pushed"
+    mode, kind = parts[0], parts[1]
+    if mode == b"120000":
+        return f"unpushed commit {sha[:12]} adds {path}, which is a symlink; not pushed"
+    if mode != b"100644" or kind != b"blob":
+        return f"unpushed commit {sha[:12]} adds {path}, which is not a regular file; not pushed"
+    shown = _git(vault, ["show", f"{sha}:{path}"])
+    if shown.returncode != 0:
+        return f"unpushed commit {sha[:12]} adds {path}, which is unreadable; not pushed"
+    try:
+        text = shown.stdout.decode("utf-8")
+    except UnicodeError:
+        return f"unpushed commit {sha[:12]} adds {path}, which is not a thought or digest file; not pushed"
+    problem = _publish_text_problem(path, text)
+    if problem:
+        return f"unpushed commit {sha[:12]} adds {path}: {problem}; not pushed"
+    return None
+
+
+def _merge_base(vault: Path) -> str | None:
+    proc = _git(vault, ["merge-base", "HEAD", "origin/main"])
+    if proc.returncode != 0:
+        return None
+    text = _git_text(proc).strip()
+    return text or None
+
+
+def _log_side(vault: Path, rev: str) -> str:
+    proc = _git(vault, ["log", "--format=%h %s", rev])
+    if proc.returncode != 0:
+        return "(unreadable)"
+    lines = [line.strip() for line in _git_text(proc).splitlines() if line.strip()]
+    return "; ".join(lines) if lines else "(none)"
+
+
+def _divergence_reason(vault: Path, blocking: str) -> str:
+    """Name the blocking commits, both sides, and one manual recovery command."""
+    local = _log_side(vault, "origin/main..HEAD")
+    remote = _log_side(vault, "HEAD..origin/main")
+    base = _merge_base(vault)
+    if base:
+        command = (
+            f"git fetch origin main && git rebase --onto origin/main {base} "
+            "&& git push origin HEAD:main"
+        )
+        caution = ""
+        if "already exists on origin/main" in blocking:
+            caution = (
+                " Do not force-push and do not rebase while that path exists on origin/main."
+            )
+        recovery = f"manual recovery: {command}.{caution}"
+    else:
+        recovery = (
+            "manual recovery: histories share no merge base; do not rebase and do not force-push."
+        )
+    return (
+        "local main has diverged from origin/main; fast-forward refused; not pushed. "
+        f"{blocking} "
+        f"local commits not on origin/main: {local}. "
+        f"origin/main commits not local: {remote}. "
+        f"{recovery}"
+    )
+
+
+def _ignored_collision(vault: Path) -> tuple[str | None, str | None]:
+    """A local ignored path that origin/main also contains, or a git error."""
+    proc = _git(vault, ["ls-files", "-o", "-i", "--exclude-standard", "-z"])
+    if proc.returncode != 0:
+        return None, _git_error(proc)
+    for raw in proc.stdout.split(b"\0"):
+        if not raw:
+            continue
+        path = raw.decode("utf-8", "surrogateescape")
+        if _origin_has(vault, path):
+            return path, None
+    return None, None
+
+
+def _replay_add_only(vault: Path) -> tuple[str, str] | None:
+    """Replay add-only thought and digest commits onto origin/main.
+
+    Returns None after a successful replay. Otherwise a status and reason.
+    A refusal leaves HEAD where it was. This never force-pushes.
+    """
+    if _merge_base(vault) is None:
+        return (
+            "refused",
+            _divergence_reason(
+                vault,
+                "unpushed history has no common ancestor with origin/main; not pushed",
+            ),
+        )
+    problem = _range_problem(vault)
+    if problem:
+        status_name, message = problem
+        if status_name != "refused":
+            return status_name, message
+        return "refused", _divergence_reason(vault, message)
+    ignored, ignored_err = _ignored_collision(vault)
+    if ignored_err:
+        return "unavailable", ignored_err
+    if ignored:
+        return (
+            "refused",
+            _divergence_reason(
+                vault,
+                f"replaying onto origin/main would overwrite ignored file {ignored}; not pushed",
+            ),
+        )
+    base = _merge_base(vault)
+    if not base:
+        return (
+            "refused",
+            _divergence_reason(
+                vault,
+                "unpushed history has no common ancestor with origin/main; not pushed",
+            ),
+        )
+    proc = _git(
+        vault,
+        ["rebase", "--onto", "origin/main", base],
+        extra_env={"GIT_EDITOR": "true", "GIT_SEQUENCE_EDITOR": "true"},
+    )
+    if proc.returncode != 0:
+        _git(vault, ["rebase", "--abort"])
+        return (
+            "refused",
+            _divergence_reason(
+                vault,
+                f"could not replay local commits onto origin/main: {_git_error(proc)}; not pushed",
+            ),
+        )
     return None
 
 
@@ -895,9 +1074,10 @@ def publish_exact(vault: Path, relative: str) -> tuple[dict[str, Any], bool]:
 
     Add-only thought and digest commits may go straight to main. A modify,
     delete, or rename is refused. Nothing is force-pushed. When the worktree
-    has no tracked edits and main is merely behind, fast-forward first. Several
-    local commits may be pushed when every one of them only adds a thought or
-    digest file.
+    has no tracked edits and main is merely behind, fast-forward first, and
+    do not overwrite an ignored local file. When both sides moved, replay the
+    local commits onto origin/main only if every one of them adds a valid
+    thought or digest file that origin/main does not already have.
     """
     try:
         _vault(vault)
@@ -1037,22 +1217,27 @@ def publish_exact(vault: Path, relative: str) -> tuple[dict[str, Any], bool]:
                 False,
             )
         if ahead_n:
-            return base(
-                {
-                    "status": "refused",
-                    "message": "local main has diverged from origin/main; fast-forward refused; not pushed",
-                },
-                False,
+            replayed = _replay_add_only(vault)
+            if replayed:
+                status_name, message = replayed
+                return base({"status": status_name, "message": message}, False)
+        else:
+            ignored, _ignored_err = _ignored_collision(vault)
+            merged = _git(
+                vault,
+                ["merge", "--ff-only", "--no-edit", "--no-overwrite-ignore", "origin/main"],
             )
-        merged = _git(vault, ["merge", "--ff-only", "--no-edit", "origin/main"])
-        if merged.returncode != 0:
-            return base(
-                {
-                    "status": "refused",
-                    "message": f"cannot fast-forward onto origin/main: {_git_error(merged)}; not pushed",
-                },
-                False,
-            )
+            if merged.returncode != 0:
+                detail = _git_error(merged)
+                if ignored and ignored not in detail:
+                    detail = f"ignored file {ignored} would be overwritten; {detail}"
+                return base(
+                    {
+                        "status": "refused",
+                        "message": f"cannot fast-forward onto origin/main: {detail}; not pushed",
+                    },
+                    False,
+                )
         if _origin_bytes(vault, posix) is not None:
             return base(
                 {

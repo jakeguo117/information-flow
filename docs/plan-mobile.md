@@ -2,17 +2,17 @@
 
 手机这条路走 **Cursor Cloud + `jakeguo117/obsidian-digitalbrain` 的 `main`**。电脑关了，云端只能看见已经在 GitHub `main` 里的文件。开在别的分支或未合的 PR 里，下次新会话从 main clone 就看不见。
 
-两条写入都 **直接进 main**，不为 Digest 走 PR。
+想法文件和消化清单这类只新增的提交可以直接进 main。勾选、reflection、Resource 页是修改，不直推 main，走 task branch 和 PR，不强推。
 
 | 谁写 | 何时 | 进哪里 |
 |---|---|---|
 | GitHub Actions | 12:00 和 21:00 上海 | checkout `main` → YouTube 走 API；有 `main` 上已有的 Snipd/WeRead/YouTube 才 append `📋 Digests/{YYYY-Wnn}/intake.md` → `git push` 回 `main` |
 | 本机 `com.jake.intake-source-push` | 登录后；Mac 开着每 4 小时 | 只把 `Snipd/` 和 `📥 Inbox/WeRead` 从 iCloud vault 精确推到 `main`。不打开 Obsidian Git 全仓 push。 |
 | skill 同步 | information-flow `main` 上 skills 变更；每天 intake 再兜一层 | 只覆盖 DigitalBrain `.cursor/skills/{intake,journal}/` 和 `AGENTS.md` 硬路由。**不改**已写成的 intake / 周记 |
-| 手机说「记下」 | 讨论完一条 | 只暂存该条 `intake.md` 勾选/reflection，以及有引用时的 `📖 Resources/concepts/` 卡片；精确路径 commit，**push `main`** |
+| 手机说「记下」 | 讨论完一条 | 只暂存该条 `intake.md` 勾选/reflection，以及有引用时的 `📖 Resources/concepts/` 卡片；精确路径 commit。这些是修改，不直推 `main`，走 task branch 和 PR |
 | 写周记 | 你明确说「可以写 / 写吧 / OK 写」 | 改 `📝 Journal/`。**不自动 push** |
 
-禁止 `git add -A`。禁止为 Digest 开 PR。Cursor Cloud 若仍强制出 PR 卡，那是产品限制：停下来告诉 Jake，不要自己合，也不要去合其它 DigitalBrain PR（包括 [#3](https://github.com/jakeguo117/obsidian-digitalbrain/pull/3)）。
+禁止 `git add -A`。只新增文件的提交（想法文件、消化清单）可以直接推 main；任何修改或删除都不直推 main，不强推。勾选、reflection、Resource 页走 task branch 和 PR。Cursor Cloud 若仍强制出 PR 卡，那是产品限制：停下来告诉 Jake，不要自己合，也不要去合其它 DigitalBrain PR（包括 [#3](https://github.com/jakeguo117/obsidian-digitalbrain/pull/3)）。
 
 ## 周入口必须在 GitHub `main`
 
@@ -33,7 +33,7 @@ Skill 在仓库内：`.cursor/skills/{intake,journal}/`。源在 information-flo
 | | 电脑开着 | 电脑关着 |
 |---|---|---|
 | 今天 Digest | 本机 Cursor 按上海日期认周 | Cloud 按上海日期认周；本周没有就用 main 上最近一周 |
-| 记下 | 本机改文件；手机路径要 push `main` 才进下一轮 | 精确路径 commit + push `main` |
+| 记下 | 本机改文件；修改不直推 `main`，走 task branch 和 PR | 精确路径 commit。修改不直推 `main`，走 task branch 和 PR |
 | 写周记 | 本机写 `📝 Journal/` | Cloud 可写 Journal；**仍不自动 push** |
 
 ## 不做
