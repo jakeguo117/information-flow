@@ -92,40 +92,17 @@ def _saved_or_not(result: dict[str, Any], verbatim: str) -> int:
     })
 
 
-def _looks_like_missing_git(exc: BaseException) -> bool:
-    if not isinstance(exc, FileNotFoundError):
-        return False
-    filename = str(getattr(exc, "filename", "") or "")
-    base = Path(filename).name if filename else ""
-    return base == "git"
-
-
-def _looks_like_network(text: str) -> bool:
-    lowered = text.lower()
-    return any(
-        token in lowered
-        for token in (
-            "unable to access",
-            "could not connect",
-            "failed to connect",
-            "connection refused",
-            "connection timed out",
-            "operation timed out",
-            "network is unreachable",
-            "could not resolve",
-            "name or service not known",
-            "the remote end hung up",
-            "no route to host",
-            "connection reset",
-        )
-    )
-
-
 def _exception_code(exc: BaseException) -> int:
-    """Exit 4 only when git or the network is unavailable. Anything else is 5."""
-    text = str(exc)
-    if _looks_like_missing_git(exc) or "git is not available" in text.lower() or _looks_like_network(text):
-        return EXIT_UNAVAILABLE
+    """Exit 4 only when the git executable itself is missing.
+
+    Network loss is classified where git is called, from git's own result, and
+    is not inferred from words in an arbitrary exception. Every other exception
+    is exit 5.
+    """
+    if isinstance(exc, FileNotFoundError):
+        filename = str(getattr(exc, "filename", "") or "")
+        if Path(filename).name == "git":
+            return EXIT_UNAVAILABLE
     return EXIT_INTERNAL
 
 

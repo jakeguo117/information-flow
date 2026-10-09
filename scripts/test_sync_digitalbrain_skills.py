@@ -257,6 +257,8 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertIn("capture_thought.py", route)
         self.assertIn("没存上", route)
         self.assertIn("把他的原话原样念回去", route)
+        self.assertIn("只新增且路径还不在 origin 上的提交会重放后再推，不强推", route)
+        self.assertIn("退出码 5 是工具自己的异常，不是 git 不可用", route)
 
     def test_journal_waits_for_ok(self) -> None:
         text = (sync.SKILLS_DIR / "journal" / "SKILL.md").read_text(encoding="utf-8")

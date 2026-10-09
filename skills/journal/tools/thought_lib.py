@@ -728,6 +728,13 @@ def _publish_text_problem(posix: str, text: str) -> str | None:
             return "thought file id does not match its path"
         if path.parent.name != meta.get("week"):
             return "thought file week does not match its path"
+        claimed = meta.get("verbatim_sha256") or ""
+        try:
+            original = verbatim_of(text)
+        except ValueError:
+            return "thought file verbatim does not match verbatim_sha256"
+        if claimed != fingerprint(original):
+            return "thought file verbatim does not match verbatim_sha256"
         return None
     if kind == DIGEST_TYPE:
         event_id = meta.get("journal_event_id") or ""
@@ -872,6 +879,7 @@ def _range_problem(vault: Path) -> tuple[str, str] | None:
     if listed.returncode != 0:
         return "unavailable", "could not list unpushed commits"
     shas = [line.strip() for line in _git_text(listed).splitlines() if line.strip()]
+    parsed: list[tuple[str, list[tuple[str, str]]]] = []
     for sha in shas:
         parents = _git(vault, ["rev-list", "-n", "1", "--parents", sha])
         if parents.returncode != 0:
@@ -890,14 +898,19 @@ def _range_problem(vault: Path) -> tuple[str, str] | None:
                     "refused",
                     f"unpushed commit {sha[:12]} adds {path}, which is not a thought or digest; not pushed",
                 )
-            blob = _added_blob_problem(vault, sha, path)
-            if blob:
-                return "refused", blob
+        parsed.append((sha, rows))
+    for sha, rows in parsed:
+        for _status, path in rows:
             if _origin_has(vault, path):
                 return (
                     "refused",
                     f"unpushed commit {sha[:12]} adds {path}, which already exists on origin/main; not pushed",
                 )
+    for sha, rows in parsed:
+        for _status, path in rows:
+            blob = _added_blob_problem(vault, sha, path)
+            if blob:
+                return "refused", blob
     return None
 
 
@@ -947,25 +960,46 @@ def _log_side(vault: Path, rev: str) -> str:
     return "; ".join(lines) if lines else "(none)"
 
 
-def _divergence_reason(vault: Path, blocking: str) -> str:
-    """Name the blocking commits, both sides, and one manual recovery command."""
+_TASK_BRANCH = "task/thought-recovery"
+# Parks the local commits and moves main back to origin. Does not push.
+_PARK_COMMAND = f"git branch {_TASK_BRANCH} HEAD && git reset --keep origin/main"
+
+
+def _divergence_reason(vault: Path, blocking: str, *, allow_replay_command: bool) -> str:
+    """Name the blocking commits and both sides.
+
+    A rebase followed by a push is offered only when every local commit is a
+    valid add-only thought or digest, those paths are absent on origin, and
+    the replay itself failed in git. A modify, delete, rename, merge, existing
+    path, or bad file gets a task-branch example and no push command.
+    """
     local = _log_side(vault, "origin/main..HEAD")
     remote = _log_side(vault, "HEAD..origin/main")
     base = _merge_base(vault)
-    if base:
-        command = (
-            f"git fetch origin main && git rebase --onto origin/main {base} "
-            "&& git push origin HEAD:main"
+    if allow_replay_command and base:
+        recovery = (
+            "manual recovery: git fetch origin main && "
+            f"git rebase --no-update-refs --onto origin/main {base} && "
+            "git push origin HEAD:main"
         )
-        caution = ""
-        if "already exists on origin/main" in blocking:
-            caution = (
-                " Do not force-push and do not rebase while that path exists on origin/main."
-            )
-        recovery = f"manual recovery: {command}.{caution}"
+    elif "would overwrite ignored file" in blocking:
+        recovery = (
+            "manual recovery: move these commits to a task branch and open a PR, "
+            "or hand them to Jake. Do not push main, do not rebase, and do not reset; "
+            f"that would overwrite the ignored file. Example: git branch {_TASK_BRANCH} HEAD"
+        )
+    elif base is None:
+        recovery = (
+            "manual recovery: histories share no merge base. Move these commits to a "
+            "task branch and open a PR, or hand them to Jake. Do not push main, "
+            f"do not rebase, and do not force-push. Example: git branch {_TASK_BRANCH} HEAD"
+        )
     else:
         recovery = (
-            "manual recovery: histories share no merge base; do not rebase and do not force-push."
+            "manual recovery: move these commits to a task branch and open a PR, "
+            "or hand them to Jake. Do not push main, do not rebase onto main, and "
+            "do not force-push. The commits stay on that branch. "
+            f"Example: {_PARK_COMMAND}"
         )
     return (
         "local main has diverged from origin/main; fast-forward refused; not pushed. "
@@ -990,11 +1024,30 @@ def _ignored_collision(vault: Path) -> tuple[str | None, str | None]:
     return None, None
 
 
+def _rebase_in_progress(vault: Path) -> bool:
+    for name in ("rebase-merge", "rebase-apply"):
+        proc = _git(vault, ["rev-parse", "--git-path", name])
+        if proc.returncode != 0:
+            continue
+        path = Path(_git_text(proc).strip())
+        if not path.is_absolute():
+            path = vault / path
+        if path.exists():
+            return True
+    return False
+
+
+def _abort_rebase(vault: Path) -> None:
+    if _rebase_in_progress(vault):
+        _git(vault, ["rebase", "--abort"])
+
+
 def _replay_add_only(vault: Path) -> tuple[str, str] | None:
     """Replay add-only thought and digest commits onto origin/main.
 
     Returns None after a successful replay. Otherwise a status and reason.
-    A refusal leaves HEAD where it was. This never force-pushes.
+    A refusal leaves HEAD where it was and leaves no rebase in progress.
+    This never force-pushes.
     """
     if _merge_base(vault) is None:
         return (
@@ -1002,14 +1055,9 @@ def _replay_add_only(vault: Path) -> tuple[str, str] | None:
             _divergence_reason(
                 vault,
                 "unpushed history has no common ancestor with origin/main; not pushed",
+                allow_replay_command=False,
             ),
         )
-    problem = _range_problem(vault)
-    if problem:
-        status_name, message = problem
-        if status_name != "refused":
-            return status_name, message
-        return "refused", _divergence_reason(vault, message)
     ignored, ignored_err = _ignored_collision(vault)
     if ignored_err:
         return "unavailable", ignored_err
@@ -1019,8 +1067,15 @@ def _replay_add_only(vault: Path) -> tuple[str, str] | None:
             _divergence_reason(
                 vault,
                 f"replaying onto origin/main would overwrite ignored file {ignored}; not pushed",
+                allow_replay_command=False,
             ),
         )
+    problem = _range_problem(vault)
+    if problem:
+        status_name, message = problem
+        if status_name != "refused":
+            return status_name, message
+        return "refused", _divergence_reason(vault, message, allow_replay_command=False)
     base = _merge_base(vault)
     if not base:
         return (
@@ -1028,20 +1083,28 @@ def _replay_add_only(vault: Path) -> tuple[str, str] | None:
             _divergence_reason(
                 vault,
                 "unpushed history has no common ancestor with origin/main; not pushed",
+                allow_replay_command=False,
             ),
         )
     proc = _git(
         vault,
-        ["rebase", "--onto", "origin/main", base],
-        extra_env={"GIT_EDITOR": "true", "GIT_SEQUENCE_EDITOR": "true"},
+        ["rebase", "--onto", "origin/main", base, "--no-update-refs"],
+        extra_env={
+            "GIT_EDITOR": "true",
+            "GIT_SEQUENCE_EDITOR": "true",
+            "GIT_CONFIG_COUNT": "1",
+            "GIT_CONFIG_KEY_0": "rebase.autoStash",
+            "GIT_CONFIG_VALUE_0": "false",
+        },
     )
     if proc.returncode != 0:
-        _git(vault, ["rebase", "--abort"])
+        _abort_rebase(vault)
         return (
             "refused",
             _divergence_reason(
                 vault,
                 f"could not replay local commits onto origin/main: {_git_error(proc)}; not pushed",
+                allow_replay_command=True,
             ),
         )
     return None
