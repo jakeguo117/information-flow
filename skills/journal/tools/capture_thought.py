@@ -41,16 +41,20 @@ def _load_json(path: Path) -> Any:
 
 
 def _verbatim_of_file(path: Path | None) -> str:
+    """Original words of a thought file. A digest list is not a thought, so it is empty."""
     if path is None or not path.is_file() or path.is_symlink():
         return ""
     try:
         text = _read_text(path)
-    except (OSError, UnicodeError):
+        kind = thought_lib._frontmatter(text).get("type")
+    except (OSError, UnicodeError, ValueError):
+        return ""
+    if kind != thought_lib.THOUGHT_TYPE:
         return ""
     try:
         return thought_lib.verbatim_of(text)
     except ValueError:
-        return text
+        return ""
 
 
 def _not_saved(reason: str, verbatim: str, code: int, **extra: Any) -> int:
@@ -88,6 +92,13 @@ def _saved_or_not(result: dict[str, Any], verbatim: str) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    try:
+        return _main(argv)
+    except Exception as exc:
+        return _not_saved(f"git is not available: {exc}", "", EXIT_UNAVAILABLE)
+
+
+def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Append-only journal thought capture")
     parser.add_argument("action", choices=["add", "list-open", "record-digest", "publish", "contents-body"])
     parser.add_argument("--vault", required=True)

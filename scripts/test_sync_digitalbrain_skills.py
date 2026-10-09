@@ -240,7 +240,8 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertNotIn("直接修改 / push protected main", route)
         self.assertNotIn("禁止为 Digest 开 PR", route)
         self.assertIn("当前 Global Governance / project policy", route)
-        self.assertIn("task branch", route)
+        self.assertIn("会修改已有文件的变更走 task branch 和 PR", route)
+        self.assertNotIn("使用 task branch，精确路径暂存", route)
         self.assertIn("精确路径暂存", route)
         self.assertIn("禁止 `git add -A`", route)
         self.assertIn(
@@ -254,6 +255,8 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertIn("「记一下：」「想法：」或 `/thought`", route)
         self.assertIn("看过未展开", route)
         self.assertIn("capture_thought.py", route)
+        self.assertIn("没存上", route)
+        self.assertIn("把他的原话原样念回去", route)
 
     def test_journal_waits_for_ok(self) -> None:
         text = (sync.SKILLS_DIR / "journal" / "SKILL.md").read_text(encoding="utf-8")

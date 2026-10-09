@@ -71,14 +71,18 @@ consumed_count: 2
 
 决定：只新增文件的提交（想法文件、消化清单）可以直接推 main。任何修改或删除都不直推 main，不强推。周记正文不自动推。
 
-`capture_thought.py publish` 只接受 `📝 Journal/想法/` 下面的一个想法文件或一份消化清单。它在 `main` 上取出 `origin/main`，然后只在下面两种情况继续：
+`capture_thought.py publish` 只接受 `📝 Journal/想法/` 下面的一个想法文件或一份消化清单。推送命令只有 `git push origin HEAD:main`，不带 force，也不使用 `+` refspec。
 
-- 工作区除了这一个未跟踪的新文件以外是干净的，并且 `HEAD` 等于 `origin/main`。它只暂存这一个路径。`git diff --cached --name-status` 必须只有这一条 `A`。然后 `git push origin HEAD:main`，不带 force。
-- 或者工作区是干净的，本地正好多一个尚未推送的提交，且该提交只新增这一个路径。这时只推送，不再做第二个提交。
+发布前：
 
-其他情况都拒绝，包括：路径已经在 `main` 上、暂存区里有修改（`M`）或删除（`D`）、工作区还有别的改动、当前分支不是 `main`、本地还有别的未推送提交。拒绝时不覆盖文件，也不删除已经写好的新文件，也不去动别人已经暂存的修改或删除。
+1. `git fetch origin main`。
+2. 路径已经在 `origin/main` 上就拒绝，不覆盖。
+3. 暂存区用 `git diff --cached --name-status --no-renames` 看。必须是空的，或者只有这一条 `A`。出现修改（`M`）、删除（`D`）或重命名（`git mv` 会变成 `D`+`A`，或状态 `R`）就拒绝，退出码 2。不卸下别人已经暂存的内容。
+4. 工作区里已跟踪文件的修改或删除会拒绝。别的还没提交的想法文件或消化清单可以留着，这次只提交正在发布的那一个路径。周记文件不算这个例外。
+5. 如果本地 `main` 只是落后，并且没有上面这些脏改动，就 `git merge --ff-only origin/main`。两边都有新提交、快进不了，就拒绝，退出码 2。不强推，不 rebase。
+6. `origin/main..HEAD` 里的每一笔提交都必须只新增想法文件或消化清单。有一笔是修改、删除、空提交、合并，或新增了别的路径，就整段不推，退出码 2。符合的话，连同这次新的那一笔一起推。
 
-周记刚写完时，周记文件本身就是工作区里的另一处改动，所以这时推消化清单会拒绝。不要为了推清单把周记一起提交。清单留在本地；等这一个清单路径变成工作区里唯一的改动，再单独 `publish`。
+周记刚写完时，周记文件本身就是工作区里的另一处改动，所以这时推消化清单会拒绝。不要为了推清单把周记一起提交。清单留在本地；等周记自己被另外提交之后，再单独 `publish` 清单。
 
 ## 没存上
 
@@ -90,7 +94,15 @@ consumed_count: 2
 {"status":"not_saved","reason":"...","verbatim":"..."}
 ```
 
-退出码：2 是拒绝（工作区不干净、修改或删除、路径已在 main），3 是远端拒绝这次推送，4 是 git 或网络不可用。
+退出码：2 是拒绝（修改、删除、重命名、路径已在 main、快进不了、未推送的提交不是只新增的想法或消化清单），3 是远端拒绝这次推送（钩子、非快进竞争），4 是 git 或网络不可用。PATH 里没有 git 时，stdout 仍是这一条 `not_saved` JSON，退出码 4，不抛 traceback。fetch 成功之后、push 时网络断了，也是退出码 4，不是 3。
+
+## 失败之后怎么接着做
+
+工具自己会先 fast-forward，也会把连续几笔只新增的想法或消化清单一起推。还是没存上时：
+
+- 退出码 4：没有 git，或 fetch / push 时网络断了。新文件留在本地。网络恢复后对同一路径再 `publish`，或者再记一条新的。先前没推上去的那条未跟踪想法不会挡住后面的新想法。
+- 退出码 3：远端拒绝。不要强推。看 reason。钩子取消后，对同一路径再 `publish`；如果期间又记了新的，新的一条会把前面那些只新增的提交一起带上。
+- 退出码 2：门禁拒绝。reason 会点名路径或提交。暂存的修改、删除、重命名留在原地。把它们移开之后再 `publish`。本地和 origin 已经分叉时，不要强推；先弄清两边的提交。周记文件还在工作区时，不要把它和消化清单打进同一个提交。
 
 ## 两个环境能不能做这件事
 
@@ -110,7 +122,7 @@ UNKNOWN：
 - 那个会话的连接器有没有「只创建文件」的写工具。社区帖描述 Work 里 `github_update_file` 可以成功，那不是 Help Center 的合同，这里不把它当成已核实能力。
 - `obsidian-digitalbrain` 的 `main` 有没有分支保护，会不会拒绝直接推送。本次没有查询那个私有仓库。
 
-所以在 Cloud Work 里不要假设 `publish` 跑得了。没有 git / shell 时，工具退出码 4，状态是 `not_saved`。告诉 Jake「没存上」，说明没有 git / shell，并把原话原样念回去。
+所以在 Cloud Work 里不要假设 `publish` 跑得了。没有 git / shell 时，工具退出码 4，状态是 `not_saved`，stdout 是 JSON，不抛 traceback。告诉 Jake「没存上」，说明没有 git / shell，并把原话原样念回去。
 
 退路：只有当会话里确实有 GitHub 写工具时，才发 contents API 的创建请求。官方文档是 `PUT /repos/{owner}/{repo}/contents/{path}`，同一端点既能创建也能替换；更新时必须带现有 blob 的 `sha`，文档里的创建示例不带 `sha`（https://docs.github.com/en/rest/repos/contents ，API version 2026-03-10）。`contents-body` 打出的 JSON 只有 `message`、`content`、`branch`，没有 `sha`。不要事后补上 `sha`。如果手头的工具必须带 `sha` 才能调用，就不要调用，那是更新。如果响应不是一次新建，就停，不要改用更新或删除。创建示例在文件已存在时的具体 HTTP 状态，文档没有写死，标 UNKNOWN。
 
@@ -120,4 +132,4 @@ git 和创建工具都没有时，告诉 Jake「没存上」，把原话原样�
 
 Cursor 本地或云端 agent 有 shell 和 git 时，可以在 DigitalBrain 的检出里跑 `publish`。条件是：检出就是 vault 根、当前分支是 `main`、能 `fetch` / `push` `origin` 的 `main`，并且工作区满足上面的单文件规则。
 
-UNKNOWN：某一次 Cursor 会话有没有推 `jakeguo117/obsidian-digitalbrain` `main` 的凭据，以及分支保护会不会拒绝这次推送。推送失败时退出码 3，状态是 `not_saved`，不删除新文件，不强推。告诉 Jake「没存上」，说明原因，并把原话原样念回去。有 token 时可以用上面的 contents 创建请求当退路；那个请求没成功也一样说「没存上」。这次实现没有调用那个 API，也没有推送真实 vault。
+UNKNOWN：某一次 Cursor 会话有没有推 `jakeguo117/obsidian-digitalbrain` `main` 的凭据，以及分支保护会不会拒绝这次推送。分支保护或钩子拒绝时退出码 3；push 时网络断了是退出码 4。状态都是 `not_saved`，不删除新文件，不强推。告诉 Jake「没存上」，说明原因，并把原话原样念回去。有 token 时可以用上面的 contents 创建请求当退路；那个请求没成功也一样说「没存上」。这次实现没有调用那个 API，也没有推送真实 vault。

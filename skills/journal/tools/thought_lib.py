@@ -607,13 +607,21 @@ def github_contents_create_body(path: str, content: bytes, message: str, branch:
 def _git(repo: Path, args: list[str]) -> subprocess.CompletedProcess[bytes]:
     env = os.environ.copy()
     env["GIT_TERMINAL_PROMPT"] = "0"
-    return subprocess.run(
-        ["git", *args],
-        cwd=repo,
-        capture_output=True,
-        env=env,
-        check=False,
-    )
+    try:
+        return subprocess.run(
+            ["git", *args],
+            cwd=repo,
+            capture_output=True,
+            env=env,
+            check=False,
+        )
+    except (FileNotFoundError, OSError) as exc:
+        return subprocess.CompletedProcess(
+            args=["git", *args],
+            returncode=127,
+            stdout=b"",
+            stderr=f"git is not available: {exc}".encode("utf-8", "replace"),
+        )
 
 
 def _git_text(proc: subprocess.CompletedProcess[bytes]) -> str:
@@ -642,26 +650,39 @@ def _parse_status_z(data: bytes) -> list[tuple[str, str]]:
             end2 = data.find(b"\0", index)
             if end2 < 0:
                 raise ValueError("unreadable git rename")
-            path = data[index:end2].decode("utf-8", "surrogateescape")
+            # The second field is the old path. Keep the new path in `path`.
             index = end2 + 1
         items.append((xy, path))
     return items
 
 
 def _parse_name_status_z(data: bytes) -> list[tuple[str, str]]:
+    """Parse `git diff --name-status -z`.
+
+    Rename and copy records are three fields (`R100`, old, new). They are
+    returned as status `R` or `C` so a caller refuses them instead of treating
+    a short read as "git unavailable".
+    """
     parts = data.split(b"\0")
     if parts and parts[-1] == b"":
         parts.pop()
-    if len(parts) % 2:
-        raise ValueError("unreadable git name-status")
     rows: list[tuple[str, str]] = []
-    for offset in range(0, len(parts), 2):
-        rows.append(
-            (
-                parts[offset].decode("utf-8", "surrogateescape"),
-                parts[offset + 1].decode("utf-8", "surrogateescape"),
-            )
-        )
+    index = 0
+    while index < len(parts):
+        raw = parts[index].decode("utf-8", "surrogateescape")
+        code = raw[:1]
+        if code in {"R", "C"}:
+            if index + 2 >= len(parts):
+                rows.append((code, ""))
+                break
+            new = parts[index + 2].decode("utf-8", "surrogateescape")
+            rows.append((code, new))
+            index += 3
+            continue
+        if index + 1 >= len(parts):
+            raise ValueError("unreadable git name-status")
+        rows.append((raw, parts[index + 1].decode("utf-8", "surrogateescape")))
+        index += 2
     return rows
 
 
@@ -719,12 +740,164 @@ def _unstage(repo: Path, relative: str) -> None:
         _git(repo, ["reset", "-q", "HEAD", "--", relative])
 
 
-def publish_exact(vault: Path, relative: str) -> tuple[dict[str, Any], bool]:
-    """Commit and push exactly one new thought or digest file to main.
+def _git_unavailable_message(proc: subprocess.CompletedProcess[bytes]) -> str | None:
+    if proc.returncode == 127 or b"git is not available" in proc.stderr:
+        return _git_error(proc)
+    return None
 
-    Refuses if the path already exists on main, if the commit would modify
-    or delete anything, or if the worktree has any other change. The weekly
-    journal file is never an allowed extra path.
+
+def _push_failure(proc: subprocess.CompletedProcess[bytes]) -> tuple[str, str]:
+    """Classify a failed push. A connection error is unavailable, not a rejection."""
+    message = _git_error(proc)
+    if _git_unavailable_message(proc):
+        return "unavailable", message
+    lowered = message.lower()
+    if any(token in lowered for token in ("rejected", "hook declined", "non-fast-forward", "fetch first")):
+        return "push_failed", message
+    if any(
+        token in lowered
+        for token in (
+            "unable to access",
+            "could not connect",
+            "failed to connect",
+            "connection refused",
+            "connection timed out",
+            "operation timed out",
+            "network is unreachable",
+            "could not resolve",
+            "name or service not known",
+            "the remote end hung up",
+            "no route to host",
+            "connection reset",
+        )
+    ):
+        return "unavailable", message
+    return "push_failed", message
+
+
+def _publishable_added_path(posix: str) -> bool:
+    prefix = f"{JOURNAL_DIR_NAME}/{THOUGHT_DIR_NAME}/"
+    if not posix.startswith(prefix) or ".." in Path(posix).parts:
+        return False
+    rest = posix[len(prefix) :]
+    if rest.count("/") != 1:
+        return False
+    folder, name = rest.split("/", 1)
+    if folder == DIGEST_DIR_NAME and name.startswith("digest-") and name.endswith(".md"):
+        return bool(journal_lib.EVENT_RE.match(name[len("digest-") : -len(".md")]))
+    if WEEK_RE.match(folder) and name.endswith(".md"):
+        return bool(ID_RE.match(name[:-3]))
+    return False
+
+
+def _status_rows(vault: Path) -> tuple[list[tuple[str, str]] | None, str | None]:
+    proc = _git(vault, ["status", "--porcelain=v1", "-uall", "-z", "--no-renames"])
+    missing = _git_unavailable_message(proc)
+    if missing:
+        return None, missing
+    if proc.returncode != 0:
+        return None, _git_error(proc)
+    try:
+        return _parse_status_z(proc.stdout), None
+    except ValueError as exc:
+        return None, str(exc)
+
+
+def _cached_rows(vault: Path) -> tuple[list[tuple[str, str]] | None, str | None, bool]:
+    proc = _git(vault, ["diff", "--cached", "--name-status", "--no-renames", "-z"])
+    missing = _git_unavailable_message(proc)
+    if missing:
+        return None, missing, False
+    if proc.returncode != 0:
+        return None, _git_error(proc), False
+    try:
+        return _parse_name_status_z(proc.stdout), None, False
+    except ValueError as exc:
+        return None, str(exc), True
+
+
+def _show_rows(vault: Path, rev: str) -> tuple[list[tuple[str, str]] | None, str | None]:
+    proc = _git(vault, ["show", "--name-status", "--format=", "--no-renames", "-z", rev])
+    missing = _git_unavailable_message(proc)
+    if missing:
+        return None, missing
+    if proc.returncode != 0:
+        return None, _git_error(proc)
+    try:
+        return _parse_name_status_z(proc.stdout), None
+    except ValueError as exc:
+        return None, str(exc)
+
+
+def _ahead_behind(vault: Path) -> tuple[int, int] | str:
+    ahead = _git(vault, ["rev-list", "--count", "origin/main..HEAD"])
+    behind = _git(vault, ["rev-list", "--count", "HEAD..origin/main"])
+    if _git_unavailable_message(ahead) or _git_unavailable_message(behind):
+        return "git is not available"
+    if ahead.returncode != 0 or behind.returncode != 0:
+        return "could not compare HEAD with origin/main"
+    return int(_git_text(ahead).strip() or "0"), int(_git_text(behind).strip() or "0")
+
+
+def _range_problem(vault: Path) -> tuple[str, str] | None:
+    """Reject the push unless every unpushed commit only adds thought or digest files."""
+    listed = _git(vault, ["rev-list", "--reverse", "origin/main..HEAD"])
+    if _git_unavailable_message(listed):
+        return "unavailable", _git_error(listed)
+    if listed.returncode != 0:
+        return "unavailable", "could not list unpushed commits"
+    shas = [line.strip() for line in _git_text(listed).splitlines() if line.strip()]
+    for sha in shas:
+        parents = _git(vault, ["rev-list", "-n", "1", "--parents", sha])
+        if parents.returncode != 0:
+            return "unavailable", f"could not read unpushed commit {sha[:12]}"
+        if len(_git_text(parents).split()) != 2:
+            return "refused", f"unpushed commit {sha[:12]} is a merge or has no parent; not pushed"
+        rows, err = _show_rows(vault, sha)
+        if err or rows is None:
+            return "refused", f"unpushed commit {sha[:12]} diff is unreadable; not pushed"
+        if not rows or any(status != "A" for status, _path in rows):
+            detail = ", ".join(f"{status} {path}" for status, path in rows) or "empty"
+            return "refused", f"unpushed commit {sha[:12]} is not add-only ({detail}); not pushed"
+        for _status, path in rows:
+            if not _publishable_added_path(path):
+                return (
+                    "refused",
+                    f"unpushed commit {sha[:12]} adds {path}, which is not a thought or digest; not pushed",
+                )
+    return None
+
+
+def _blocking_worktree(rows: list[tuple[str, str]], posix: str) -> str | None:
+    """Other unpublished thought or digest files may stay. Anything else blocks."""
+    blocked: list[str] = []
+    for xy, path in rows:
+        if xy in {"??", "A "} and path == posix:
+            continue
+        if xy == "??" and _publishable_added_path(path):
+            continue
+        blocked.append(f"{xy.strip() or xy} {path}".strip())
+    if not blocked:
+        return None
+    shown = ", ".join(blocked[:8])
+    return f"worktree has another change: {shown}; nothing was committed"
+
+
+def _push_head(vault: Path) -> tuple[str, str]:
+    pushed = _git(vault, ["push", "origin", "HEAD:main"])
+    if pushed.returncode == 0:
+        return "success", ""
+    return _push_failure(pushed)
+
+
+def publish_exact(vault: Path, relative: str) -> tuple[dict[str, Any], bool]:
+    """Commit and push one new thought or digest file to main.
+
+    Add-only thought and digest commits may go straight to main. A modify,
+    delete, or rename is refused. Nothing is force-pushed. When the worktree
+    has no tracked edits and main is merely behind, fast-forward first. Several
+    local commits may be pushed when every one of them only adds a thought or
+    digest file.
     """
     try:
         _vault(vault)
@@ -735,6 +908,15 @@ def publish_exact(vault: Path, relative: str) -> tuple[dict[str, Any], bool]:
         return {"status": "refused", "message": checked, "files_written": 0, "pushed": False}, False
     target, posix = checked
     inside = _git(vault, ["rev-parse", "--is-inside-work-tree"])
+    if _git_unavailable_message(inside):
+        return {
+            "status": "unavailable",
+            "message": "git is not available; file was not pushed",
+            "path": str(target),
+            "relative": posix,
+            "files_written": 0,
+            "pushed": False,
+        }, False
     if inside.returncode != 0 or _git_text(inside).strip() != "true":
         return {
             "status": "unavailable",
@@ -785,22 +967,6 @@ def publish_exact(vault: Path, relative: str) -> tuple[dict[str, Any], bool]:
             "files_written": 0,
             "pushed": False,
         }, False
-    head_sha = _git_text(head).strip()
-    origin_sha = _git_text(origin).strip()
-    status = _git(vault, ["status", "--porcelain=v1", "-uall", "-z"])
-    if status.returncode != 0:
-        return {
-            "status": "unavailable",
-            "message": _git_error(status),
-            "files_written": 0,
-            "pushed": False,
-        }, False
-    try:
-        rows = _parse_status_z(status.stdout)
-    except ValueError as exc:
-        return {"status": "unavailable", "message": str(exc), "files_written": 0, "pushed": False}, False
-    remote_bytes = _origin_bytes(vault, posix)
-
     def base(extra: dict[str, Any], ok: bool) -> tuple[dict[str, Any], bool]:
         payload = {
             "path": str(target),
@@ -811,7 +977,35 @@ def publish_exact(vault: Path, relative: str) -> tuple[dict[str, Any], bool]:
         payload.update(extra)
         return payload, ok
 
-    if remote_bytes is not None:
+    def snapshot() -> tuple[list[tuple[str, str]], list[tuple[str, str]]] | tuple[dict[str, Any], bool]:
+        rows, status_err = _status_rows(vault)
+        staged, cached_err, unreadable = _cached_rows(vault)
+        if unreadable or (status_err and "unreadable git" in status_err) or (cached_err and "unreadable git" in cached_err):
+            return base(
+                {"status": "refused", "message": "staged diff modifies or deletes a file; not pushed"},
+                False,
+            )
+        if status_err or cached_err or rows is None or staged is None:
+            return base(
+                {"status": "unavailable", "message": status_err or cached_err or "could not read git status"},
+                False,
+            )
+        if any(status != "A" for status, _path in staged):
+            return base(
+                {"status": "refused", "message": "staged diff modifies or deletes a file; not pushed"},
+                False,
+            )
+        if staged not in ([], [("A", posix)]):
+            return base(
+                {"status": "refused", "message": "staged diff is not exactly this one new file; not pushed"},
+                False,
+            )
+        blocked = _blocking_worktree(rows, posix)
+        if blocked:
+            return base({"status": "refused", "message": blocked}, False)
+        return rows, staged
+
+    if _origin_bytes(vault, posix) is not None:
         return base(
             {
                 "status": "refused",
@@ -820,84 +1014,97 @@ def publish_exact(vault: Path, relative: str) -> tuple[dict[str, Any], bool]:
             False,
         )
 
-    ahead = _git(vault, ["rev-list", "--count", "origin/main..HEAD"])
-    behind = _git(vault, ["rev-list", "--count", "HEAD..origin/main"])
-    if ahead.returncode != 0 or behind.returncode != 0:
-        return base({"status": "unavailable", "message": "could not compare HEAD with origin/main"}, False)
-    ahead_n = int(_git_text(ahead).strip() or "0")
-    behind_n = int(_git_text(behind).strip() or "0")
+    current = snapshot()
+    if isinstance(current, tuple) and current and isinstance(current[0], dict):
+        return current
+    rows, staged = current
+
+    counts = _ahead_behind(vault)
+    if isinstance(counts, str):
+        return base({"status": "unavailable", "message": counts}, False)
+    ahead_n, behind_n = counts
     if behind_n:
-        return base({"status": "refused", "message": "main is behind origin/main; nothing was pushed"}, False)
+        clean = not staged and all(xy == "??" for xy, _path in rows)
+        if not clean:
+            return base(
+                {
+                    "status": "refused",
+                    "message": (
+                        "main is behind origin/main and the worktree is not clean; "
+                        "fast-forward was not attempted; not pushed"
+                    ),
+                },
+                False,
+            )
+        if ahead_n:
+            return base(
+                {
+                    "status": "refused",
+                    "message": "local main has diverged from origin/main; fast-forward refused; not pushed",
+                },
+                False,
+            )
+        merged = _git(vault, ["merge", "--ff-only", "--no-edit", "origin/main"])
+        if merged.returncode != 0:
+            return base(
+                {
+                    "status": "refused",
+                    "message": f"cannot fast-forward onto origin/main: {_git_error(merged)}; not pushed",
+                },
+                False,
+            )
+        if _origin_bytes(vault, posix) is not None:
+            return base(
+                {
+                    "status": "refused",
+                    "message": "path already exists on main; not modified and not pushed",
+                },
+                False,
+            )
+        current = snapshot()
+        if isinstance(current, tuple) and current and isinstance(current[0], dict):
+            return current
+        rows, staged = current
 
-    cached_now = _git(vault, ["diff", "--cached", "--name-status", "-z"])
-    if cached_now.returncode != 0:
-        return base({"status": "unavailable", "message": _git_error(cached_now)}, False)
-    try:
-        staged_rows = _parse_name_status_z(cached_now.stdout)
-    except ValueError as exc:
-        return base({"status": "unavailable", "message": str(exc)}, False)
-    if any(status != "A" for status, _path in staged_rows):
-        return base(
-            {
-                "status": "refused",
-                "message": "staged diff modifies or deletes a file; not pushed",
-            },
-            False,
-        )
-    if staged_rows not in ([], [("A", posix)]):
-        return base(
-            {
-                "status": "refused",
-                "message": "staged diff is not exactly this one new file; not pushed",
-            },
-            False,
-        )
+    problem = _range_problem(vault)
+    if problem:
+        status_name, message = problem
+        return base({"status": status_name, "message": message}, False)
 
-    if not rows and ahead_n == 1 and _head_has(vault, posix):
-        shown = _git(vault, ["show", "--name-status", "--format=", "-z", "HEAD"])
-        try:
-            changed = _parse_name_status_z(shown.stdout)
-        except ValueError as exc:
-            return base({"status": "unavailable", "message": str(exc)}, False)
-        if changed == [("A", posix)]:
-            pushed = _git(vault, ["push", "origin", "HEAD:main"])
-            if pushed.returncode != 0:
-                return base(
-                    {"status": "push_failed", "message": _git_error(pushed), "commit": head_sha},
-                    False,
-                )
-            return base({"status": "success", "pushed": True, "commit": head_sha}, True)
-        return base(
-            {"status": "refused", "message": "unpushed commit is not exactly this new file; not pushed"},
-            False,
-        )
+    def finish_push() -> tuple[dict[str, Any], bool]:
+        status_name, message = _push_head(vault)
+        new_head = _git_text(_git(vault, ["rev-parse", "HEAD"])).strip()
+        if status_name == "success":
+            return base({"status": "success", "pushed": True, "commit": new_head}, True)
+        return base({"status": status_name, "message": message, "commit": new_head}, False)
 
-    if rows != [("??", posix)] or ahead_n != 0 or head_sha != origin_sha:
-        return base(
-            {
-                "status": "refused",
-                "message": "worktree has another change or main has unpushed commits; nothing was committed",
-            },
-            False,
-        )
     if _head_has(vault, posix):
+        return finish_push()
+
+    if not any(xy in {"??", "A "} and path == posix for xy, path in rows):
         return base(
-            {"status": "refused", "message": "path already exists in HEAD; not modified and not pushed"},
+            {"status": "refused", "message": "path is not a new untracked file; nothing was committed"},
             False,
         )
 
     added = _git(vault, ["add", "--", posix])
     if added.returncode != 0:
         return base({"status": "unavailable", "message": _git_error(added)}, False)
-    cached = _git(vault, ["diff", "--cached", "--name-status", "-z"])
-    status_after = _git(vault, ["status", "--porcelain=v1", "-uall", "-z"])
-    try:
-        cached_rows = _parse_name_status_z(cached.stdout)
-        status_rows = _parse_status_z(status_after.stdout)
-    except ValueError as exc:
+    staged_after, cached_err, unreadable = _cached_rows(vault)
+    status_after, status_err = _status_rows(vault)
+    if unreadable:
         _unstage(vault, posix)
-        return base({"status": "unavailable", "message": str(exc)}, False)
-    if cached_rows != [("A", posix)] or status_rows != [("A ", posix)]:
+        return base(
+            {"status": "refused", "message": "staged diff modifies or deletes a file; not pushed"},
+            False,
+        )
+    if cached_err or status_err or staged_after is None or status_after is None:
+        _unstage(vault, posix)
+        return base(
+            {"status": "unavailable", "message": cached_err or status_err or "could not read git status"},
+            False,
+        )
+    if staged_after != [("A", posix)] or _blocking_worktree(status_after, posix):
         _unstage(vault, posix)
         return base(
             {
@@ -915,13 +1122,9 @@ def publish_exact(vault: Path, relative: str) -> tuple[dict[str, Any], bool]:
     if committed.returncode != 0:
         _unstage(vault, posix)
         return base({"status": "unavailable", "message": _git_error(committed)}, False)
-    shown = _git(vault, ["show", "--name-status", "--format=", "-z", "HEAD"])
-    try:
-        changed = _parse_name_status_z(shown.stdout)
-    except ValueError as exc:
-        return base({"status": "refused", "message": str(exc)}, False)
+    changed, show_err = _show_rows(vault, "HEAD")
     new_head = _git_text(_git(vault, ["rev-parse", "HEAD"])).strip()
-    if changed != [("A", posix)]:
+    if show_err or changed != [("A", posix)]:
         return base(
             {
                 "status": "refused",
@@ -930,8 +1133,8 @@ def publish_exact(vault: Path, relative: str) -> tuple[dict[str, Any], bool]:
             },
             False,
         )
-    clean = _parse_status_z(_git(vault, ["status", "--porcelain=v1", "-uall", "-z"]).stdout)
-    if clean:
+    after_commit, after_err = _status_rows(vault)
+    if after_err or after_commit is None or _blocking_worktree(after_commit, posix):
         return base(
             {
                 "status": "refused",
@@ -940,7 +1143,8 @@ def publish_exact(vault: Path, relative: str) -> tuple[dict[str, Any], bool]:
             },
             False,
         )
-    pushed = _git(vault, ["push", "origin", "HEAD:main"])
-    if pushed.returncode != 0:
-        return base({"status": "push_failed", "message": _git_error(pushed), "commit": new_head}, False)
-    return base({"status": "success", "pushed": True, "commit": new_head}, True)
+    problem = _range_problem(vault)
+    if problem:
+        status_name, range_message = problem
+        return base({"status": status_name, "message": range_message, "commit": new_head}, False)
+    return finish_push()
