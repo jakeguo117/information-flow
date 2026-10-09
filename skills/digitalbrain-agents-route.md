@@ -19,6 +19,7 @@
 
 - 走 journal 的想法收集分支，不新开 skill。没有这句触发词的普通聊天不记。
 - 原话原样写成新文件 `📝 Journal/想法/{YYYY}-W{nn}/thought-YYYYMMDD-HHmm[-n].md`（上海时间，ISO 周）。不分析，不追问，不改已有文件。
+- vault 里已有的 `📝 Journal/素材/2026-W41.md` 和 `📝 Journal/素材/同步约定.md` 保持原样，不删、不改。`同步约定.md` 不再是持续授权。不再往 `📝 Journal/素材/` 写新内容。想法只写到 `📝 Journal/想法/`，按本技能。
 - 落盘只走 `.cursor/skills/journal/tools/capture_thought.py`。同一个 id 不写第二次。路径已存在就拒绝。
 - 写入成功后，`publish` 把这一个新路径做成只新增的提交并推到 main。修改、删除、重命名都不推，也不强推。本地 main 只是落后、且没有已跟踪文件的修改时，先 fast-forward。本地已有的提交，必须每一笔都只新增想法文件或消化清单，才一起推。
 - 远端也前进时，只新增且路径还不在 origin 上的提交会重放后再推，不强推。退出码 5 是工具自己的异常，不是 git 不可用。

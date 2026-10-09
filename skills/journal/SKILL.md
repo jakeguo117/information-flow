@@ -11,7 +11,7 @@ description: Jake 的周记，以及「记一下：」「想法：」/thought �
 
 只在他说「记一下：」「想法：」或 `/thought` 时记。普通聊天不记。触发词后面的内容是一条，原样保存，不拆句、不去空格、不改标点。不分析、不追问、不查旧周记、不写 Cognition、不进 Ideas / Experiments。
 
-一条一个新文件。不改、不删已有文件。
+一条一个新文件。不改、不删已有文件。vault 里已经有的 `📝 Journal/素材/2026-W41.md` 和 `📝 Journal/素材/同步约定.md` 保持原样，不删除、不修改。`同步约定.md` 不再是持续授权。不要往 `📝 Journal/素材/` 写任何新内容。想法只写入 `📝 Journal/想法/`，按这一节。
 
 ```bash
 python3 skills/journal/tools/capture_thought.py add --vault "$VAULT" --text-file FILE --publish
