@@ -243,7 +243,11 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertIn("task branch", route)
         self.assertIn("精确路径暂存", route)
         self.assertIn("禁止 `git add -A`", route)
-        self.assertIn("不直接 push protected `main`", route)
+        self.assertIn(
+            "只新增文件的提交（想法文件、消化清单）可以直接推 main；任何修改或删除都不直推 main，不强推",
+            route,
+        )
+        self.assertNotIn("不直接 push protected `main`", route)
         self.assertIn("PR 与 merge 服从当前授权和治理 gate", route)
         self.assertIn("Journal 仍不自动 push", route)
         self.assertIn("客户说「可以写 / 写吧 / OK 写」之前，不要写 `📝 Journal/`", route)

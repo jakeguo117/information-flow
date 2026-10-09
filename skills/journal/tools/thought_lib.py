@@ -799,7 +799,6 @@ def publish_exact(vault: Path, relative: str) -> tuple[dict[str, Any], bool]:
         rows = _parse_status_z(status.stdout)
     except ValueError as exc:
         return {"status": "unavailable", "message": str(exc), "files_written": 0, "pushed": False}, False
-    local_bytes = target.read_bytes()
     remote_bytes = _origin_bytes(vault, posix)
 
     def base(extra: dict[str, Any], ok: bool) -> tuple[dict[str, Any], bool]:
@@ -813,17 +812,12 @@ def publish_exact(vault: Path, relative: str) -> tuple[dict[str, Any], bool]:
         return payload, ok
 
     if remote_bytes is not None:
-        if rows or head_sha != origin_sha or local_bytes != remote_bytes:
-            return base(
-                {
-                    "status": "refused",
-                    "message": "path already exists on main; not modified and not pushed",
-                },
-                False,
-            )
         return base(
-            {"status": "already_published", "commit": origin_sha, "message": "path is already on main"},
-            True,
+            {
+                "status": "refused",
+                "message": "path already exists on main; not modified and not pushed",
+            },
+            False,
         )
 
     ahead = _git(vault, ["rev-list", "--count", "origin/main..HEAD"])
@@ -834,6 +828,30 @@ def publish_exact(vault: Path, relative: str) -> tuple[dict[str, Any], bool]:
     behind_n = int(_git_text(behind).strip() or "0")
     if behind_n:
         return base({"status": "refused", "message": "main is behind origin/main; nothing was pushed"}, False)
+
+    cached_now = _git(vault, ["diff", "--cached", "--name-status", "-z"])
+    if cached_now.returncode != 0:
+        return base({"status": "unavailable", "message": _git_error(cached_now)}, False)
+    try:
+        staged_rows = _parse_name_status_z(cached_now.stdout)
+    except ValueError as exc:
+        return base({"status": "unavailable", "message": str(exc)}, False)
+    if any(status != "A" for status, _path in staged_rows):
+        return base(
+            {
+                "status": "refused",
+                "message": "staged diff modifies or deletes a file; not pushed",
+            },
+            False,
+        )
+    if staged_rows not in ([], [("A", posix)]):
+        return base(
+            {
+                "status": "refused",
+                "message": "staged diff is not exactly this one new file; not pushed",
+            },
+            False,
+        )
 
     if not rows and ahead_n == 1 and _head_has(vault, posix):
         shown = _git(vault, ["show", "--name-status", "--format=", "-z", "HEAD"])

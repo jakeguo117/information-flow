@@ -8,7 +8,7 @@
 1. 用 Asia/Shanghai 的昨天，打开 `📋 Digests/daily/YYYY-MM-DD.md`。文件不在 `main` 上就停，说明当天摘要还没有。不要自己编条目，不要改去打开按周累积的旧入口。
 2. 从这份摘要提出最多两个概念。一个概念可以挂上多条原文。Jake 接受之前不写 Resource。
 3. 接受之后写成 `📖 Resources/` 已有领域目录下的一页。`sources` 指回 Inbox 原文，更新 `index.md` 和 `log.md`，每页至少两个链接。不改类型。
-4. 不改 `📝 Journal/`。这条不写 Cognition。Agent 发起的受管文件变更遵循当前 Global Governance / project policy：使用 task branch，精确路径暂存，禁止 `git add -A`，不直接 push protected `main`。PR 与 merge 服从当前授权和治理 gate。
+4. 不改 `📝 Journal/`。这条不写 Cognition。Agent 发起的受管文件变更遵循当前 Global Governance / project policy：使用 task branch，精确路径暂存，禁止 `git add -A`，只新增文件的提交（想法文件、消化清单）可以直接推 main；任何修改或删除都不直推 main，不强推。PR 与 merge 服从当前授权和治理 gate。
 
 用户说「写周记」「周记」或 `/journal`：
 

@@ -29,7 +29,7 @@ Jake 接受之前不写 `📖 Resources/`。没接受的概念不落盘。他说
 - 正文至少两个 wikilink
 - 把新页加进 `index.md`，并在 `log.md` 追加一行
 - 不改已有页的类型
-- 保存时走仓库当前规则：精确路径，禁止 `git add -A`，不直接 push protected `main`
+- 保存时走仓库当前规则：精确路径，禁止 `git add -A`。只新增文件的提交（想法文件、消化清单）可以直接推 main；任何修改或删除都不直推 main，不强推。Resource 页是修改，不直推 main。
 
 不改 `📝 Journal/`。不写 `📖 Cognition/`。不把 Resource 页改类型当成 Cognition。
 

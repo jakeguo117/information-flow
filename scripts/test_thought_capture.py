@@ -167,7 +167,10 @@ class VerbatimAndIdentityTests(unittest.TestCase):
                     "2026-10-08T09:01:00+08:00",
                 ]
             )
-            self.assertEqual(rc, 0, data)
+            self.assertEqual(rc, 2, data)
+            self.assertEqual(data["status"], "not_saved")
+            self.assertEqual(data["reason"], "not pushed")
+            self.assertEqual(data["verbatim"], verbatim)
             with Path(data["path"]).open("r", encoding="utf-8", newline="") as handle:
                 stored = handle.read()
             self.assertEqual(thought_lib.verbatim_of(stored), verbatim)
@@ -398,8 +401,9 @@ class PublishTests(unittest.TestCase):
             self.assertEqual(remote_head_count(remote), 2)
             self.assertEqual(remote_names(remote, "main"), [("A", result["relative"])])
             again, ok = thought_lib.publish_exact(vault, result["relative"])
-            self.assertTrue(ok, again)
-            self.assertEqual(again["status"], "already_published")
+            self.assertFalse(ok, again)
+            self.assertEqual(again["status"], "refused")
+            self.assertIn("already exists on main", again["message"])
             self.assertFalse(again["pushed"])
             self.assertEqual(remote_head_count(remote), 2)
             before = Path(result["path"]).read_bytes()
@@ -478,6 +482,185 @@ class PublishTests(unittest.TestCase):
             self.assertEqual(Path(recorded["path"]).read_bytes(), digest_bytes)
             opened, _ = thought_lib.list_open(vault)
             self.assertEqual(opened["count"], 0)
+
+    def test_publish_refuses_staged_modify_or_delete(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault, remote = init_repo(Path(raw))
+            result = capture(vault, "合成暂存区里不能带修改", "2026-10-08T17:48:00+08:00")
+            readme = vault / "README.md"
+            readme.write_text("modified synthetic\n", encoding="utf-8")
+            subprocess.check_call(["git", "add", "--", "README.md"], cwd=vault)
+            refused, ok = thought_lib.publish_exact(vault, result["relative"])
+            self.assertFalse(ok, refused)
+            self.assertEqual(refused["status"], "refused")
+            self.assertIn("modifies or deletes", refused["message"])
+            self.assertEqual(remote_head_count(remote), 1)
+            cached = git(vault, "diff", "--cached", "--name-status").stdout
+            self.assertIn("M\tREADME.md", cached)
+            self.assertNotIn(result["relative"], cached)
+            self.assertTrue(Path(result["path"]).is_file())
+
+            subprocess.check_call(["git", "restore", "--staged", "--", "README.md"], cwd=vault)
+            subprocess.check_call(["git", "checkout", "--", "README.md"], cwd=vault)
+            tracked = vault / "gone.md"
+            write_text(tracked, "tracked\n")
+            subprocess.check_call(["git", "add", "--", "gone.md"], cwd=vault)
+            subprocess.check_call(["git", "commit", "-m", "add gone"], cwd=vault)
+            subprocess.check_call(["git", "push", "origin", "HEAD:main"], cwd=vault)
+            subprocess.check_call(["git", "rm", "--", "gone.md"], cwd=vault)
+            refused, ok = thought_lib.publish_exact(vault, result["relative"])
+            self.assertFalse(ok, refused)
+            self.assertIn("modifies or deletes", refused["message"])
+            cached = git(vault, "diff", "--cached", "--name-status").stdout
+            self.assertIn("D\tgone.md", cached)
+            self.assertNotIn(result["relative"], [path for _, path in remote_names(remote, "main")])
+            shown = subprocess.run(
+                ["git", "--git-dir", str(remote), "ls-tree", "-r", "--name-only", "main"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            self.assertIn("gone.md", shown.stdout.splitlines())
+
+    def test_cli_reports_not_saved_until_push_succeeds(self) -> None:
+        source = (JOURNAL_TOOLS / "thought_lib.py").read_text(encoding="utf-8")
+        self.assertIn('["push", "origin", "HEAD:main"]', source)
+        self.assertNotIn("--force", source)
+        self.assertNotIn("push --force", source)
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            vault, remote = init_repo(root)
+            words = root / "words.txt"
+            verbatim = "合成要推上去的一句"
+            write_text(words, verbatim)
+            tool = str(JOURNAL_TOOLS / "capture_thought.py")
+
+            dirty = vault / "extra.txt"
+            write_text(dirty, "other synthetic change\n")
+            rc, data = run_json(
+                [
+                    sys.executable,
+                    tool,
+                    "add",
+                    "--vault",
+                    str(vault),
+                    "--text-file",
+                    str(words),
+                    "--at",
+                    "2026-10-08T17:48:00+08:00",
+                    "--publish",
+                ]
+            )
+            self.assertEqual(rc, 2, data)
+            self.assertEqual(data["status"], "not_saved")
+            self.assertEqual(data["verbatim"], verbatim)
+            self.assertTrue(data["reason"])
+            self.assertNotEqual(data["status"], "success")
+            self.assertEqual(remote_head_count(remote), 1)
+            dirty.unlink()
+
+            rc, data = run_json(
+                [
+                    sys.executable,
+                    tool,
+                    "publish",
+                    "--vault",
+                    str(vault),
+                    "--path",
+                    "📝 Journal/想法/2026-W41/thought-20261008-1748.md",
+                ]
+            )
+            self.assertEqual(rc, 0, data)
+            self.assertEqual(data["status"], "success")
+            self.assertTrue(data["pushed"])
+            self.assertEqual(data["verbatim"], verbatim)
+            self.assertEqual(remote_names(remote, "main"), [("A", data["relative"])])
+
+            rc, again = run_json(
+                [
+                    sys.executable,
+                    tool,
+                    "publish",
+                    "--vault",
+                    str(vault),
+                    "--path",
+                    data["relative"],
+                ]
+            )
+            self.assertEqual(rc, 2, again)
+            self.assertEqual(again["status"], "not_saved")
+            self.assertEqual(again["verbatim"], verbatim)
+            self.assertIn("already exists on main", again["reason"])
+            self.assertEqual(remote_head_count(remote), 2)
+            before = Path(data["path"]).read_bytes()
+
+            other_words = root / "other-words.txt"
+            other_verbatim = "合成另一句还没推"
+            write_text(other_words, other_verbatim)
+            rc, pending = run_json(
+                [
+                    sys.executable,
+                    tool,
+                    "add",
+                    "--vault",
+                    str(vault),
+                    "--text-file",
+                    str(other_words),
+                    "--at",
+                    "2026-10-08T18:10:00+08:00",
+                ]
+            )
+            self.assertEqual(rc, 2, pending)
+            self.assertEqual(pending["status"], "not_saved")
+            self.assertEqual(pending["reason"], "not pushed")
+            self.assertEqual(pending["verbatim"], other_verbatim)
+            pending_rel = Path(pending["path"]).relative_to(vault).as_posix()
+
+            readme = vault / "README.md"
+            readme.write_text("modified synthetic\n", encoding="utf-8")
+            subprocess.check_call(["git", "add", "--", "README.md"], cwd=vault)
+            rc, staged = run_json(
+                [sys.executable, tool, "publish", "--vault", str(vault), "--path", pending_rel]
+            )
+            self.assertEqual(rc, 2, staged)
+            self.assertEqual(staged["status"], "not_saved")
+            self.assertEqual(staged["verbatim"], other_verbatim)
+            self.assertIn("modifies or deletes", staged["reason"])
+            self.assertEqual(remote_head_count(remote), 2)
+            subprocess.check_call(["git", "restore", "--staged", "--worktree", "--", "README.md"], cwd=vault)
+            self.assertEqual(Path(data["path"]).read_bytes(), before)
+
+    def test_remote_reject_is_not_saved(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            vault, remote = init_repo(root)
+            hook = remote / "hooks" / "pre-receive"
+            hook.write_text("#!/bin/sh\necho synthetic reject >&2\nexit 1\n", encoding="utf-8")
+            hook.chmod(0o755)
+            verbatim = "合成被远端拒绝的一句"
+            words = root / "words.txt"
+            write_text(words, verbatim)
+            rc, data = run_json(
+                [
+                    sys.executable,
+                    str(JOURNAL_TOOLS / "capture_thought.py"),
+                    "add",
+                    "--vault",
+                    str(vault),
+                    "--text-file",
+                    str(words),
+                    "--at",
+                    "2026-10-08T18:05:00+08:00",
+                    "--publish",
+                ]
+            )
+            self.assertEqual(rc, 3, data)
+            self.assertEqual(data["status"], "not_saved")
+            self.assertEqual(data["verbatim"], verbatim)
+            self.assertTrue(data["reason"])
+            self.assertNotIn("success", data["status"])
+            self.assertEqual(remote_head_count(remote), 1)
+            self.assertTrue(Path(data["path"]).is_file())
 
     def test_contents_create_body_has_no_sha(self) -> None:
         body = thought_lib.github_contents_create_body(

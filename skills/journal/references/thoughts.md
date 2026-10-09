@@ -69,16 +69,28 @@ consumed_count: 2
 
 ## 自动推送
 
-决定：想法文件要自动推。消化清单也要自动推。周记正文不自动推。
+决定：只新增文件的提交（想法文件、消化清单）可以直接推 main。任何修改或删除都不直推 main，不强推。周记正文不自动推。
 
 `capture_thought.py publish` 只接受 `📝 Journal/想法/` 下面的一个想法文件或一份消化清单。它在 `main` 上取出 `origin/main`，然后只在下面两种情况继续：
 
-- 工作区除了这一个未跟踪的新文件以外是干净的，并且 `HEAD` 等于 `origin/main`。它只暂存这一个路径，提交必须是 `A` 这一个文件，然后 `git push origin HEAD:main`。
+- 工作区除了这一个未跟踪的新文件以外是干净的，并且 `HEAD` 等于 `origin/main`。它只暂存这一个路径。`git diff --cached --name-status` 必须只有这一条 `A`。然后 `git push origin HEAD:main`，不带 force。
 - 或者工作区是干净的，本地正好多一个尚未推送的提交，且该提交只新增这一个路径。这时只推送，不再做第二个提交。
 
-其他情况都拒绝，包括：路径已经在 `main` 上、这一步会修改或删除已有文件、工作区还有别的改动、当前分支不是 `main`、本地还有别的未推送提交。拒绝时不覆盖文件，也不删除已经写好的新文件。不使用 force push。
+其他情况都拒绝，包括：路径已经在 `main` 上、暂存区里有修改（`M`）或删除（`D`）、工作区还有别的改动、当前分支不是 `main`、本地还有别的未推送提交。拒绝时不覆盖文件，也不删除已经写好的新文件，也不去动别人已经暂存的修改或删除。
 
 周记刚写完时，周记文件本身就是工作区里的另一处改动，所以这时推消化清单会拒绝。不要为了推清单把周记一起提交。清单留在本地；等这一个清单路径变成工作区里唯一的改动，再单独 `publish`。
+
+## 没存上
+
+推送或 publish 只要失败，就要清楚告诉 Jake「没存上」，给一个短原因，并把他说的原话原样念回去，让他自己留着。失败包括：没有推送权限、网络、工作区不干净、工具拒绝、路径已经在 main 上、这次提交里有修改或删除。不要说已经存上，也不要说「记了」。磁盘上也许还留着刚写出的新文件，那不算存上。
+
+`capture_thought.py` 只有在推送真正成功之后才打印成功状态，退出码 0。任何失败都退出非 0，并打印：
+
+```json
+{"status":"not_saved","reason":"...","verbatim":"..."}
+```
+
+退出码：2 是拒绝（工作区不干净、修改或删除、路径已在 main），3 是远端拒绝这次推送，4 是 git 或网络不可用。
 
 ## 两个环境能不能做这件事
 
@@ -98,14 +110,14 @@ UNKNOWN：
 - 那个会话的连接器有没有「只创建文件」的写工具。社区帖描述 Work 里 `github_update_file` 可以成功，那不是 Help Center 的合同，这里不把它当成已核实能力。
 - `obsidian-digitalbrain` 的 `main` 有没有分支保护，会不会拒绝直接推送。本次没有查询那个私有仓库。
 
-所以在 Cloud Work 里不要假设 `publish` 跑得了。没有 git / shell 时，这个子命令返回 `unavailable`，文件留在本地。
+所以在 Cloud Work 里不要假设 `publish` 跑得了。没有 git / shell 时，工具退出码 4，状态是 `not_saved`。告诉 Jake「没存上」，说明没有 git / shell，并把原话原样念回去。
 
 退路：只有当会话里确实有 GitHub 写工具时，才发 contents API 的创建请求。官方文档是 `PUT /repos/{owner}/{repo}/contents/{path}`，同一端点既能创建也能替换；更新时必须带现有 blob 的 `sha`，文档里的创建示例不带 `sha`（https://docs.github.com/en/rest/repos/contents ，API version 2026-03-10）。`contents-body` 打出的 JSON 只有 `message`、`content`、`branch`，没有 `sha`。不要事后补上 `sha`。如果手头的工具必须带 `sha` 才能调用，就不要调用，那是更新。如果响应不是一次新建，就停，不要改用更新或删除。创建示例在文件已存在时的具体 HTTP 状态，文档没有写死，标 UNKNOWN。
 
-git 和创建工具都没有时，告诉 Jake 这条还在本地，留给有 git 的 Cursor 会话再 `publish`。不要把原话抄进周记文件来代替推送。
+git 和创建工具都没有时，告诉 Jake「没存上」，把原话原样念回去，留给有 git 的 Cursor 会话再 `publish`。不要把原话抄进周记文件来代替推送，也不要说已经存上。
 
 ### Cursor
 
 Cursor 本地或云端 agent 有 shell 和 git 时，可以在 DigitalBrain 的检出里跑 `publish`。条件是：检出就是 vault 根、当前分支是 `main`、能 `fetch` / `push` `origin` 的 `main`，并且工作区满足上面的单文件规则。
 
-UNKNOWN：某一次 Cursor 会话有没有推 `jakeguo117/obsidian-digitalbrain` `main` 的凭据，以及分支保护会不会拒绝这次推送。推送失败时工具返回 `push_failed`，不删除新文件，不做 force push。有 token 时可以用上面的 contents 创建请求当退路。这次实现没有调用那个 API，也没有推送真实 vault。
+UNKNOWN：某一次 Cursor 会话有没有推 `jakeguo117/obsidian-digitalbrain` `main` 的凭据，以及分支保护会不会拒绝这次推送。推送失败时退出码 3，状态是 `not_saved`，不删除新文件，不强推。告诉 Jake「没存上」，说明原因，并把原话原样念回去。有 token 时可以用上面的 contents 创建请求当退路；那个请求没成功也一样说「没存上」。这次实现没有调用那个 API，也没有推送真实 vault。

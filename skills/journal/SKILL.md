@@ -11,14 +11,15 @@ description: Jake 的周记，以及「记一下：」「想法：」/thought �
 
 只在他说「记一下：」「想法：」或 `/thought` 时记。普通聊天不记。触发词后面的内容是一条，原样保存，不拆句、不去空格、不改标点。不分析、不追问、不查旧周记、不写 Cognition、不进 Ideas / Experiments。
 
-一条一个新文件。不改、不删已有文件。回一句「记了」，把原话原样给他看。
+一条一个新文件。不改、不删已有文件。
 
 ```bash
-python3 skills/journal/tools/capture_thought.py add --vault "$VAULT" --text-file FILE
-python3 skills/journal/tools/capture_thought.py publish --vault "$VAULT" --path '📝 Journal/想法/…/thought-….md'
+python3 skills/journal/tools/capture_thought.py add --vault "$VAULT" --text-file FILE --publish
 ```
 
-`FILE` 里只有原话。写入成功后立刻 `publish` 这一个新路径。`publish` 只暂存这一个文件并推到 `main`。工作区还有别的改动、路径已经在 `main` 上、或这一步会改掉或删掉已有文件，工具拒绝，不推。拒绝之后文件留在本地，不要手改它，也不要把它并进别的提交。周记正文仍然不自动 push。
+`FILE` 里只有原话。`publish` 只暂存这一个新文件并推到 `main`。暂存区里的差异必须全是 `A`（只新增）。有修改或删除就不推，也不强推。工作区还有别的改动、路径已经在 `main` 上，同样不推。周记正文仍然不自动 push。
+
+只有这一步的退出码是 0、并且状态是成功，才说「记了」，并把原话原样给他看。推送或 publish 因任何原因失败（没有推送权限、网络、工作区不干净、工具拒绝、路径已在 main、提交里有修改或删除），都要清楚告诉他「没存上」，给一个短原因，再把他的原话原样念回去，让他自己留着。不要说已经存上，也不要说「记了」。
 
 DigitalBrain `.cursor/skills/` 里的副本由 information-flow Actions 覆盖。改行为只改这个仓库。
 
