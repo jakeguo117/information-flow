@@ -69,6 +69,16 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
             self.assertTrue(
                 (vault / ".cursor" / "skills" / "journal" / "references" / "setup.md").is_file()
             )
+            thought_tool = vault / ".cursor" / "skills" / "journal" / "tools" / "capture_thought.py"
+            thought_ref = vault / ".cursor" / "skills" / "journal" / "references" / "thoughts.md"
+            self.assertEqual(
+                thought_tool.read_text(encoding="utf-8"),
+                (sync.SKILLS_DIR / "journal" / "tools" / "capture_thought.py").read_text(encoding="utf-8"),
+            )
+            self.assertEqual(
+                thought_ref.read_text(encoding="utf-8"),
+                (sync.SKILLS_DIR / "journal" / "references" / "thoughts.md").read_text(encoding="utf-8"),
+            )
             self.assertEqual(
                 (vault / ".cursor" / "skills" / "cognition" / "SKILL.md").read_text(encoding="utf-8"),
                 (sync.SKILLS_DIR / "cognition" / "SKILL.md").read_text(encoding="utf-8"),
@@ -128,8 +138,11 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 ".cursor/skills/journal/SKILL.md",
                 ".cursor/skills/journal/references/setup.md",
                 ".cursor/skills/journal/references/weekly-brief.md",
+                ".cursor/skills/journal/references/thoughts.md",
                 ".cursor/skills/journal/tools/journal_lib.py",
                 ".cursor/skills/journal/tools/write_journal.py",
+                ".cursor/skills/journal/tools/thought_lib.py",
+                ".cursor/skills/journal/tools/capture_thought.py",
                 ".cursor/skills/cognition/SKILL.md",
                 ".cursor/skills/cognition/references/schema.md",
                 ".cursor/skills/cognition/references/retrieval.md",
@@ -141,6 +154,38 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 "AGENTS.md",
             ],
         )
+
+    def test_every_journal_tool_and_reference_is_allowlisted(self) -> None:
+        """New files under skills/journal/tools and references must be copied.
+
+        The sync script does not glob the tree. A file that exists in this
+        repo but is missing from SKILL_RELATIVE_PATHS never reaches DigitalBrain.
+        """
+        tools = {
+            path.name
+            for path in (sync.SKILLS_DIR / "journal" / "tools").glob("*.py")
+            if path.is_file()
+        }
+        references = {
+            path.name
+            for path in (sync.SKILLS_DIR / "journal" / "references").glob("*.md")
+            if path.is_file()
+        }
+        listed_tools = {
+            Path(relative).name
+            for relative in sync.SKILL_RELATIVE_PATHS
+            if relative.startswith("journal/tools/")
+        }
+        listed_references = {
+            Path(relative).name
+            for relative in sync.SKILL_RELATIVE_PATHS
+            if relative.startswith("journal/references/")
+        }
+        self.assertEqual(tools, listed_tools)
+        self.assertEqual(references, listed_references)
+        self.assertIn("capture_thought.py", listed_tools)
+        self.assertIn("thought_lib.py", listed_tools)
+        self.assertIn("thoughts.md", listed_references)
 
     def test_missing_vault_fails(self) -> None:
         rc = sync.main(["--vault", "/tmp/information-flow-missing-vault"])
@@ -195,13 +240,25 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertNotIn("直接修改 / push protected main", route)
         self.assertNotIn("禁止为 Digest 开 PR", route)
         self.assertIn("当前 Global Governance / project policy", route)
-        self.assertIn("task branch", route)
+        self.assertIn("会修改已有文件的变更走 task branch 和 PR", route)
+        self.assertNotIn("使用 task branch，精确路径暂存", route)
         self.assertIn("精确路径暂存", route)
         self.assertIn("禁止 `git add -A`", route)
-        self.assertIn("不直接 push protected `main`", route)
+        self.assertIn(
+            "只新增文件的提交（想法文件、消化清单）可以直接推 main；任何修改或删除都不直推 main，不强推",
+            route,
+        )
+        self.assertNotIn("不直接 push protected `main`", route)
         self.assertIn("PR 与 merge 服从当前授权和治理 gate", route)
         self.assertIn("Journal 仍不自动 push", route)
         self.assertIn("客户说「可以写 / 写吧 / OK 写」之前，不要写 `📝 Journal/`", route)
+        self.assertIn("「记一下：」「想法：」或 `/thought`", route)
+        self.assertIn("看过未展开", route)
+        self.assertIn("capture_thought.py", route)
+        self.assertIn("没存上", route)
+        self.assertIn("把他的原话原样念回去", route)
+        self.assertIn("只新增且路径还不在 origin 上的提交会重放后再推，不强推", route)
+        self.assertIn("退出码 5 是工具自己的异常，不是 git 不可用", route)
 
     def test_journal_waits_for_ok(self) -> None:
         text = (sync.SKILLS_DIR / "journal" / "SKILL.md").read_text(encoding="utf-8")

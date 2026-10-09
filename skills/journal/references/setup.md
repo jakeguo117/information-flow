@@ -28,27 +28,33 @@ information-flow 的 intake / journal / cognition skill 一进 main
   → Yale 式一次一问。禁止整周附录出文
   → 该条 [x] + reflection
   → 有引用的结论 → 📖 Resources/concepts/
-  → 精确路径 commit + push main。不为 Digest 开 PR。
-
-随手想法讨论明确收尾
-  → 读取 📝 Journal/素材/同步约定.md 的有效授权
-  → 追加到上海事件日期所属周的 📝 Journal/素材/YYYY-Www.md
-  → 按授权精确提交、push main、从 main 读回
-  → 没有本机 vault 时可使用已核验的 GitHub 连接
-  → 后续周记读取这些素材；不等同于后台监听或自动成文
+  → 精确路径暂存，禁止 `git add -A`。只新增文件的提交（想法文件、消化清单）可以直接推 main；任何修改或删除都不直推 main，不强推。勾选、reflection、Resource 页、index.md 和 log.md 都是修改，不直推 main，走 task branch 和 PR。
 
 写周记
-  → 先旧线呼应与已保存的想法素材，再对已勾选 intake
+  → 先旧线呼应，再对已勾选 intake
   → 未勾选即使相关也不进入材料
   → 客户说「可以写 / 写吧 / OK 写」之前不落盘
   → 持久写入只走 skills/journal/tools/write_journal.py
-  → 正式周记不默认自动 git push；素材另按持续授权
+  → 📝 Journal/ 周记正文不自动 git push
   → 落盘后如有可复用判断，交给 cognition propose；周记自己不写 Cognition
+
+随手记
+  → 触发只有「记一下：」「想法：」/thought。普通聊天不记
+  → 原话原样写入 📝 Journal/想法/{YYYY}-W{nn}/thought-YYYYMMDD-HHmm[-n].md
+  → 新文件。不改、不删旧文件。同一个 id 不写第二次
+  → capture_thought.py publish 只把这一个新路径做成只新增的提交并推到 main。修改、删除、重命名不推，不强推
+  → 本地 main 只是落后、且没有已跟踪文件的修改时，先 fast-forward，并且不覆盖被忽略的本地文件。远端也前进时，已有的只新增想法或消化清单提交会重放到 origin/main 再一起推；修改、删除或路径已在 origin 上则拒绝，不强推
+  → 失败要告诉 Jake「没存上」，说明原因，并把他的原话原样念回去
+  → 周记正文仍不自动 push
+  → write_journal.py 成功之后才写消化清单。每条是「展开」或「看过未展开」，并链到那篇周记
+  → 清单也是新文件，按同一条规则推送。周记文件还没提交时，不要把周记和清单打进同一个提交
+  → 未消化 = 全部想法文件减去任何清单里的 id。看过未展开不再捞
+  → 不写 Cognition，不进 Ideas / Experiments
 ```
 
 手机 = Cursor Cloud + GitHub `obsidian-digitalbrain` 的 `main`。周入口必须已经在 `main`。找不到周文件就停，不要问日 Digest vs Daily Briefing。
 
-Daily Briefing / Weekly Synthesis / 日 Digest / Journal Briefs 不再作为输出。不硬凑空段。正式周记不默认自动 git push；素材另按持续授权。
+Daily Briefing / Weekly Synthesis / 日 Digest / Journal Briefs 不再作为输出。不硬凑空段。不自动 git push 周记。
 
 ## 现在（2026-09-19）
 

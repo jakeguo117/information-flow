@@ -4,8 +4,6 @@ Jake only. Daily content in, weekly journal out, durable Cognition in DigitalBra
 
 ## Skills
 
-Journal also captures thought discussions when Jake explicitly closes them. Read the private vault's `📝 Journal/素材/同步约定.md`; under active standing authorization, append to `📝 Journal/素材/YYYY-Www.md`, commit/push the authorized main branch, and verify remote content. Read these materials during the later weekly discussion. This is session-driven, not a background listener. Formal journal approval and Cognition gates remain separate.
-
 - `intake` — resolve this week's `📋 Digests/{YYYY-Wnn}/intake.md` from the Shanghai date (portrait + old-thread echoes first; never dump the week). Intake items and concept cards are not Evidence.
 - `journal` — on demand: find echoes from recent journals / already-linked projects, then write `📝 Journal/` only after Jake says OK. Persistent save goes through `write_journal.py`; without `可以写` / `写吧` / `OK 写` the tool writes 0 files. After a journal is written, hand off to `cognition` propose; journal never writes Cognition files.
 - `cognition` — propose / promote / retrieve / revise Evidence, Belief, and Principle as Markdown (`schema_version: "1.1"`) under DigitalBrain `📖 Cognition/`. Human gate. Writes go through validator + write coordinator. Retrieval returns `found | no_match | partial | unavailable`.

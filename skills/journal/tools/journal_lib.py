@@ -78,6 +78,13 @@ def journal_material(items: list[Any], echo_terms: list[str]) -> dict[str, Any]:
     }
 
 
+def _read_text_or_empty(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return ""
+
+
 def _frontmatter_value(text: str, key: str) -> str | None:
     if not text.startswith("---\n"):
         return None
@@ -178,6 +185,11 @@ def list_journal_files(vault: Path) -> list[Path]:
     files: list[Path] = []
     for path in directory.iterdir():
         if path.is_symlink() or not path.is_file() or path.suffix != ".md":
+            continue
+        # Thought files and digest lists live under 📝 Journal/想法/ and are
+        # not journal entries. A stray top-level file with those types is
+        # skipped too, so listing cannot treat it as a weekly journal.
+        if _frontmatter_value(_read_text_or_empty(path), "type") in {"thought", "thought-digest"}:
             continue
         files.append(path)
     return sorted(files)
