@@ -894,6 +894,47 @@ printf '%s\\n' "$0"
     assert not (agents / "com.jake.digitalbrain-backup.plist").exists()
 
 
+def test_reinstall_keeps_previous_interpreter_when_verify_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    world = make_world(tmp_path, monkeypatch, with_git=False)
+    monkeypatch.setenv("DIGITALBRAIN_BACKUP_PYTHON", standalone_python())
+    home = tmp_path / "home"
+    agents = tmp_path / "agents"
+    assert db.cmd_install(world.cfg_path, home, agents) == 0
+    capsys.readouterr()
+    dedicated = home / "Library" / "Application Support" / "digitalbrain-backup" / "python3-digitalbrain-backup"
+    good = dedicated.read_bytes()
+    fake = world.work / "fake-python"
+    write_exec(
+        fake,
+        """#!/bin/bash
+case "$0" in
+  *python3-digitalbrain-backup*)
+    printf '%s\\n' /usr/bin/python3
+    exit 0
+    ;;
+esac
+printf '%s\\n' "$0"
+""",
+    )
+    monkeypatch.setenv("DIGITALBRAIN_BACKUP_PYTHON", str(fake))
+    rc = db.cmd_install(world.cfg_path, home, agents)
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert "sys.executable" in err
+    assert dedicated.read_bytes() == good
+    assert not dedicated.with_name("python3-digitalbrain-backup.tmp").exists()
+    identity = subprocess.run(
+        [str(dedicated), "-c", "import sys; print(sys.executable)"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert identity.returncode == 0
+    assert identity.stdout.strip() == str(dedicated)
+
+
 def test_install_unmounted_writes_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     world = make_world(tmp_path, monkeypatch, mounted=False, create_root=False, with_git=False)
     rc = db.cmd_install(world.cfg_path, tmp_path / "home", tmp_path / "agents")

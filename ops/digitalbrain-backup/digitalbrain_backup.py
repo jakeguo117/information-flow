@@ -1721,8 +1721,13 @@ def install_dedicated_python(home: Path) -> Path:
     dest = dest_dir / DEDICATED_NAME
     if dest.is_symlink():
         raise BackupError("refusing symlink dedicated interpreter")
-    shutil.copyfile(source, dest)
-    os.chmod(dest, 0o755)
+    temporary = dest.with_name(DEDICATED_NAME + ".tmp")
+    if temporary.is_symlink():
+        raise BackupError("refusing symlink dedicated interpreter")
+    if temporary.exists():
+        temporary.unlink()
+    shutil.copyfile(source, temporary)
+    os.chmod(temporary, 0o755)
     if sys.platform == "darwin":
         subprocess.run(
             [
@@ -1732,22 +1737,23 @@ def install_dedicated_python(home: Path) -> Path:
                 "-",
                 "--identifier",
                 "com.jake.digitalbrain-backup.python",
-                str(dest),
+                str(temporary),
             ],
             capture_output=True,
             text=True,
             check=False,
         )
     try:
-        reported = python_stdout(dest, "import hashlib,sys; print(sys.executable)")
+        reported = python_stdout(temporary, "import hashlib,sys; print(sys.executable)")
     except BackupError:
-        dest.unlink(missing_ok=True)
+        temporary.unlink(missing_ok=True)
         raise
-    if reported != str(dest):
-        dest.unlink(missing_ok=True)
+    if reported != str(temporary):
+        temporary.unlink(missing_ok=True)
         raise BackupError(
-            f"dedicated interpreter sys.executable is {reported or 'empty'}, not the copied path {dest}"
+            f"dedicated interpreter sys.executable is {reported or 'empty'}, not the copied path {temporary}"
         )
+    os.replace(temporary, dest)
     return dest
 
 
