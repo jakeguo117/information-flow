@@ -1571,12 +1571,14 @@ def cmd_backup(cfg: Config) -> int:
     verdict = target_ready(cfg)
     if not verdict.ok:
         home_logger.write(f"backup target unavailable: {verdict.reason}")
+        home_logger.write(f"interpreter sys.executable={sys.executable}")
         print(f"digitalbrain-backup result=failed reason={verdict.reason}", file=sys.stderr)
         status = failure_status([verdict.reason])
         send_alert(cfg, status, home_logger)
         return 1
     logger = Logger(cfg.home_log, cfg.backup_root / cfg.disk_log_name)
     logger.write("backup start")
+    logger.write(f"interpreter sys.executable={sys.executable}")
     lock_fd = acquire_lock(cfg.backup_root)
     if lock_fd is None:
         status = failure_status(["another backup is already running"])

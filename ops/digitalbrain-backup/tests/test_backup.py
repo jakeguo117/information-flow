@@ -328,6 +328,7 @@ def test_unmounted_volume_is_not_written(tmp_path: Path, monkeypatch: pytest.Mon
     assert not (world.vol / "DigitalBrain-Backups").exists()
     assert not (world.vol / "status.json").exists()
     assert "backup target unavailable" in world.home_log.read_text()
+    assert f"interpreter sys.executable={sys.executable}" in world.home_log.read_text()
     lines = hermes_lines(world.hermes_log)
     assert len(lines) == 1
     assert "send" in lines[0] and "discord:" in lines[0]
@@ -521,6 +522,8 @@ def test_success_backup_prunes_and_restore(tmp_path: Path, monkeypatch: pytest.M
         log = (world.backup / "digitalbrain-backup.log").read_text()
         home = world.home_log.read_text()
         assert "backup start" in log and "backup start" in home
+        assert f"interpreter sys.executable={sys.executable}" in log
+        assert f"interpreter sys.executable={sys.executable}" in home
         assert "git-fsck rc=0" in log
         assert "git-bundle-verify rc=0" in log
         assert "backup result=ok" in log
