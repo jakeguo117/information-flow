@@ -396,11 +396,13 @@ def ls_output_has_dataless(text: str) -> bool:
 
 
 def parse_diskutil_mounted(stdout: str, volume: Path) -> bool:
-    if re.search(r"Mounted:\s*No", stdout, re.IGNORECASE):
+    # diskutil info indents every field ("   Mounted:                   Yes").
+    mounted = re.search(r"^\s*Mounted:\s*(Yes|No)\b", stdout, re.IGNORECASE | re.MULTILINE)
+    if mounted and mounted.group(1).lower() == "no":
         return False
     if re.search(r"not mounted", stdout, re.IGNORECASE):
         return False
-    match = re.search(r"^Mount Point:\s*(.+)$", stdout, re.MULTILINE)
+    match = re.search(r"^\s*Mount Point:\s*(.+)$", stdout, re.MULTILINE)
     if not match:
         return False
     point = match.group(1).strip()

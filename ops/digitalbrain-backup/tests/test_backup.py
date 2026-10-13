@@ -236,6 +236,58 @@ def test_readme_documents_permission_and_schedule() -> None:
         assert needle in text
 
 
+MOUNTED_DISKUTIL_INFO = """\
+   Device Identifier:         disk4s1
+   Device Node:               /dev/disk4s1
+   Whole:                     No
+   Part of Whole:             disk4
+   Device / Media Name:       Disk
+
+   Volume Name:               Disk
+   Mounted:                   Yes
+   Mount Point:               /Volumes/Disk
+
+   File System Personality:   APFS
+   Type (Bundle):             apfs
+   Name (User Visible):       APFS
+   Disk Size:                 1.0 TB (1000204886016 Bytes) (exactly 1953525168 512-Byte-Units)
+   Device Block Size:         4096 Bytes
+   Volume Free Space:         500.3 GB (500277837824 Bytes) (exactly 977105152 512-Byte-Units)
+   Device Location:           External
+   Removable Media:           Fixed
+"""
+
+UNMOUNTED_DISKUTIL_INFO = """\
+   Device Identifier:         disk4s1
+   Device Node:               /dev/disk4s1
+   Whole:                     No
+   Part of Whole:             disk4
+   Device / Media Name:       Disk
+
+   Volume Name:               Disk
+   Mounted:                   No
+   Mount Point:               Not applicable
+
+   File System Personality:   APFS
+   Type (Bundle):             apfs
+   Name (User Visible):       APFS
+   Disk Size:                 1.0 TB (1000204886016 Bytes) (exactly 1953525168 512-Byte-Units)
+   Device Location:           External
+"""
+
+
+def test_parse_diskutil_info_indented() -> None:
+    volume = Path("/Volumes/Disk")
+    assert db.parse_diskutil_mounted(MOUNTED_DISKUTIL_INFO, volume) is True
+    assert db.parse_diskutil_mounted(UNMOUNTED_DISKUTIL_INFO, volume) is False
+    still_named = MOUNTED_DISKUTIL_INFO.replace("Mounted:                   Yes", "Mounted:                   No")
+    assert db.parse_diskutil_mounted(still_named, volume) is False
+    mounted_elsewhere = MOUNTED_DISKUTIL_INFO.replace("/Volumes/Disk", "/Volumes/Other")
+    assert db.parse_diskutil_mounted(mounted_elsewhere, volume) is False
+    unindented = "Volume Name: Disk\nMounted: Yes\nMount Point: /Volumes/Disk\n"
+    assert db.parse_diskutil_mounted(unindented, volume) is True
+
+
 def test_parse_mount_table() -> None:
     mac = db.parse_mount_table("/dev/disk1s1 on /Volumes/Disk (apfs, local, journaled)\n")
     assert "/Volumes/Disk" in mac
