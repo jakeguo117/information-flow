@@ -1649,15 +1649,76 @@ def write_marker(path: Path, volume: Path) -> None:
     path.write_text(f"{MARKER_TOKEN}\nvolume={volume}\n", encoding="utf-8")
 
 
+def is_usr_bin_python3(path: Path) -> bool:
+    current = Path(os.path.normpath(str(path.expanduser())))
+    seen: set[str] = set()
+    while len(seen) < 8:
+        text = os.path.normpath(str(current))
+        if text in seen:
+            break
+        seen.add(text)
+        if text == "/usr/bin/python3":
+            return True
+        if not current.is_symlink():
+            break
+        try:
+            link = os.readlink(current)
+        except OSError:
+            break
+        nxt = Path(link)
+        if not nxt.is_absolute():
+            nxt = current.parent / nxt
+        current = Path(os.path.normpath(str(nxt)))
+    return False
+
+
+def python_stdout(binary: Path, code: str) -> str:
+    try:
+        proc = subprocess.run(
+            [str(binary), "-c", code],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=60,
+        )
+    except OSError as exc:
+        raise BackupError(f"python interpreter failed to start: {exc}") from exc
+    if proc.returncode != 0:
+        detail = ((proc.stderr or "") + (proc.stdout or "")).strip()
+        raise BackupError(f"python interpreter failed to start: {detail or 'no output'}")
+    return (proc.stdout or "").strip()
+
+
+def require_standalone_python() -> Path:
+    raw = os.environ.get("DIGITALBRAIN_BACKUP_PYTHON", "").strip()
+    if not raw:
+        raise BackupError(
+            "DIGITALBRAIN_BACKUP_PYTHON is required and must point to a standalone Python; "
+            "/usr/bin/python3 is a macOS launcher shim and is refused"
+        )
+    source = Path(raw).expanduser()
+    if not source.is_absolute():
+        raise BackupError("DIGITALBRAIN_BACKUP_PYTHON must be an absolute path")
+    if is_usr_bin_python3(source):
+        raise BackupError("refusing /usr/bin/python3; it is a launcher shim, not a standalone Python")
+    if not source.is_file():
+        raise BackupError(f"python interpreter not found: {source}")
+    reported = python_stdout(source, "import os,sys; print(os.path.realpath(sys.executable))")
+    if not reported or os.path.realpath(reported) != os.path.realpath(source):
+        raise BackupError(
+            "refusing launcher shim: sys.executable "
+            f"{reported or 'empty'} does not match DIGITALBRAIN_BACKUP_PYTHON {source}"
+        )
+    return source
+
+
 def install_dedicated_python(home: Path) -> Path:
+    source = require_standalone_python()
     dest_dir = home / "Library/Application Support/digitalbrain-backup"
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / DEDICATED_NAME
     if dest.is_symlink():
         raise BackupError("refusing symlink dedicated interpreter")
-    source = Path(os.environ.get("DIGITALBRAIN_BACKUP_PYTHON", sys.executable)).resolve()
-    if not source.is_file():
-        raise BackupError(f"python interpreter not found: {source}")
     shutil.copyfile(source, dest)
     os.chmod(dest, 0o755)
     if sys.platform == "darwin":
@@ -1675,16 +1736,16 @@ def install_dedicated_python(home: Path) -> Path:
             text=True,
             check=False,
         )
-    proc = subprocess.run(
-        [str(dest), "-c", "import hashlib,sys; print(sys.executable)"],
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=60,
-    )
-    if proc.returncode != 0 or not (proc.stdout or "").strip():
-        detail = ((proc.stderr or "") + (proc.stdout or "")).strip()
-        raise BackupError(f"dedicated interpreter failed to start: {detail}")
+    try:
+        reported = python_stdout(dest, "import hashlib,sys; print(sys.executable)")
+    except BackupError:
+        dest.unlink(missing_ok=True)
+        raise
+    if reported != str(dest):
+        dest.unlink(missing_ok=True)
+        raise BackupError(
+            f"dedicated interpreter sys.executable is {reported or 'empty'}, not the copied path {dest}"
+        )
     return dest
 
 

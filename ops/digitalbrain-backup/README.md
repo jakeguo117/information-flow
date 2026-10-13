@@ -37,7 +37,7 @@ The LaunchAgent's first program argument is that binary. The vault reader is a c
 
 Do not grant Full Disk Access to `/usr/bin/python3`, `/bin/bash`, Terminal, or anything used by `com.jake.obsidian-vault-sync`. This package does not change that job, and its binary must not be this dedicated interpreter.
 
-Alternative: before install, set `DIGITALBRAIN_BACKUP_PYTHON` to a standalone interpreter you built for this backup only. Install copies that file to the path above and, on macOS, ad-hoc signs it with identifier `com.jake.digitalbrain-backup.python`. Grant Full Disk Access to the copy, not to the original system Python.
+`DIGITALBRAIN_BACKUP_PYTHON` is required. It must be a standalone Python built or installed for this backup only (a python.org framework build, a Homebrew Cellar binary, or similar). There is no default. `/usr/bin/python3` on macOS is an xcode-select launcher shim: a copy may not run, or it may re-exec another Python, so Full Disk Access would be granted to the wrong binary. Install refuses that path and any launcher whose `sys.executable` does not match the file you named. After copying, install runs the copy and aborts unless `sys.executable` equals the copied path. On macOS it ad-hoc signs that copy with identifier `com.jake.digitalbrain-backup.python`. Grant Full Disk Access to the copy, not to the original system Python.
 
 ## Install
 
@@ -47,10 +47,12 @@ From this directory, on the iMac, with `/Volumes/Disk` mounted:
 cp config.example.json config.json
 # Edit vault_path and discord_channel_id. Confirm the Mac timezone is Asia/Shanghai.
 # hermes must be on PATH for the agent (the plist PATH includes ~/.local/bin and Homebrew).
+# Standalone interpreter only. Do not point this at /usr/bin/python3.
+export DIGITALBRAIN_BACKUP_PYTHON=/path/to/standalone/python3
 bin/install.sh
 ```
 
-`install.sh` copies the dedicated interpreter, writes `DigitalBrain-Backups/.backup-target` after the volume is proven mounted, and writes `~/Library/LaunchAgents/com.jake.digitalbrain-backup.plist`. It does not load the agent.
+`install.sh` copies that interpreter, checks the copy reports itself as `sys.executable`, writes `DigitalBrain-Backups/.backup-target` after the volume is proven mounted, and writes `~/Library/LaunchAgents/com.jake.digitalbrain-backup.plist`. It does not load the agent. If `DIGITALBRAIN_BACKUP_PYTHON` is unset, names `/usr/bin/python3`, names a launcher shim, or the copy's `sys.executable` is not the copied path, install aborts and does not write the plist.
 
 After Full Disk Access is on that interpreter only, load it yourself:
 
