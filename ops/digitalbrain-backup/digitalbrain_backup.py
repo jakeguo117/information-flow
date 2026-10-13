@@ -44,6 +44,8 @@ PLIST_NAME = "com.jake.digitalbrain-backup.plist"
 DEDICATED_NAME = "python3-digitalbrain-backup"
 PACKAGE_ROOT = Path(__file__).resolve().parent
 GIT_TIMEOUT = int(os.environ.get("DIGITALBRAIN_BACKUP_GIT_TIMEOUT", "3600"))
+HERMES_TIMEOUT = 30
+DISKUTIL_TIMEOUT = 30
 ALLOWED_GIT = {"clone", "fetch", "fsck", "bundle", "ls-remote", "rev-parse"}
 VOLUMES = Path("/Volumes")
 
@@ -321,16 +323,32 @@ def render_template(part: str, channel_id: str, subject: str, message: str) -> s
 
 
 def send_alert(cfg: Config, status: dict, logger: Logger) -> None:
+    channel = cfg.discord_channel_id
+    if not channel.strip() or "REPLACE_" in channel:
+        status["alert_sent"] = False
+        logger.write("alert skipped: discord_channel_id not set")
+        return
     subject = f"digitalbrain-backup {status['result']}"
     errs = "; ".join(str(item) for item in status.get("errors") or [])[:1500]
     message = (
         f"result={status['result']} time={status['time']} "
         f"head={status.get('head_sha')} errors={errs or 'none'}"
     )[:1800]
-    argv = [render_template(part, cfg.discord_channel_id, subject, message) for part in cfg.hermes_command]
+    argv = [render_template(part, channel, subject, message) for part in cfg.hermes_command]
     try:
-        proc = subprocess.run(argv, capture_output=True, text=True, check=False)
-    except FileNotFoundError as exc:
+        proc = subprocess.run(
+            argv,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=HERMES_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        status["errors"].append("hermes alert failed: timed out")
+        status["alert_sent"] = False
+        logger.write("alert sent=False timed out")
+        return
+    except OSError as exc:
         status["errors"].append(f"hermes alert failed: {exc}")
         status["alert_sent"] = False
         logger.write(f"alert sent=False {exc}")
@@ -396,11 +414,14 @@ def ls_output_has_dataless(text: str) -> bool:
 
 
 def parse_diskutil_mounted(stdout: str, volume: Path) -> bool:
-    if re.search(r"Mounted:\s*No", stdout, re.IGNORECASE):
+    # diskutil info indents every field ("   Mounted:                   Yes").
+    # Mounted only when both the Yes line and a matching Mount Point are present.
+    mounted = re.search(r"^\s*Mounted:\s*(Yes|No)\b", stdout, re.IGNORECASE | re.MULTILINE)
+    if not mounted or mounted.group(1).lower() != "yes":
         return False
     if re.search(r"not mounted", stdout, re.IGNORECASE):
         return False
-    match = re.search(r"^Mount Point:\s*(.+)$", stdout, re.MULTILINE)
+    match = re.search(r"^\s*Mount Point:\s*(.+)$", stdout, re.MULTILINE)
     if not match:
         return False
     point = match.group(1).strip()
@@ -465,7 +486,16 @@ def probe_diskutil(configured: Path | None, volume: Path) -> bool | None:
         binary = find_system_diskutil()
         if binary is None:
             return None
-    proc = subprocess.run([str(binary), "info", str(volume)], capture_output=True, text=True, check=False)
+    try:
+        proc = subprocess.run(
+            [str(binary), "info", str(volume)],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=DISKUTIL_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        return False
     if proc.returncode != 0:
         return False
     return parse_diskutil_mounted(proc.stdout + "\n" + proc.stderr, volume)
@@ -1569,12 +1599,14 @@ def cmd_backup(cfg: Config) -> int:
     verdict = target_ready(cfg)
     if not verdict.ok:
         home_logger.write(f"backup target unavailable: {verdict.reason}")
+        home_logger.write(f"interpreter sys.executable={sys.executable}")
         print(f"digitalbrain-backup result=failed reason={verdict.reason}", file=sys.stderr)
         status = failure_status([verdict.reason])
         send_alert(cfg, status, home_logger)
         return 1
     logger = Logger(cfg.home_log, cfg.backup_root / cfg.disk_log_name)
     logger.write("backup start")
+    logger.write(f"interpreter sys.executable={sys.executable}")
     lock_fd = acquire_lock(cfg.backup_root)
     if lock_fd is None:
         status = failure_status(["another backup is already running"])
@@ -1609,11 +1641,13 @@ def cmd_restore_test(cfg: Config) -> int:
     home_logger = Logger(cfg.home_log, None, blocked_roots=[cfg.volume])
     if not verdict.ok:
         home_logger.write(f"backup target unavailable: {verdict.reason}")
+        home_logger.write(f"interpreter sys.executable={sys.executable}")
         status = failure_status([verdict.reason])
         send_alert(cfg, status, home_logger)
         print(f"digitalbrain-backup result=failed reason={verdict.reason}", file=sys.stderr)
         return 1
     logger = Logger(cfg.home_log, cfg.backup_root / cfg.disk_log_name)
+    logger.write(f"interpreter sys.executable={sys.executable}")
     try:
         report = run_restore(cfg, logger)
     except (BackupError, GuardError) as exc:
@@ -1719,8 +1753,13 @@ def install_dedicated_python(home: Path) -> Path:
     dest = dest_dir / DEDICATED_NAME
     if dest.is_symlink():
         raise BackupError("refusing symlink dedicated interpreter")
-    shutil.copyfile(source, dest)
-    os.chmod(dest, 0o755)
+    temporary = dest.with_name(DEDICATED_NAME + ".tmp")
+    if temporary.is_symlink():
+        raise BackupError("refusing symlink dedicated interpreter")
+    if temporary.exists():
+        temporary.unlink()
+    shutil.copyfile(source, temporary)
+    os.chmod(temporary, 0o755)
     if sys.platform == "darwin":
         subprocess.run(
             [
@@ -1730,22 +1769,23 @@ def install_dedicated_python(home: Path) -> Path:
                 "-",
                 "--identifier",
                 "com.jake.digitalbrain-backup.python",
-                str(dest),
+                str(temporary),
             ],
             capture_output=True,
             text=True,
             check=False,
         )
     try:
-        reported = python_stdout(dest, "import hashlib,sys; print(sys.executable)")
+        reported = python_stdout(temporary, "import hashlib,sys; print(sys.executable)")
     except BackupError:
-        dest.unlink(missing_ok=True)
+        temporary.unlink(missing_ok=True)
         raise
-    if reported != str(dest):
-        dest.unlink(missing_ok=True)
+    if reported != str(temporary):
+        temporary.unlink(missing_ok=True)
         raise BackupError(
-            f"dedicated interpreter sys.executable is {reported or 'empty'}, not the copied path {dest}"
+            f"dedicated interpreter sys.executable is {reported or 'empty'}, not the copied path {temporary}"
         )
+    os.replace(temporary, dest)
     return dest
 
 

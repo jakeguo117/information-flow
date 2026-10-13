@@ -232,8 +232,65 @@ def test_readme_documents_permission_and_schedule() -> None:
         "jakeguo117/obsidian-digitalbrain",
         "14",
         "Operation not permitted",
+        "python-build-standalone",
+        "brew cleanup",
+        "Homebrew Cellar framework",
     ):
         assert needle in text
+
+
+MOUNTED_DISKUTIL_INFO = """\
+   Device Identifier:         disk4s1
+   Device Node:               /dev/disk4s1
+   Whole:                     No
+   Part of Whole:             disk4
+   Device / Media Name:       Disk
+
+   Volume Name:               Disk
+   Mounted:                   Yes
+   Mount Point:               /Volumes/Disk
+
+   File System Personality:   APFS
+   Type (Bundle):             apfs
+   Name (User Visible):       APFS
+   Disk Size:                 1.0 TB (1000204886016 Bytes) (exactly 1953525168 512-Byte-Units)
+   Device Block Size:         4096 Bytes
+   Volume Free Space:         500.3 GB (500277837824 Bytes) (exactly 977105152 512-Byte-Units)
+   Device Location:           External
+   Removable Media:           Fixed
+"""
+
+UNMOUNTED_DISKUTIL_INFO = """\
+   Device Identifier:         disk4s1
+   Device Node:               /dev/disk4s1
+   Whole:                     No
+   Part of Whole:             disk4
+   Device / Media Name:       Disk
+
+   Volume Name:               Disk
+   Mounted:                   No
+   Mount Point:               Not applicable
+
+   File System Personality:   APFS
+   Type (Bundle):             apfs
+   Name (User Visible):       APFS
+   Disk Size:                 1.0 TB (1000204886016 Bytes) (exactly 1953525168 512-Byte-Units)
+   Device Location:           External
+"""
+
+
+def test_parse_diskutil_info_indented() -> None:
+    volume = Path("/Volumes/Disk")
+    assert db.parse_diskutil_mounted(MOUNTED_DISKUTIL_INFO, volume) is True
+    assert db.parse_diskutil_mounted(UNMOUNTED_DISKUTIL_INFO, volume) is False
+    still_named = MOUNTED_DISKUTIL_INFO.replace("Mounted:                   Yes", "Mounted:                   No")
+    assert db.parse_diskutil_mounted(still_named, volume) is False
+    mounted_elsewhere = MOUNTED_DISKUTIL_INFO.replace("/Volumes/Disk", "/Volumes/Other")
+    assert db.parse_diskutil_mounted(mounted_elsewhere, volume) is False
+    unindented = "Volume Name: Disk\nMounted: Yes\nMount Point: /Volumes/Disk\n"
+    assert db.parse_diskutil_mounted(unindented, volume) is True
+    only_mount_point = "   Mount Point:               /Volumes/Disk\n"
+    assert db.parse_diskutil_mounted(only_mount_point, volume) is False
 
 
 def test_parse_mount_table() -> None:
@@ -273,6 +330,7 @@ def test_unmounted_volume_is_not_written(tmp_path: Path, monkeypatch: pytest.Mon
     assert not (world.vol / "DigitalBrain-Backups").exists()
     assert not (world.vol / "status.json").exists()
     assert "backup target unavailable" in world.home_log.read_text()
+    assert f"interpreter sys.executable={sys.executable}" in world.home_log.read_text()
     lines = hermes_lines(world.hermes_log)
     assert len(lines) == 1
     assert "send" in lines[0] and "discord:" in lines[0]
@@ -466,6 +524,8 @@ def test_success_backup_prunes_and_restore(tmp_path: Path, monkeypatch: pytest.M
         log = (world.backup / "digitalbrain-backup.log").read_text()
         home = world.home_log.read_text()
         assert "backup start" in log and "backup start" in home
+        assert f"interpreter sys.executable={sys.executable}" in log
+        assert f"interpreter sys.executable={sys.executable}" in home
         assert "git-fsck rc=0" in log
         assert "git-bundle-verify rc=0" in log
         assert "backup result=ok" in log
@@ -516,10 +576,13 @@ def test_success_backup_prunes_and_restore(tmp_path: Path, monkeypatch: pytest.M
         assert not (world.backup / "vault" / "weekly").exists()
 
         status_bytes = (world.backup / "status.json").read_bytes()
+        interpreter_line = f"interpreter sys.executable={sys.executable}"
+        before_restore = log.count(interpreter_line)
         rc = db.cmd_restore_test(world.cfg)
         restored = capsys.readouterr().out
         assert rc == 0
         assert status_bytes == (world.backup / "status.json").read_bytes()
+        assert (world.backup / "digitalbrain-backup.log").read_text().count(interpreter_line) == before_restore + 1
         assert "--- git fsck ---" in restored
         assert "rc=0" in restored
         assert "manifest ok" in restored
@@ -837,6 +900,161 @@ printf '%s\\n' "$0"
     assert "copied path" in err
     assert not dedicated.exists()
     assert not (agents / "com.jake.digitalbrain-backup.plist").exists()
+
+
+def test_reinstall_keeps_previous_interpreter_when_verify_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    world = make_world(tmp_path, monkeypatch, with_git=False)
+    monkeypatch.setenv("DIGITALBRAIN_BACKUP_PYTHON", standalone_python())
+    home = tmp_path / "home"
+    agents = tmp_path / "agents"
+    assert db.cmd_install(world.cfg_path, home, agents) == 0
+    capsys.readouterr()
+    dedicated = home / "Library" / "Application Support" / "digitalbrain-backup" / "python3-digitalbrain-backup"
+    good = dedicated.read_bytes()
+    fake = world.work / "fake-python"
+    write_exec(
+        fake,
+        """#!/bin/bash
+case "$0" in
+  *python3-digitalbrain-backup*)
+    printf '%s\\n' /usr/bin/python3
+    exit 0
+    ;;
+esac
+printf '%s\\n' "$0"
+""",
+    )
+    monkeypatch.setenv("DIGITALBRAIN_BACKUP_PYTHON", str(fake))
+    rc = db.cmd_install(world.cfg_path, home, agents)
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert "sys.executable" in err
+    assert dedicated.read_bytes() == good
+    assert not dedicated.with_name("python3-digitalbrain-backup.tmp").exists()
+    identity = subprocess.run(
+        [str(dedicated), "-c", "import sys; print(sys.executable)"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert identity.returncode == 0
+    assert identity.stdout.strip() == str(dedicated)
+
+
+def _set_channel(world: World, channel: str, hermes: Path | None = None) -> None:
+    data = json.loads(world.cfg_path.read_text())
+    data["discord_channel_id"] = channel
+    if hermes is not None:
+        data["hermes_command"] = [
+            str(hermes),
+            "send",
+            "--to",
+            "discord:{channel_id}",
+            "--quiet",
+            "--subject",
+            "{subject}",
+            "{message}",
+        ]
+    world.cfg_path.write_text(json.dumps(data))
+
+
+def test_placeholder_channel_does_not_call_hermes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    world = make_world(tmp_path, monkeypatch, with_git=False)
+    monkeypatch.delenv("DIGITALBRAIN_BACKUP_PYTHON", raising=False)
+    for channel in ("", "REPLACE_WITH_DISCORD_CHANNEL_ID"):
+        _set_channel(world, channel)
+        cfg = db.load_config(world.cfg_path)
+        status = db.failure_status(["install failed"])
+        db.send_alert(cfg, status, db.Logger(world.home_log))
+        assert status["alert_sent"] is False
+        capsys.readouterr()
+        home = tmp_path / f"home-{channel or 'empty'}"
+        agents = tmp_path / f"agents-{channel or 'empty'}"
+        rc = db.cmd_install(world.cfg_path, home, agents)
+        assert rc == 1
+        assert not (agents / "com.jake.digitalbrain-backup.plist").exists()
+    assert hermes_lines(world.hermes_log) == []
+    assert world.home_log.read_text().count("alert skipped: discord_channel_id not set") == 4
+
+
+def test_install_failure_alerts_once_without_secrets(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    world = make_world(tmp_path, monkeypatch, with_git=False)
+    monkeypatch.delenv("DIGITALBRAIN_BACKUP_PYTHON", raising=False)
+    home = tmp_path / "home"
+    agents = tmp_path / "agents"
+    rc = db.cmd_install(world.cfg_path, home, agents)
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert "Traceback" not in err
+    assert not (agents / "com.jake.digitalbrain-backup.plist").exists()
+    lines = hermes_lines(world.hermes_log)
+    assert len(lines) == 1
+    assert "send" in lines[0] and "discord:123" in lines[0]
+    assert lines[0].count("discord:123") == 1
+    assert "REPLACE_" not in lines[0]
+    assert "secret-token" not in lines[0]
+
+
+def test_install_hermes_not_executable_does_not_crash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    world = make_world(tmp_path, monkeypatch, with_git=False)
+    monkeypatch.delenv("DIGITALBRAIN_BACKUP_PYTHON", raising=False)
+    hermes = world.work / "hermes-blocked"
+    hermes.write_text("#!/bin/bash\nprintf '%s\\n' \"$*\"\n")
+    hermes.chmod(0o644)
+    _set_channel(world, "123", hermes)
+    home = tmp_path / "home"
+    agents = tmp_path / "agents"
+    rc = db.cmd_install(world.cfg_path, home, agents)
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert "Traceback" not in err
+    assert not (agents / "com.jake.digitalbrain-backup.plist").exists()
+    assert hermes_lines(world.hermes_log) == []
+    assert "alert sent=False" in world.home_log.read_text()
+    assert "Permission" in world.home_log.read_text()
+
+
+def test_install_hermes_hang_does_not_crash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert db.HERMES_TIMEOUT == 30
+    monkeypatch.setattr(db, "HERMES_TIMEOUT", 1)
+    world = make_world(tmp_path, monkeypatch, with_git=False)
+    monkeypatch.delenv("DIGITALBRAIN_BACKUP_PYTHON", raising=False)
+    hermes = world.work / "hermes-hang"
+    write_exec(
+        hermes,
+        "#!/bin/bash\nprintf '%s\\n' \"$*\" >> \"__LOG__\"\nsleep 60\n".replace("__LOG__", str(world.hermes_log)),
+    )
+    _set_channel(world, "123", hermes)
+    home = tmp_path / "home"
+    agents = tmp_path / "agents"
+    rc = db.cmd_install(world.cfg_path, home, agents)
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert "Traceback" not in err
+    assert not (agents / "com.jake.digitalbrain-backup.plist").exists()
+    lines = hermes_lines(world.hermes_log)
+    assert len(lines) == 1
+    assert "REPLACE_" not in lines[0]
+    assert "secret-token" not in lines[0]
+    assert "timed out" in world.home_log.read_text()
+
+
+def test_probe_diskutil_timeout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    assert db.DISKUTIL_TIMEOUT == 30
+    monkeypatch.setattr(db, "DISKUTIL_TIMEOUT", 0.2)
+    script = tmp_path / "diskutil"
+    write_exec(script, "#!/bin/bash\nsleep 30\n")
+    assert db.probe_diskutil(script, tmp_path) is False
 
 
 def test_install_unmounted_writes_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
