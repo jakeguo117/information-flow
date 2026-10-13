@@ -232,6 +232,9 @@ def test_readme_documents_permission_and_schedule() -> None:
         "jakeguo117/obsidian-digitalbrain",
         "14",
         "Operation not permitted",
+        "python-build-standalone",
+        "brew cleanup",
+        "Homebrew Cellar framework",
     ):
         assert needle in text
 

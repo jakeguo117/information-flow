@@ -37,7 +37,7 @@ The LaunchAgent's first program argument is that binary. The vault reader is a c
 
 Do not grant Full Disk Access to `/usr/bin/python3`, `/bin/bash`, Terminal, or anything used by `com.jake.obsidian-vault-sync`. This package does not change that job, and its binary must not be this dedicated interpreter.
 
-`DIGITALBRAIN_BACKUP_PYTHON` is required. It must be a standalone Python built or installed for this backup only (a python.org framework build, a Homebrew Cellar binary, or similar). There is no default. `/usr/bin/python3` on macOS is an xcode-select launcher shim: a copy may not run, or it may re-exec another Python, so Full Disk Access would be granted to the wrong binary. Install refuses that path and any launcher whose `sys.executable` does not match the file you named. After copying, install runs the copy and aborts unless `sys.executable` equals the copied path. On macOS it ad-hoc signs that copy with identifier `com.jake.digitalbrain-backup.python`. Grant Full Disk Access to the copy, not to the original system Python.
+`DIGITALBRAIN_BACKUP_PYTHON` is required. There is no default. The binary that works when copied is a Homebrew Cellar framework `python3.x`, for example `/opt/homebrew/Cellar/python@3.12/3.12.x/Frameworks/Python.framework/Versions/3.12/bin/python3.12`. Copies of python-build-standalone crash. `/usr/bin/python3` on macOS is an xcode-select launcher shim: a copy may not run, or it may re-exec another Python, so Full Disk Access would be granted to the wrong binary. Install refuses that path and any launcher whose `sys.executable` does not match the file you named. After copying, install runs the copy and aborts unless `sys.executable` equals the copied path. On macOS it ad-hoc signs that copy with identifier `com.jake.digitalbrain-backup.python`. Grant Full Disk Access to the copy, not to the original system Python. If `brew upgrade` or `brew cleanup` removes that Cellar version, the copy breaks: run install again and re-grant Full Disk Access to the new `python3-digitalbrain-backup`.
 
 ## Install
 
@@ -47,8 +47,9 @@ From this directory, on the iMac, with `/Volumes/Disk` mounted:
 cp config.example.json config.json
 # Edit vault_path and discord_channel_id. Confirm the Mac timezone is Asia/Shanghai.
 # hermes must be on PATH for the agent (the plist PATH includes ~/.local/bin and Homebrew).
-# Standalone interpreter only. Do not point this at /usr/bin/python3.
-export DIGITALBRAIN_BACKUP_PYTHON=/path/to/standalone/python3
+# Homebrew Cellar framework python3.x. Not /usr/bin/python3, and not a
+# python-build-standalone build (those copies crash).
+export DIGITALBRAIN_BACKUP_PYTHON=/opt/homebrew/Cellar/python@3.12/3.12.x/Frameworks/Python.framework/Versions/3.12/bin/python3.12
 bin/install.sh
 ```
 
