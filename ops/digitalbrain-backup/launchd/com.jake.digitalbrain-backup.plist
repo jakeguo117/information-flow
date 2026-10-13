@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!-- 03:30 is local time. The iMac timezone must be Asia/Shanghai. launchd has no timezone field. -->
+<dict>
+  <key>Label</key>
+  <string>com.jake.digitalbrain-backup</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__DEDICATED_PYTHON__</string>
+    <string>__DIGITALBRAIN_BACKUP_ROOT__/digitalbrain_backup.py</string>
+    <string>--config</string>
+    <string>__DIGITALBRAIN_BACKUP_ROOT__/config.json</string>
+    <string>backup</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>3</integer>
+    <key>Minute</key>
+    <integer>30</integer>
+  </dict>
+  <key>WorkingDirectory</key>
+  <string>__DIGITALBRAIN_BACKUP_ROOT__</string>
+  <key>StandardOutPath</key>
+  <string>__HOME__/Library/Logs/digitalbrain-backup.launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__HOME__/Library/Logs/digitalbrain-backup.launchd.err.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>TZ</key>
+    <string>Asia/Shanghai</string>
+    <key>HOME</key>
+    <string>__HOME__</string>
+    <key>PATH</key>
+    <string>__HOME__/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+</dict>
+</plist>

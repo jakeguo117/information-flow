@@ -1,0 +1,24 @@
+{
+  "volume": "/Volumes/Disk",
+  "backup_folder": "DigitalBrain-Backups",
+  "github_repo": "jakeguo117/obsidian-digitalbrain",
+  "github_remote": "https://github.com/jakeguo117/obsidian-digitalbrain.git",
+  "git_branch": "main",
+  "vault_path": "/Users/jake/Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain",
+  "retention": {"daily": 14, "weekly": 8, "monthly": 12},
+  "discord_channel_id": "REPLACE_WITH_DISCORD_CHANNEL_ID",
+  "hermes_command": [
+    "hermes",
+    "send",
+    "--to",
+    "discord:{channel_id}",
+    "--quiet",
+    "--subject",
+    "{subject}",
+    "{message}"
+  ],
+  "disk_log_name": "digitalbrain-backup.log",
+  "home_log": "~/Library/Logs/digitalbrain-backup.log",
+  "timezone": "Asia/Shanghai",
+  "read_timeout_seconds": 120
+}
