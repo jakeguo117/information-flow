@@ -289,6 +289,8 @@ def test_parse_diskutil_info_indented() -> None:
     assert db.parse_diskutil_mounted(mounted_elsewhere, volume) is False
     unindented = "Volume Name: Disk\nMounted: Yes\nMount Point: /Volumes/Disk\n"
     assert db.parse_diskutil_mounted(unindented, volume) is True
+    only_mount_point = "   Mount Point:               /Volumes/Disk\n"
+    assert db.parse_diskutil_mounted(only_mount_point, volume) is False
 
 
 def test_parse_mount_table() -> None:
@@ -574,10 +576,13 @@ def test_success_backup_prunes_and_restore(tmp_path: Path, monkeypatch: pytest.M
         assert not (world.backup / "vault" / "weekly").exists()
 
         status_bytes = (world.backup / "status.json").read_bytes()
+        interpreter_line = f"interpreter sys.executable={sys.executable}"
+        before_restore = log.count(interpreter_line)
         rc = db.cmd_restore_test(world.cfg)
         restored = capsys.readouterr().out
         assert rc == 0
         assert status_bytes == (world.backup / "status.json").read_bytes()
+        assert (world.backup / "digitalbrain-backup.log").read_text().count(interpreter_line) == before_restore + 1
         assert "--- git fsck ---" in restored
         assert "rc=0" in restored
         assert "manifest ok" in restored
@@ -936,6 +941,120 @@ printf '%s\\n' "$0"
     )
     assert identity.returncode == 0
     assert identity.stdout.strip() == str(dedicated)
+
+
+def _set_channel(world: World, channel: str, hermes: Path | None = None) -> None:
+    data = json.loads(world.cfg_path.read_text())
+    data["discord_channel_id"] = channel
+    if hermes is not None:
+        data["hermes_command"] = [
+            str(hermes),
+            "send",
+            "--to",
+            "discord:{channel_id}",
+            "--quiet",
+            "--subject",
+            "{subject}",
+            "{message}",
+        ]
+    world.cfg_path.write_text(json.dumps(data))
+
+
+def test_placeholder_channel_does_not_call_hermes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    world = make_world(tmp_path, monkeypatch, with_git=False)
+    monkeypatch.delenv("DIGITALBRAIN_BACKUP_PYTHON", raising=False)
+    for channel in ("", "REPLACE_WITH_DISCORD_CHANNEL_ID"):
+        _set_channel(world, channel)
+        cfg = db.load_config(world.cfg_path)
+        status = db.failure_status(["install failed"])
+        db.send_alert(cfg, status, db.Logger(world.home_log))
+        assert status["alert_sent"] is False
+        capsys.readouterr()
+        home = tmp_path / f"home-{channel or 'empty'}"
+        agents = tmp_path / f"agents-{channel or 'empty'}"
+        rc = db.cmd_install(world.cfg_path, home, agents)
+        assert rc == 1
+        assert not (agents / "com.jake.digitalbrain-backup.plist").exists()
+    assert hermes_lines(world.hermes_log) == []
+    assert world.home_log.read_text().count("alert skipped: discord_channel_id not set") == 4
+
+
+def test_install_failure_alerts_once_without_secrets(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    world = make_world(tmp_path, monkeypatch, with_git=False)
+    monkeypatch.delenv("DIGITALBRAIN_BACKUP_PYTHON", raising=False)
+    home = tmp_path / "home"
+    agents = tmp_path / "agents"
+    rc = db.cmd_install(world.cfg_path, home, agents)
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert "Traceback" not in err
+    assert not (agents / "com.jake.digitalbrain-backup.plist").exists()
+    lines = hermes_lines(world.hermes_log)
+    assert len(lines) == 1
+    assert "send" in lines[0] and "discord:123" in lines[0]
+    assert lines[0].count("discord:123") == 1
+    assert "REPLACE_" not in lines[0]
+    assert "secret-token" not in lines[0]
+
+
+def test_install_hermes_not_executable_does_not_crash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    world = make_world(tmp_path, monkeypatch, with_git=False)
+    monkeypatch.delenv("DIGITALBRAIN_BACKUP_PYTHON", raising=False)
+    hermes = world.work / "hermes-blocked"
+    hermes.write_text("#!/bin/bash\nprintf '%s\\n' \"$*\"\n")
+    hermes.chmod(0o644)
+    _set_channel(world, "123", hermes)
+    home = tmp_path / "home"
+    agents = tmp_path / "agents"
+    rc = db.cmd_install(world.cfg_path, home, agents)
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert "Traceback" not in err
+    assert not (agents / "com.jake.digitalbrain-backup.plist").exists()
+    assert hermes_lines(world.hermes_log) == []
+    assert "alert sent=False" in world.home_log.read_text()
+    assert "Permission" in world.home_log.read_text()
+
+
+def test_install_hermes_hang_does_not_crash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert db.HERMES_TIMEOUT == 30
+    monkeypatch.setattr(db, "HERMES_TIMEOUT", 1)
+    world = make_world(tmp_path, monkeypatch, with_git=False)
+    monkeypatch.delenv("DIGITALBRAIN_BACKUP_PYTHON", raising=False)
+    hermes = world.work / "hermes-hang"
+    write_exec(
+        hermes,
+        "#!/bin/bash\nprintf '%s\\n' \"$*\" >> \"__LOG__\"\nsleep 60\n".replace("__LOG__", str(world.hermes_log)),
+    )
+    _set_channel(world, "123", hermes)
+    home = tmp_path / "home"
+    agents = tmp_path / "agents"
+    rc = db.cmd_install(world.cfg_path, home, agents)
+    err = capsys.readouterr().err
+    assert rc == 1
+    assert "Traceback" not in err
+    assert not (agents / "com.jake.digitalbrain-backup.plist").exists()
+    lines = hermes_lines(world.hermes_log)
+    assert len(lines) == 1
+    assert "REPLACE_" not in lines[0]
+    assert "secret-token" not in lines[0]
+    assert "timed out" in world.home_log.read_text()
+
+
+def test_probe_diskutil_timeout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    assert db.DISKUTIL_TIMEOUT == 30
+    monkeypatch.setattr(db, "DISKUTIL_TIMEOUT", 0.2)
+    script = tmp_path / "diskutil"
+    write_exec(script, "#!/bin/bash\nsleep 30\n")
+    assert db.probe_diskutil(script, tmp_path) is False
 
 
 def test_install_unmounted_writes_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
