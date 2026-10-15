@@ -20,15 +20,20 @@ when a section heading or an explicit `group:` / `分组:` tag says so.
 Everything else goes to 待分组. Empty groups are the line 本周无.
 IDs are numeric: T-2026W42-1, F-2026W42-1, C-2026W42-1, P-2026W42-1.
 
-An existing digest.md is left untouched unless --force is passed.
-When nothing real is found, this writes no file and exits 2.
-Stdout is only the relative path and counts, never item text.
+A generated file carries an HTML comment with the generator version and a
+sha256 of the body. A later run may refresh it only while that marker is
+present and the body hash still matches, which means nobody hand-edited it
+and 「我的看法：」 is still empty. Otherwise the file is left in place and the
+run exits 3. With only --vault, the current ISO week and the previous ISO
+week are both built. When nothing real is found, this writes no file and
+exits 2. Stdout is only the relative path and counts, never item text.
 """
 
 from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import re
 import sys
 from dataclasses import dataclass, field
@@ -60,8 +65,12 @@ GROUPS = (
 )
 URL_KEYS = ("source_url", "url", "link")
 GENERATOR = "information-flow-weekly-digest"
+GENERATOR_VERSION = "1"
 NO_CONTENT_EXIT = 2
 EXISTS_EXIT = 3
+MARKER_RE = re.compile(
+    r"^<!-- information-flow-weekly-digest generator=(\S+) sha256=([0-9a-f]{64}) -->$"
+)
 
 
 @dataclass
@@ -355,7 +364,73 @@ def digest_path(vault: Path, week: str) -> Path:
     return vault / "📋 Digests" / week / "digest.md"
 
 
-def build_week(vault: Path, week: str, force: bool = False) -> int:
+def previous_week(week: str) -> str:
+    year, week_no = parse_week(week)
+    monday = dt.date.fromisocalendar(year, week_no, 1)
+    return week_from_date(monday - dt.timedelta(days=1))
+
+
+def stamp(body: str) -> str:
+    if not body.endswith("\n"):
+        body += "\n"
+    digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
+    return (
+        body
+        + f"<!-- information-flow-weekly-digest generator={GENERATOR_VERSION} sha256={digest} -->\n"
+    )
+
+
+def split_generated(text: str) -> tuple[str, str | None]:
+    """Return the body and its recorded sha256, or (text, None) when unmarked."""
+    if not text.endswith("\n"):
+        return text, None
+    head, _, last = text.rstrip("\n").rpartition("\n")
+    match = MARKER_RE.match(last)
+    if not match:
+        return text, None
+    body = head + "\n" if head else ""
+    return body, match.group(2)
+
+
+def opinion_filled(text: str) -> bool:
+    """True when a 「我的看法：」 line has text after it."""
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if "我的看法：" in line:
+            after = line.split("我的看法：", 1)[1]
+        elif "我的看法:" in line:
+            after = line.split("我的看法:", 1)[1]
+        else:
+            continue
+        if after.strip():
+            return True
+        if index + 1 < len(lines) and lines[index + 1].startswith((" ", "\t")) and lines[index + 1].strip():
+            return True
+    return False
+
+
+def refresh_allowed(existing: str) -> bool:
+    body, recorded = split_generated(existing)
+    if recorded is None:
+        return False
+    if hashlib.sha256(body.encode("utf-8")).hexdigest() != recorded:
+        return False
+    if opinion_filled(body):
+        return False
+    return True
+
+
+def combine_codes(codes: list[int]) -> int:
+    if any(code == 1 for code in codes):
+        return 1
+    if any(code == 0 for code in codes):
+        return 0
+    if any(code == EXISTS_EXIT for code in codes):
+        return EXISTS_EXIT
+    return NO_CONTENT_EXIT
+
+
+def build_week(vault: Path, week: str) -> int:
     if not vault.is_dir():
         print(f"vault missing: {vault}", file=sys.stderr)
         return 1
@@ -366,14 +441,15 @@ def build_week(vault: Path, week: str, force: bool = False) -> int:
         return 1
     canonical = f"{year}-W{week_no:02d}"
     dest = digest_path(vault, canonical)
-    if dest.exists() and not force:
-        print(f"已有 digest，不覆盖：{dest.relative_to(vault).as_posix()}（加 --force 才重写）", file=sys.stderr)
+    existing = dest.read_text(encoding="utf-8") if _is_real_file(dest) else None
+    if existing is not None and not refresh_allowed(existing):
+        print(f"已有 digest，不覆盖：{dest.relative_to(vault).as_posix()}", file=sys.stderr)
         return EXISTS_EXIT
     items, source = collect_items(vault, year, week_no)
     if not items:
         print(f"本周 digest 还没有可写入的内容：{canonical}", file=sys.stderr)
         return NO_CONTENT_EXIT
-    text = render_digest(canonical, items)
+    text = stamp(render_digest(canonical, items))
     dest.parent.mkdir(parents=True, exist_ok=True)
     temporary = dest.with_suffix(".md.tmp")
     temporary.write_text(text, encoding="utf-8")
@@ -390,23 +466,36 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--vault", required=True)
     parser.add_argument("--week", help="ISO week YYYY-Wnn evaluated in Asia/Shanghai")
     parser.add_argument("--date", help="YYYY-MM-DD; use the ISO week of this calendar date")
-    parser.add_argument("--force", action="store_true", help="overwrite an existing digest.md")
+    parser.add_argument(
+        "--also-previous",
+        action="store_true",
+        help="also build the previous ISO week; implied when --week and --date are omitted",
+    )
     args = parser.parse_args(argv)
     if args.week and args.date:
         print("pass only one of --week and --date", file=sys.stderr)
         return 1
     vault = Path(args.vault).expanduser()
-    if args.week:
-        week = args.week
-    elif args.date:
-        try:
-            week = week_from_date(dt.date.fromisoformat(args.date))
-        except ValueError:
-            print(f"invalid date: {args.date}", file=sys.stderr)
-            return 1
-    else:
-        week = week_from_date(shanghai_today())
-    return build_week(vault, week, force=args.force)
+    try:
+        if args.week:
+            weeks = [f"{parse_week(args.week)[0]}-W{parse_week(args.week)[1]:02d}"]
+            if args.also_previous:
+                weeks.append(previous_week(weeks[0]))
+        elif args.date:
+            weeks = [week_from_date(dt.date.fromisoformat(args.date))]
+            if args.also_previous:
+                weeks.append(previous_week(weeks[0]))
+        else:
+            weeks = [week_from_date(shanghai_today())]
+            weeks.append(previous_week(weeks[0]))
+    except ValueError as exc:
+        print(str(exc) if args.week else f"invalid date: {args.date}", file=sys.stderr)
+        return 1
+    ordered: list[str] = []
+    for week in weeks:
+        if week not in ordered:
+            ordered.append(week)
+    return combine_codes([build_week(vault, week) for week in ordered])
 
 
 if __name__ == "__main__":

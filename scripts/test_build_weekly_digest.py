@@ -68,11 +68,9 @@ class BuildTests(unittest.TestCase):
             self.assertEqual(text.count("Synthetic/ep"), 1)
             self.assertNotIn("没有新到的条目", text)
             again = weekly.main(["--vault", str(vault), "--date", "2026-10-15"])
-            self.assertEqual(again, weekly.EXISTS_EXIT)
+            self.assertEqual(again, 0)
             self.assertEqual(dest.read_text(encoding="utf-8"), text)
-            forced = weekly.main(["--vault", str(vault), "--week", "2026-W42", "--force"])
-            self.assertEqual(forced, 0)
-            self.assertEqual(dest.read_text(encoding="utf-8"), text)
+            self.assertIn("sha256=", text)
 
     def test_intake_fallback_when_the_week_has_no_daily_files(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
@@ -211,6 +209,81 @@ class RealWeekTests(unittest.TestCase):
             self.assertNotIn("已标明", pending)
 
 
+class RefreshTests(unittest.TestCase):
+    def test_later_day_refreshes_an_unedited_digest(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            place(vault, "real/2026-10-12.md", "📋 Digests", "daily", "2026-10-12.md")
+            place(vault, "real/2026-10-13.md", "📋 Digests", "daily", "2026-10-13.md")
+            first = weekly.main(["--vault", str(vault), "--date", "2026-10-14"])
+            self.assertEqual(first, 0)
+            dest = weekly.digest_path(vault, "2026-W42")
+            early = dest.read_text(encoding="utf-8")
+            self.assertEqual(early.count("- **P-2026W42-"), 1)
+            self.assertIn("Yan Talk", early)
+            place(vault, "real/2026-10-14.md", "📋 Digests", "daily", "2026-10-14.md")
+            second = weekly.main(["--vault", str(vault), "--date", "2026-10-15"])
+            self.assertEqual(second, 0)
+            later = dest.read_text(encoding="utf-8")
+            self.assertEqual(later.count("- **P-2026W42-"), 4)
+            self.assertIn("Behind the Craft", later)
+            self.assertIn("@0x_kaize", later)
+
+    def test_hand_edit_is_not_replaced(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            place(vault, "real/2026-10-13.md", "📋 Digests", "daily", "2026-10-13.md")
+            self.assertEqual(weekly.main(["--vault", str(vault), "--week", "2026-W42"]), 0)
+            dest = weekly.digest_path(vault, "2026-W42")
+            edited = dest.read_text(encoding="utf-8").replace("Yan Talk", "手改过的频道", 1)
+            dest.write_text(edited, encoding="utf-8")
+            place(vault, "real/2026-10-14.md", "📋 Digests", "daily", "2026-10-14.md")
+            rc = weekly.main(["--vault", str(vault), "--date", "2026-10-15"])
+            self.assertEqual(rc, weekly.EXISTS_EXIT)
+            kept = dest.read_text(encoding="utf-8")
+            self.assertEqual(kept, edited)
+            self.assertNotIn("Behind the Craft", kept)
+
+    def test_filled_opinion_is_not_replaced_even_if_hash_matches(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            place(vault, "daily-2026-10-12.md", "📋 Digests", "daily", "2026-10-12.md")
+            place(vault, "root-2026-10-13-Digest.md", "📋 Digests", "2026-10-13-Digest.md")
+            self.assertEqual(weekly.main(["--vault", str(vault), "--week", "2026-W42"]), 0)
+            dest = weekly.digest_path(vault, "2026-W42")
+            filled_body = dest.read_text(encoding="utf-8")
+            body, _recorded = weekly.split_generated(filled_body)
+            self.assertFalse(weekly.opinion_filled(body))
+            body = body.replace("  - 我的看法：", "  - 我的看法：已经写了", 1)
+            self.assertTrue(weekly.opinion_filled(body))
+            dest.write_text(weekly.stamp(body), encoding="utf-8")
+            before = dest.read_text(encoding="utf-8")
+            rc = weekly.main(["--vault", str(vault), "--week", "2026-W42"])
+            self.assertEqual(rc, weekly.EXISTS_EXIT)
+            self.assertEqual(dest.read_text(encoding="utf-8"), before)
+
+    def test_monday_refreshes_the_previous_week(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            place(vault, "real/2026-10-13.md", "📋 Digests", "daily", "2026-10-13.md")
+            self.assertEqual(weekly.week_from_date(dt.date(2026, 10, 19)), "2026-W43")
+            self.assertEqual(weekly.previous_week("2026-W43"), "2026-W42")
+            self.assertEqual(weekly.main(["--vault", str(vault), "--date", "2026-10-14"]), 0)
+            dest = weekly.digest_path(vault, "2026-W42")
+            self.assertEqual(dest.read_text(encoding="utf-8").count("- **P-2026W42-"), 1)
+            sunday = vault / "📋 Digests" / "daily" / "2026-10-18.md"
+            sunday.write_text(
+                "- [[📥 Inbox/X-Bookmarks/sunday-item]] — X · @synthetic：周日才到的一条\n",
+                encoding="utf-8",
+            )
+            rc = weekly.main(["--vault", str(vault), "--date", "2026-10-19", "--also-previous"])
+            self.assertEqual(rc, 0)
+            text = dest.read_text(encoding="utf-8")
+            self.assertIn("周日才到的一条", text)
+            self.assertIn("Yan Talk", text)
+            self.assertFalse(weekly.digest_path(vault, "2026-W43").exists())
+
+
 class SkillContractTests(unittest.TestCase):
     def test_read_order_matches_discussion_step(self) -> None:
         skill = (ROOT / "skills" / "journal" / "SKILL.md").read_text(encoding="utf-8")
@@ -238,7 +311,7 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn(phrase, step)
         self.assertIn("T-2026W42-1", step)
         workflow = (ROOT / ".github" / "workflows" / "daily-intake.yml").read_text(encoding="utf-8")
-        self.assertIn("python3 scripts/build_weekly_digest.py --vault digitalbrain", workflow)
+        self.assertIn("python3 scripts/build_weekly_digest.py --vault digitalbrain --also-previous", workflow)
         self.assertIn('"$status" -eq 2', workflow)
         digest_skill = (ROOT / "skills" / "digest" / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("scripts/build_weekly_digest.py", digest_skill)
@@ -247,6 +320,8 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("workflow_dispatch:", manual)
         self.assertNotIn("schedule:", manual)
         self.assertNotIn("pull_request:", manual)
+        self.assertNotIn("--force", manual)
+        self.assertIn('"$status" -eq 3', manual)
         self.assertIn('"$status" -eq 3', workflow)
 
 

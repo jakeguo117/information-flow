@@ -7,11 +7,6 @@ on:
         description: ISO week YYYY-Wnn (Asia/Shanghai)
         required: true
         type: string
-      force:
-        description: Overwrite an existing digest.md
-        required: false
-        type: boolean
-        default: false
 
 jobs:
   digest:
@@ -36,13 +31,17 @@ jobs:
       - name: Build weekly digest
         env:
           WEEK: ${{ inputs.week }}
-          FORCE: ${{ inputs.force }}
         run: |
-          args=(--vault digitalbrain --week "$WEEK")
-          if [ "$FORCE" = "true" ]; then
-            args+=(--force)
+          set +e
+          python3 scripts/build_weekly_digest.py --vault digitalbrain --week "$WEEK"
+          status=$?
+          set -e
+          if [ "$status" -eq 2 ] || [ "$status" -eq 3 ]; then
+            echo "weekly digest left unchanged ($status)"
+          elif [ "$status" -ne 0 ]; then
+            echo "weekly digest failed: $status"
+            exit "$status"
           fi
-          python3 scripts/build_weekly_digest.py "${args[@]}"
 
       - name: Commit weekly digest
         working-directory: digitalbrain
@@ -51,7 +50,9 @@ jobs:
         run: |
           git config user.name "information-flow"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- "📋 Digests/${WEEK}/digest.md"
+          if [ -f "📋 Digests/${WEEK}/digest.md" ]; then
+            git add -- "📋 Digests/${WEEK}/digest.md"
+          fi
           if git diff --cached --quiet; then
             echo "no weekly digest changes"
           else
