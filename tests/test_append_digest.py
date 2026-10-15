@@ -2,7 +2,7 @@
 import json, subprocess, sys, tempfile, shutil
 from pathlib import Path
 HERE = Path(__file__).resolve().parent.parent
-TOOLS = HERE / "information-flow/skills/journal/tools"
+TOOLS = Path(__file__).resolve().parents[1] / "skills/journal/tools"
 sys.path.insert(0, str(TOOLS))
 from journal_lib import render_journal, read_digest, fingerprint
 
