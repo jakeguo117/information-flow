@@ -6,10 +6,12 @@ import hashlib
 import json
 import os
 import plistlib
+import shlex
 import shutil
 import stat
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -207,8 +209,11 @@ def test_example_config_and_plist() -> None:
     assert "__DIGITALBRAIN_BACKUP_ROOT__" in text
     plist = plistlib.loads(text.encode())
     assert plist["Label"] == "com.jake.digitalbrain-backup"
+    assert plist["StartCalendarInterval"]["Weekday"] == 0
     assert plist["StartCalendarInterval"]["Hour"] == 3
     assert plist["StartCalendarInterval"]["Minute"] == 30
+    assert cfg.run_timeout_seconds == 3600
+    assert cfg.disk_io_timeout_seconds == 30
     assert "RunAtLoad" not in plist
     assert plist["ProgramArguments"][0] == "__DEDICATED_PYTHON__"
     for path in [ROOT / "digitalbrain_backup.py", * (ROOT / "bin").glob("*"), *(ROOT / "launchd").glob("*")]:
@@ -235,8 +240,13 @@ def test_readme_documents_permission_and_schedule() -> None:
         "python-build-standalone",
         "brew cleanup",
         "Homebrew Cellar framework",
+        "Weekday",
+        "Sundays only",
+        "run_timeout_seconds",
+        "SF_DATALESS",
     ):
         assert needle in text
+    assert "nightly" not in text.lower()
 
 
 MOUNTED_DISKUTIL_INFO = """\
@@ -524,6 +534,8 @@ def test_success_backup_prunes_and_restore(tmp_path: Path, monkeypatch: pytest.M
         log = (world.backup / "digitalbrain-backup.log").read_text()
         home = world.home_log.read_text()
         assert "backup start" in log and "backup start" in home
+        assert "debug opening" in log
+        assert "notes/hello.md" in log
         assert f"interpreter sys.executable={sys.executable}" in log
         assert f"interpreter sys.executable={sys.executable}" in home
         assert "git-fsck rc=0" in log
@@ -1063,6 +1075,162 @@ def test_install_unmounted_writes_nothing(tmp_path: Path, monkeypatch: pytest.Mo
     assert rc == 1
     assert list(world.vol.iterdir()) == [world.vol / "do-not-touch.txt"]
     assert len(hermes_lines(world.hermes_log)) == 1
+
+
+def test_probe_diskutil_nonzero_is_not_mounted(tmp_path: Path) -> None:
+    script = tmp_path / "diskutil"
+    write_exec(
+        script,
+        "#!/bin/bash\nprintf '   Mounted:                   Yes\\n   Mount Point:               /Volumes/Disk\\n'\nexit 1\n",
+    )
+    assert db.probe_diskutil(script, Path("/Volumes/Disk")) is False
+
+
+def _rewrite_timeouts(world: World, *, run_timeout: float, disk_timeout: float) -> None:
+    data = json.loads(world.cfg_path.read_text())
+    data["run_timeout_seconds"] = run_timeout
+    data["disk_io_timeout_seconds"] = disk_timeout
+    world.cfg_path.write_text(json.dumps(data))
+    world.cfg = db.load_config(world.cfg_path)
+
+
+def _git_sleeper(world: World, monkeypatch: pytest.MonkeyPatch) -> Path:
+    real = shutil.which("git")
+    assert real
+    bindir = world.work / "gitbin"
+    bindir.mkdir()
+    pidfile = world.work / "git.pid"
+    script = """#!/bin/bash
+real=__REAL__
+for arg in "$@"; do
+  if [[ "$arg" == "clone" || "$arg" == "fetch" || "$arg" == "fsck" ]]; then
+    echo $$ > __PID__
+    sleep 120
+    exit 0
+  fi
+done
+exec "$real" "$@"
+"""
+    text = script.replace("__REAL__", shlex.quote(real)).replace("__PID__", shlex.quote(str(pidfile)))
+    write_exec(bindir / "git", text)
+    monkeypatch.setenv("PATH", str(bindir) + os.pathsep + os.environ.get("PATH", ""))
+    return pidfile
+
+
+def _assert_dead(pid: int) -> None:
+    deadline = time.monotonic() + 2
+    while time.monotonic() < deadline:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return
+        time.sleep(0.05)
+    raise AssertionError(f"pid {pid} still alive")
+
+
+def _disk_io_procs() -> list[str]:
+    proc = subprocess.run(["ps", "-eo", "args"], capture_output=True, text=True, check=False)
+    return [line for line in proc.stdout.splitlines() if "--disk-io" in line]
+
+
+def test_disk_io_hung_open_is_killed(tmp_path: Path) -> None:
+    fifo = tmp_path / "block.log"
+    os.mkfifo(fifo)
+    started = time.monotonic()
+    with pytest.raises(db.DiskTimeout):
+        db.perform_disk_io("append", fifo, b"x\n", timeout=1)
+    assert time.monotonic() - started < 8
+    assert _disk_io_procs() == []
+
+
+def test_watchdog_kills_hung_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    world = make_world(tmp_path, monkeypatch)
+    preseed_old(world.backup)
+    pidfile = _git_sleeper(world, monkeypatch)
+    _rewrite_timeouts(world, run_timeout=3, disk_timeout=5)
+    started = time.monotonic()
+    rc = db.supervise_backup(world.cfg)
+    elapsed = time.monotonic() - started
+    assert rc == 1
+    assert elapsed < 20
+    assert pidfile.is_file()
+    _assert_dead(int(pidfile.read_text().strip()))
+    status = read_status(world.backup)
+    assert status["result"] == "timeout"
+    assert status["prune"]["ran"] is False
+    assert status["alert_sent"] is True
+    assert any("timed out" in item for item in status["errors"])
+    home = world.home_log.read_text()
+    assert "backup timed out after 3s" in home
+    assert f"interpreter sys.executable={sys.executable}" in home
+    lines = hermes_lines(world.hermes_log)
+    assert len(lines) == 1
+    assert "send" in lines[0] and "discord:" in lines[0]
+    assert "timeout" in lines[0]
+    assert (world.backup / "vault" / "daily" / "1999-01-01" / "keep.txt").read_text() == "keep-me"
+    assert (world.backup / "git" / "daily" / "1999-01-01.bundle").read_text() == "old-bundle"
+    assert not (world.backup / "vault" / "daily" / "2026-10-13").exists()
+    assert _disk_io_procs() == []
+
+
+def test_watchdog_hung_disk_writes_local_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    world = make_world(tmp_path, monkeypatch)
+    preseed_old(world.backup)
+    os.mkfifo(world.backup / "digitalbrain-backup.log")
+    _rewrite_timeouts(world, run_timeout=3, disk_timeout=120)
+    world.cfg.disk_io_timeout_seconds = 1
+    monkeypatch.setenv("DIGITALBRAIN_BACKUP_TIMED_DISK_IO", "1")
+    started = time.monotonic()
+    rc = db.supervise_backup(world.cfg)
+    elapsed = time.monotonic() - started
+    assert rc == 1
+    assert elapsed < 20
+    status = read_status(world.backup)
+    assert status["result"] == "timeout"
+    assert status["alert_sent"] is True
+    fallback = json.loads((world.home_log.parent / "digitalbrain-backup-timeout-status.json").read_text())
+    assert fallback["result"] == "timeout"
+    assert fallback["alert_sent"] is True
+    home = world.home_log.read_text()
+    assert "backup timed out after 3s" in home
+    assert "disk status/log write timed out; wrote local fallback" in home
+    lines = hermes_lines(world.hermes_log)
+    assert len(lines) == 1
+    assert "send" in lines[0] and "discord:" in lines[0]
+    assert (world.backup / "vault" / "daily" / "1999-01-01" / "keep.txt").read_text() == "keep-me"
+    assert (world.backup / "git" / "daily" / "1999-01-01.bundle").read_text() == "old-bundle"
+    assert _disk_io_procs() == []
+
+
+def test_mkdir_on_external_path_uses_timed_io(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    world = make_world(tmp_path, monkeypatch, create_root=False, with_git=False)
+    monkeypatch.setenv("DIGITALBRAIN_BACKUP_TIMED_DISK_IO", "1")
+    calls: list[tuple[str, str]] = []
+
+    def fake(action: str, path: Path, data: bytes = b"", timeout: float = 30) -> bytes:
+        calls.append((action, str(path)))
+        if action == "mkdir":
+            Path(path).mkdir(parents=True, exist_ok=True)
+            return b""
+        raise AssertionError(action)
+
+    monkeypatch.setattr(db, "perform_disk_io", fake)
+    root = db.ensure_backup_root(world.cfg)
+    assert root.is_dir()
+    assert ("mkdir", str(world.backup)) in calls
+
+
+def test_sha256_dataless_fails_before_open(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    fifo = tmp_path / "hang.fifo"
+    os.mkfifo(fifo)
+    stat_bin = tmp_path / "stat"
+    write_exec(stat_bin, "#!/bin/bash\necho 1073741824\n")
+    monkeypatch.setenv("DIGITALBRAIN_BACKUP_STAT_BIN", str(stat_bin))
+    started = time.monotonic()
+    with pytest.raises(db.BackupError, match="hang.fifo"):
+        db.sha256_file(fifo)
+    assert time.monotonic() - started < 3
+    assert f"debug opening {fifo}" in capsys.readouterr().err
 
 
 def test_config_rejects_dotdot(tmp_path: Path) -> None:

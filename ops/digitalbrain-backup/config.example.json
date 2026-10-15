@@ -20,5 +20,7 @@
   "disk_log_name": "digitalbrain-backup.log",
   "home_log": "~/Library/Logs/digitalbrain-backup.log",
   "timezone": "Asia/Shanghai",
-  "read_timeout_seconds": 120
+  "read_timeout_seconds": 120,
+  "run_timeout_seconds": 3600,
+  "disk_io_timeout_seconds": 30
 }

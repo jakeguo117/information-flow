@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<!-- 03:30 is local time. The iMac timezone must be Asia/Shanghai. launchd has no timezone field. -->
+<!-- Sunday 03:30 local time. Weekday 0 is Sunday. The iMac timezone must be Asia/Shanghai. launchd has no timezone field. -->
 <dict>
   <key>Label</key>
   <string>com.jake.digitalbrain-backup</string>
@@ -15,6 +15,8 @@
   </array>
   <key>StartCalendarInterval</key>
   <dict>
+    <key>Weekday</key>
+    <integer>0</integer>
     <key>Hour</key>
     <integer>3</integer>
     <key>Minute</key>
