@@ -23,7 +23,7 @@ DigitalBrain `.cursor/skills/` 里的副本由 information-flow Actions 覆盖�
 python3 scripts/build_weekly_digest.py --vault "$VAULT"
 ```
 
-它按 Asia/Shanghai 的 ISO 周，把 `📋 Digests/daily/YYYY-MM-DD.md` 和 `📋 Digests/YYYY-MM-DD-Digest.md` 收成唯一正式路径 `📋 Digests/{YYYY-Wnn}/digest.md`。这一周没有任何日摘要文件时，脚本改用该周已经收好的周入口，仍然只写出上面的正式路径。没有真实条目就不写文件，退出码 2。不要写占位。这张周摘要给周记用。本技能讨论的仍是昨天的日摘要，不要改去打开周 digest 代替昨天。
+它按 Asia/Shanghai 的 ISO 周，把 `📋 Digests/daily/YYYY-MM-DD.md` 和 `📋 Digests/YYYY-MM-DD-Digest.md` 收成唯一正式路径 `📋 Digests/{YYYY-Wnn}/digest.md`。这一周没有任何日摘要文件时，脚本改用该周已经收好的周入口，仍然只写出上面的正式路径。没有真实条目就不写文件，退出码 2。已经有该周 `digest.md` 就不覆盖，除非 `--force`。不要写占位。这张周摘要给周记用。本技能讨论的仍是昨天的日摘要，不要改去打开周 digest 代替昨天。
 
 ## 讨论
 

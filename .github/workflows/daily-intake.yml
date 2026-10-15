@@ -53,6 +53,8 @@ jobs:
           set -e
           if [ "$status" -eq 2 ]; then
             echo "weekly digest: no real content, file not written"
+          elif [ "$status" -eq 3 ]; then
+            echo "weekly digest: already exists, not overwritten"
           elif [ "$status" -ne 0 ]; then
             echo "weekly digest failed: $status"
             exit "$status"

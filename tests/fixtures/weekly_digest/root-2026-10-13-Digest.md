@@ -10,4 +10,5 @@
 
 ## 值得讨论的（thesis）
 
-- [[📥 Inbox/Snipd/Data/Synthetic/ep]] — 同一条不应重复
+- [[📥 Inbox/Synthetic/thesis]] — 合成论点一句
+  - 一句可讨论的补充

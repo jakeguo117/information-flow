@@ -11,7 +11,7 @@
 
 ## 读取顺序
 
-0. `VAULT/📋 Digests/{YYYY-Wnn}/digest.md`。周是 Asia/Shanghai 当天的 ISO 周，不回落到别的周。先把三组都列出来：值得讨论的、可以引用的、可以借用的。每条先写编号，再一句话和链接，条数和编号与文件一致。文件里没有的组就是空的，说没有，不要补条目。这个文件不在时，再查 `VAULT/📋 Digests/weekly-briefs/{YYYY-Wnn}.md` 和 `VAULT/📋 Digests/weekly-briefs/{YYYY-Wnn}/digest.md`，并说明实际打开的是哪一条。两处都没有，就说「本周 digest 还没有」，不要自己编，也不要跳过。digest 由 `scripts/build_weekly_digest.py` 写成上面的正式路径。写周记时不要跑这个脚本，也不要手写占位 digest。**「缺文件就跳过」不适用于 digest。**
+0. `VAULT/📋 Digests/{YYYY-Wnn}/digest.md`。周是 Asia/Shanghai 当天的 ISO 周，不回落到别的周。三组按有用程度，不按来源，也不靠标题关键词：值得讨论的、可以引用的、可以借用的。只有文件里的组标题或 `group:` / `分组:` 才算已经分组；其余在「待分组」。展示时把待分组的 `P-2026W42-1` 分进三组，编号仍用文件里的，不要另编。已分组的编号是 `T-2026W42-1`、`F-2026W42-1`、`C-2026W42-1`。每条先编号，再一句话和链接。空组是「本周无」，说没有，不要补。值得讨论的下面有「我的看法：」。这个文件不在时，再查 `VAULT/📋 Digests/weekly-briefs/{YYYY-Wnn}.md` 和 `VAULT/📋 Digests/weekly-briefs/{YYYY-Wnn}/digest.md`，并说明实际打开的是哪一条。两处都没有，就说「本周 digest 还没有」，不要自己编，也不要跳过。digest 由 `scripts/build_weekly_digest.py` 写成上面的正式路径；已有文件不覆盖。写周记时不要跑这个脚本，也不要手写占位 digest。**「缺文件就跳过」不适用于 digest。**
 1. `VAULT/📝 Journal/` 最近 2–3 篇（按文件名倒序）。学口气、未收的线、已经点名的老项目。不把正文写入 DigitalBrain memory。
 2. 只打开那些周记里已经出现的 `🚀 Projects/` / `📖 Resources/` wikilink（老项目、很小的线）。不要扫整个项目目录来「补这周」。
 3. 用上面规则解析出的 `VAULT/📋 Digests/{YYYY-Wnn}/intake.md`。只读 **`[x]`** 的条目和它们下面的 reflection，用来找和旧线的 **呼应**。Briefing / 未勾选只是索引，对不上就略过。

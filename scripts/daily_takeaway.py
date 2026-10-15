@@ -64,6 +64,12 @@ def collect_all(vault: Path, day: dt.date) -> dict[str, list]:
     }
 
 
+# TODO: usefulness groups (值得讨论的 / 可以引用的 / 可以借用的) are not known
+# here. Do not guess them from the source. build_weekly_digest.py leaves
+# unlabeled lines in 待分组. An explicit `group: T|F|C` sub-bullet can be
+# added later and will be honored; this generator does not write one.
+
+
 def render(day: dt.date, groups: dict[str, list]) -> str:
     total = sum(len(items) for items in groups.values())
     lines = [

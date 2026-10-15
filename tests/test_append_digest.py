@@ -15,14 +15,14 @@ tmp = Path(tempfile.mkdtemp()); vault = tmp / "vault"
 try:
     (vault / "📋 Digests/2026-W42").mkdir(parents=True)
     dg = vault / "📋 Digests/2026-W42/digest.md"
-    dg.write_text("---\nweek: 2026-W42\n---\n\n# 本周 digest（2026-W42）\n\n## 值得讨论的（thesis）\n\n- **T-2026W42-a**｜合成一句话｜[原文](https://example.com/a)\n  - 我的看法：\n", encoding="utf-8")
+    dg.write_text("---\nweek: 2026-W42\n---\n\n# 本周 digest（2026-W42）\n\n## 值得讨论的（thesis）\n\n- **T-2026W42-1**｜合成一句话｜[原文](https://example.com/a)\n  - 我的看法：\n", encoding="utf-8")
     base = dict(confirmed=True, phrase="可以写", date="2026-10-16", journal_number=42, title="合成测试", event_id="journal-test-42", body="合成正文。", topics=[], previous="2026-10-11 终于有一条线开始出结果了", digest_week="2026-W42")
     rel = "📋 Digests/2026-W42/digest.md"
     a = dict(base, payload_sha256=fingerprint(render_journal(base, read_digest(vault, Path(rel)))))
     rc, out = run(vault, a, "--append-digest", rel)
     assert rc == 0 and out["status"] == "success" and out["files_written"] == 1, out
     text = Path(out["path"]).read_text(encoding="utf-8")
-    assert text.index("**Previous / 上一篇:**") < text.index("## 本周 digest（2026-W42）") < text.index("T-2026W42-a"), "digest 不在末尾"
+    assert text.index("**Previous / 上一篇:**") < text.index("## 本周 digest（2026-W42）") < text.index("T-2026W42-1"), "digest 不在末尾"
     assert "week: 2026-W42" not in text, "digest frontmatter 不应写入"
     assert text.count("event_id:") == 1
     rc, out = run(vault, a, "--append-digest", rel)                      # 重放：幂等
