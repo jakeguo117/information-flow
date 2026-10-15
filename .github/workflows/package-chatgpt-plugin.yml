@@ -18,6 +18,9 @@ jobs:
       - name: Build ChatGPT plugin ZIP
         run: python3 scripts/package_journal_pack.py --chatgpt-plugin
 
+      - name: Smoke-test extracted plugin ZIP
+        run: python3 scripts/test_journal_pack.py PackageTests.test_extracted_zip_runs_builder
+
       - name: Upload plugin ZIP
         uses: actions/upload-artifact@v4
         with:

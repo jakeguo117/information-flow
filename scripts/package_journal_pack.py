@@ -57,6 +57,7 @@ CHATGPT_ZIP_NAME = "information-flow-plugin.zip"
 CHATGPT_FILES = (
     "packaging/JOURNAL_PACK_README.md",
     "scripts/build_weekly_digest.py",
+    "scripts/source_groups.py",
     "scripts/package_journal_pack.py",
     "scripts/sync_digitalbrain_skills.py",
     "scripts/test_journal_pack.py",

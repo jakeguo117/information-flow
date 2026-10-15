@@ -175,8 +175,8 @@ def is_image_url(url: str) -> bool:
     return IMAGE_EXT_RE.search(lowered) is not None
 
 
-def split_frontmatter(text: str) -> tuple[str, str]:
-    """Split at the closing frontmatter fence. A later body `---` stays in the body."""
+def split_frontmatter(text: str) -> tuple[str, str] | None:
+    """Split at the closing frontmatter fence. None when the opening fence never closes."""
     if not text.startswith("---"):
         return "", text
     lines = text.splitlines(keepends=True)
@@ -185,7 +185,7 @@ def split_frontmatter(text: str) -> tuple[str, str]:
     for index, line in enumerate(lines[1:], start=1):
         if line.strip() == "---":
             return "".join(lines[1:index]), "".join(lines[index + 1 :])
-    return "", text
+    return None
 
 
 def frontmatter_source_url(front: str) -> str:
@@ -213,7 +213,10 @@ def body_source_url(body: str) -> str:
 
 
 def note_source_url(text: str) -> str:
-    front, body = split_frontmatter(text)
+    parts = split_frontmatter(text)
+    if parts is None:
+        return ""
+    front, body = parts
     return frontmatter_source_url(front) or body_source_url(body)
 
 

@@ -354,6 +354,11 @@ class SourceUrlTests(unittest.TestCase):
         )
         self.assertEqual(weekly.note_source_url(text), "https://example.com/first")
 
+    def test_unclosed_frontmatter_does_not_yield_a_thumb_url(self) -> None:
+        text = "---\nthumb: https://example.com/not-a-source\ntitle: unfinished\n"
+        self.assertIsNone(weekly.split_frontmatter(text))
+        self.assertEqual(weekly.note_source_url(text), "")
+
     def test_one_source_group_table(self) -> None:
         import daily_takeaway
         import source_groups

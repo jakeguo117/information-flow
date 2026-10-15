@@ -297,6 +297,8 @@ class PackageTests(unittest.TestCase):
             self.assertEqual(names[1], ".codex-plugin/plugin.json")
             self.assertEqual(names[2:], sorted(names[2:]))
             self.assertIn("scripts/build_weekly_digest.py", names)
+            self.assertIn("scripts/source_groups.py", names)
+            self.assertIn("scripts/weekly_intake.py", names)
             self.assertIn("skills/journal/tools/capture_thought.py", names)
             self.assertIn("skills/journal/references/thoughts.md", names)
             self.assertIn("skills/cognition/tools/write_cognition.py", names)
@@ -318,6 +320,44 @@ class PackageTests(unittest.TestCase):
             for info in archive.infolist():
                 self.assertEqual(info.date_time, (1980, 1, 1, 0, 0, 0))
                 self.assertEqual(info.extra, b"")
+
+    def test_extracted_zip_runs_builder(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            zip_path = package_journal_pack.build_chatgpt_plugin(root / "dist")
+            extract = root / "plugin"
+            extract.mkdir()
+            zipfile.ZipFile(zip_path).extractall(extract)
+            help_proc = subprocess.run(
+                [sys.executable, "scripts/build_weekly_digest.py", "--help"],
+                cwd=extract,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(help_proc.returncode, 0, help_proc.stderr)
+            self.assertIn("--week", help_proc.stdout)
+            vault = root / "vault"
+            daily = vault / "📋 Digests" / "daily"
+            daily.mkdir(parents=True)
+            fixture = ROOT / "tests" / "fixtures" / "weekly_digest" / "real" / "2026-10-13.md"
+            (daily / "2026-10-13.md").write_bytes(fixture.read_bytes())
+            build = subprocess.run(
+                [
+                    sys.executable,
+                    "scripts/build_weekly_digest.py",
+                    "--vault",
+                    str(vault),
+                    "--week",
+                    "2026-W42",
+                ],
+                cwd=extract,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(build.returncode, 0, build.stderr)
+            digest = (vault / "📋 Digests" / "2026-W42" / "digest.md").read_text(encoding="utf-8")
+            self.assertIn("T-2026W42-1", digest)
+            self.assertIn("Yan Talk", digest)
 
 
 if __name__ == "__main__":
