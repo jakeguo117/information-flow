@@ -348,11 +348,20 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("📋 Digests/{YYYY-Wnn}/digest.md", digest_skill)
         manual = (ROOT / ".github" / "workflows" / "weekly-digest.yml").read_text(encoding="utf-8")
         self.assertIn("workflow_dispatch:", manual)
+        self.assertIn("push:", manual)
+        self.assertIn("branches: [main]", manual)
+        self.assertIn(".github/weekly-digest-request", manual)
+        self.assertIn('EVENT_NAME" = "workflow_dispatch"', manual)
+        self.assertIn("INPUT_WEEK", manual)
+        self.assertIn("YYYY-Www", manual)
         self.assertNotIn("schedule:", manual)
         self.assertNotIn("pull_request:", manual)
         self.assertNotIn("--force", manual)
         self.assertIn('"$status" -eq 3', manual)
         self.assertIn('"$status" -eq 3', workflow)
+        self.assertIn("${{ secrets.DIGITALBRAIN_TOKEN }}", manual)
+        request = (ROOT / ".github" / "weekly-digest-request").read_text(encoding="utf-8")
+        self.assertEqual(request, "2026-W42\n")
 
 
 if __name__ == "__main__":
