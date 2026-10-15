@@ -1,6 +1,6 @@
 {
   "name": "information-flow",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Daily intake, weekly journal, and Markdown Cognition (Evidence/Belief/Principle, schema 1.1) in DigitalBrain. Private cognition stays out of this repo.",
   "author": {
     "name": "Jake Guo",
