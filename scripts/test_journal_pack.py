@@ -283,7 +283,7 @@ class PackageTests(unittest.TestCase):
                 self.assertEqual(hashlib.sha256(info).hexdigest(), item["sha256"])
                 self.assertEqual(hashlib.sha256((ROOT / item["path"]).read_bytes()).hexdigest(), item["sha256"])
             version = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
-            self.assertEqual(version, "0.1.2")
+            self.assertEqual(version, "0.1.3")
             self.assertEqual(manifest["plugin_version_field"], version)
 
     def test_chatgpt_upload_zip_matches_uploaded_layout(self) -> None:
@@ -305,7 +305,7 @@ class PackageTests(unittest.TestCase):
             for part in package_journal_pack.FORBIDDEN_PARTS:
                 self.assertNotIn(part, blob)
             version = package_journal_pack.plugin_version()
-            self.assertEqual(version, "0.1.2")
+            self.assertEqual(version, "0.1.3")
             for entry in ("plugin.json", ".codex-plugin/plugin.json"):
                 meta = json.loads(archive.read(entry))
                 self.assertEqual(meta["version"], version)

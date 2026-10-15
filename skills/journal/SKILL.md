@@ -1,6 +1,6 @@
 ---
 name: journal
-description: Jake 的周记，以及「记一下：」「想法：」/thought 的随手记。说「写周记」「周记」或 /journal 时先列出当周 digest 三组编号，再读旧周记和已挂上的老项目；客户说 OK 之前不写周记。不生成、不改写 digest 文件。随手记不分析、不追问。
+description: "写周记、周记、weekly journal。用户说「写周记」「周记」或 /journal 时使用：先列出当周 digest 的三组编号；没有 digest 就说还没有，不要凭记忆写周记。客户说可以写之前不落盘。「记一下：」「想法：」或 /thought 只做随手记。"
 ---
 
 # journal
