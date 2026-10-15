@@ -2,6 +2,10 @@
 
 最终闭环见 `setup.md`。周记 skill 只读下面这些。摄入由 `intake` 生产。除当周 digest 以外，缺文件就跳过，不抓 Snipd / YouTube / WeRead 原文。**「缺文件就跳过」不适用于 digest。**
 
+## 写周记的第一段输出
+
+说「写周记」之后，第一段输出必须是 digest 清单，在任何摘要或提问之前。一行一条，带文件里的编号（`T-` / `F-` / `C-` / `P-`，如 `T-2026W42-1`）、一句话和链接。分组标题是值得讨论的、可以引用的、可以借用的；待分组不是空的才单列。空组写「本周无」。一条都不能并进摘要。文件没有就第一句说「本周 digest 还没有」。
+
 ## Vault
 
 优先本机：`~/Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain`  
@@ -11,7 +15,7 @@
 
 ## 读取顺序
 
-0. `VAULT/📋 Digests/{YYYY-Wnn}/digest.md`。周是 Asia/Shanghai 当天的 ISO 周，不回落到别的周。三组按有用程度，不按来源，也不靠标题关键词：值得讨论的、可以引用的、可以借用的。只有文件里的组标题或 `group:` / `分组:` 才算已经分组；其余在「待分组」。展示时把待分组的 `P-2026W42-1` 分进三组，编号仍用文件里的，不要另编。已分组的编号是 `T-2026W42-1`、`F-2026W42-1`、`C-2026W42-1`。每条先编号，再一句话和链接。空组是「本周无」，说没有，不要补。值得讨论的下面有「我的看法：」。这个文件不在时，再查 `VAULT/📋 Digests/weekly-briefs/{YYYY-Wnn}.md` 和 `VAULT/📋 Digests/weekly-briefs/{YYYY-Wnn}/digest.md`，并说明实际打开的是哪一条。两处都没有，就说「本周 digest 还没有」，不要自己编，也不要跳过。digest 由 `scripts/build_weekly_digest.py` 写成上面的正式路径。带生成标记、正文没被改过、看法还空着的可以重写；手改过或「我的看法：」已经写了的不覆盖。写周记时不要跑这个脚本，也不要手写占位 digest。**「缺文件就跳过」不适用于 digest。**
+0. `VAULT/📋 Digests/{YYYY-Wnn}/digest.md`。周是 Asia/Shanghai 当天的 ISO 周，不回落到别的周。来源类型只是初始建议，不靠标题关键词：Snipd / WeRead 先放可以引用的，YouTube 先放值得讨论的，X / Instagram 先放可以借用的。日摘要写成 `group:`；周 digest 也用这些来源小节名当起点。讨论时 Jake 可以按用途把任何一条改到另一组，编号不变（`T-2026W42-1`、`F-2026W42-1`、`C-2026W42-1`、`P-2026W42-1`），不要另编。没有对照的才在「待分组」。每条先编号，再一句话和链接。空组是「本周无」，说没有，不要补。值得讨论的下面有「我的看法：」。这个文件不在时，再查 `VAULT/📋 Digests/weekly-briefs/{YYYY-Wnn}.md` 和 `VAULT/📋 Digests/weekly-briefs/{YYYY-Wnn}/digest.md`，并说明实际打开的是哪一条。两处都没有，就说「本周 digest 还没有」，不要自己编，也不要跳过。digest 由 `scripts/build_weekly_digest.py` 写成上面的正式路径。带生成标记、正文没被改过、看法还空着的可以重写；手改过或「我的看法：」已经写了的不覆盖。写周记时不要跑这个脚本，也不要手写占位 digest。**「缺文件就跳过」不适用于 digest。**
 1. `VAULT/📝 Journal/` 最近 2–3 篇（按文件名倒序）。学口气、未收的线、已经点名的老项目。不把正文写入 DigitalBrain memory。
 2. 只打开那些周记里已经出现的 `🚀 Projects/` / `📖 Resources/` wikilink（老项目、很小的线）。不要扫整个项目目录来「补这周」。
 3. 用上面规则解析出的 `VAULT/📋 Digests/{YYYY-Wnn}/intake.md`。只读 **`[x]`** 的条目和它们下面的 reflection，用来找和旧线的 **呼应**。Briefing / 未勾选只是索引，对不上就略过。

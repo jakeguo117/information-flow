@@ -1,5 +1,12 @@
 name: weekly-digest
 
+permissions:
+  contents: read
+
+concurrency:
+  group: digitalbrain-digests
+  cancel-in-progress: false
+
 on:
   workflow_dispatch:
     inputs:
@@ -43,7 +50,7 @@ jobs:
           else
             WEEK="$(head -n 1 .github/weekly-digest-request | tr -d '[:space:]')"
           fi
-          if ! printf '%s\n' "$WEEK" | grep -Eq '^[0-9]{4}-W[0-9]{2}$'; then
+          if ! printf '%s\n' "$WEEK" | grep -Eq '^[0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$'; then
             echo "invalid ISO week: '$WEEK' (expected YYYY-Www)"
             exit 1
           fi

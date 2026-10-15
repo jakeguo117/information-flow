@@ -14,10 +14,11 @@ If the week has no daily digest files, fall back to:
 
     📋 Digests/{YYYY-Wnn}/intake.md
 
-Usefulness groups (值得讨论的 / 可以引用的 / 可以借用的) are not inferred
-from the source channel or from title keywords. An item is grouped only
-when a section heading or an explicit `group:` / `分组:` tag says so.
-Everything else goes to 待分组. Empty groups are the line 本周无.
+Usefulness groups come from an explicit `group:` / `分组:` tag, a group
+heading, or the initial source table in source_groups.SECTION_GROUP
+(Snipd/WeRead F, YouTube T, X/Instagram C). Anything else is 待分组.
+That table is only the starting suggestion.
+Empty groups are the line 本周无.
 IDs are numeric: T-2026W42-1, F-2026W42-1, C-2026W42-1, P-2026W42-1.
 
 A generated file carries an HTML comment with the generator version and a
@@ -41,10 +42,11 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import source_groups  # noqa: E402
 import weekly_intake  # noqa: E402
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
-WEEK_RE = re.compile(r"^(\d{4})-W(\d{2})$")
+WEEK_RE = re.compile(r"^(\d{4})-W(0[1-9]|[1-4][0-9]|5[0-3])$")
 WIKI_RE = re.compile(r"\[\[(.+?)\]\]")
 MD_LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
 BARE_URL_RE = re.compile(r"https?://[^\s)>\]]+")
@@ -63,9 +65,11 @@ GROUPS = (
     ("C", "可以借用的"),
     ("P", "待分组"),
 )
-URL_KEYS = ("source_url", "url", "link")
+URL_KEYS = ("source_url", "url", "episode_url", "link", "tweet_url", "original_url")
+IMAGE_EXT_RE = re.compile(r"\.(?:png|jpe?g|gif|webp)(?:$|[?#])", re.IGNORECASE)
+IMAGE_MD_RE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
 GENERATOR = "information-flow-weekly-digest"
-GENERATOR_VERSION = "1"
+GENERATOR_VERSION = "2"
 NO_CONTENT_EXIT = 2
 EXISTS_EXIT = 3
 DIGEST_MARKER_PATTERN = r"(?:\r?\n)?<!-- information-flow-weekly-digest generator=(\S+) sha256=([0-9a-f]{64}) -->\s*\Z"
@@ -115,7 +119,7 @@ def id_token(year: int, week: int) -> str:
 
 
 def group_token(label: str) -> str | None:
-    """Map an explicit group label. Source names are not groups."""
+    """Map an explicit group label. Source names are handled separately."""
     text = label.strip().lower()
     if text in {"t", "thesis"} or text.startswith("值得讨论"):
         return "T"
@@ -129,7 +133,10 @@ def group_token(label: str) -> str | None:
 
 
 def group_for_heading(title: str) -> str | None:
-    return group_token(title)
+    explicit = group_token(title)
+    if explicit:
+        return explicit
+    return source_groups.SECTION_GROUP.get(title.strip())
 
 
 def clean_summary(body: str) -> str:
@@ -161,8 +168,60 @@ def _is_real_file(path: Path) -> bool:
     return path.is_file() and not path.is_symlink()
 
 
+def is_image_url(url: str) -> bool:
+    lowered = url.lower()
+    if "wsrv.nl" in lowered:
+        return True
+    return IMAGE_EXT_RE.search(lowered) is not None
+
+
+def split_frontmatter(text: str) -> tuple[str, str] | None:
+    """Split at the closing frontmatter fence. None when the opening fence never closes."""
+    if not text.startswith("---"):
+        return "", text
+    lines = text.splitlines(keepends=True)
+    if not lines or lines[0].strip() != "---":
+        return "", text
+    for index, line in enumerate(lines[1:], start=1):
+        if line.strip() == "---":
+            return "".join(lines[1:index]), "".join(lines[index + 1 :])
+    return None
+
+
+def frontmatter_source_url(front: str) -> str:
+    meta: dict[str, str] = {}
+    for line in front.splitlines():
+        if ":" not in line or line.strip().startswith("-"):
+            continue
+        key, value = line.split(":", 1)
+        meta[key.strip()] = value.strip().strip('"').strip("'")
+    for key in URL_KEYS:
+        value = meta.get(key, "").strip()
+        if value.startswith(("http://", "https://")) and not is_image_url(value):
+            return value
+    return ""
+
+
+def body_source_url(body: str) -> str:
+    visible = IMAGE_MD_RE.sub(" ", body)
+    for line in visible.splitlines():
+        for found in BARE_URL_RE.finditer(line):
+            url = found.group(0).rstrip(".,，。)")
+            if url.startswith(("http://", "https://")) and not is_image_url(url):
+                return url
+    return ""
+
+
+def note_source_url(text: str) -> str:
+    parts = split_frontmatter(text)
+    if parts is None:
+        return ""
+    front, body = parts
+    return frontmatter_source_url(front) or body_source_url(body)
+
+
 def inbox_url(vault: Path | None, wiki: str) -> str:
-    """URL from an inbox note's frontmatter, when that note is a real file."""
+    """URL from an inbox note, when that note is a real file."""
     if vault is None or not wiki.startswith("📥 Inbox/"):
         return ""
     if ".." in Path(wiki).parts:
@@ -174,12 +233,7 @@ def inbox_url(vault: Path | None, wiki: str) -> str:
         raw.resolve().relative_to(vault.resolve())
     except ValueError:
         return ""
-    meta = weekly_intake.parse_frontmatter(raw.read_text(encoding="utf-8", errors="replace"))
-    for key in URL_KEYS:
-        value = meta.get(key, "").strip()
-        if value.startswith(("http://", "https://")):
-            return value
-    return ""
+    return note_source_url(raw.read_text(encoding="utf-8", errors="replace"))
 
 
 def render_link(wiki: str, url: str) -> str:

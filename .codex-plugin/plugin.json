@@ -1,6 +1,6 @@
 {
   "name": "information-flow",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "写周记、周记、weekly journal. Lists the week's digest before any journal text. Daily intake and Markdown Cognition stay separate; private cognition stays out of this repo.",
   "author": {
     "name": "Jake Guo",
