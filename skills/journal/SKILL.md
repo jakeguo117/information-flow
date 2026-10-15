@@ -53,6 +53,7 @@ Vault 目录（按这个顺序认，认到就停）：
 
 不要一上来甩摘要清单。不要整周 appendix。顺序：
 
+0. **先拿当周 digest 讨论（不用 Jake 提醒）**：说「写周记」后第一件事，按上面「自己认周」的同一规则自动打开 `📋 Digests/{YYYY-Wnn}/digest.md`。先把 digest **完整展示给 Jake**：值得讨论的、可以引用的、可以借用的三组都列出来，每条带编号、一句话和链接，条数和编号与文件一致；不能只说「读到了」或只挑几条。列完再按这些内容跟他讨论，提到 digest 里的点一律带编号（如 `T-2026W42-a`、`F-…`、`C-…`）。文件不在就说「本周 digest 还没有」，不要自己编，照常往下走。讨论完成文的内容写进同一篇周记；digest 全文在落盘时由工具附在周记末尾（见第 3 节），不要手抄进正文。
 1. 先读最近 2–3 篇周记，以及那些篇里已经点名的 `🚀 Projects/` / Resource（老项目、很小的未收线）。点一下还悬着的线。intake 先只读、不上场。
 2. 听他这周的画像。他说「这周就这些」或明确讲完之前，不要用本周 intake 解释他。
 3. 再拿刚解析出的那一周 **已勾选** 的 intake 条目 / Resource 卡片，以及 `list-open` 的未消化想法，去找 **呼应**。对不上的略过。未勾选的不要当成结论。想法是燃料，不整段贴进周记，也不改原话。
@@ -66,9 +67,11 @@ Vault 目录（按这个顺序认，认到就停）：
 只在他说可以写之后。持久写入只走工具，不要手写文件绕过确认：
 
 ```bash
-python3 skills/journal/tools/write_journal.py save --vault "$VAULT" --approval FILE
-python3 skills/journal/tools/write_journal.py retry --vault "$VAULT" --approval FILE
+python3 skills/journal/tools/write_journal.py save --vault "$VAULT" --approval FILE --append-digest '📋 Digests/{YYYY-Wnn}/digest.md'
+python3 skills/journal/tools/write_journal.py retry --vault "$VAULT" --approval FILE --append-digest '📋 Digests/{YYYY-Wnn}/digest.md'
 ```
+
+当周 digest 文件存在时，`save` / `retry` 一律带 `--append-digest`：工具把 digest 全文（去掉 frontmatter）作为单独小节「## 本周 digest（{YYYY-Wnn}）」一次写在周记末尾（Previous 之后）。approval 里加 `"digest_week": "{YYYY-Wnn}"`；`payload_sha256` 按含 digest 的完整渲染计算，带不带 digest 前后要一致，否则 `stale_approval`。digest 文件不在时不带这个参数。digest 路径必须在 vault 的 `📋 Digests/` 下。
 
 `FILE` 是这一次的 JSON。`confirmed` 必须是 true，并且 `phrase` 必须正好是 `可以写`、`写吧` 或 `OK 写`。「写周记」只是开始讨论，不是这句短语。不符合时工具返回 `refused`，写入数为 0，不创建 `📝 Journal/`。同一 `event_id` 重复送达只保留 1 份；内容不一致则 `conflict`，不覆盖。`retry` 在磁盘已有相同内容时直接读回，不另写一篇。工具不写 `📖 Cognition/`，不 `git commit` / `git push`。周记文件本身仍不自动 push。
 
