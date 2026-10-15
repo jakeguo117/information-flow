@@ -347,6 +347,12 @@ class SkillContractTests(unittest.TestCase):
         description = skill.split("description:", 1)[1].split("\n", 1)[0]
         self.assertIn("写周记", description)
         self.assertTrue(description.strip().strip('"').startswith("写周记"))
+        self.assertIn("一行一条", description)
+        body = skill.split("---", 2)[-1]
+        self.assertLess(body.index("## 写周记的第一段输出"), body.index("## 随手记"))
+        self.assertIn("一行一条", body.split("## 随手记", 1)[0])
+        self.assertIn("写周记的第一段输出", brief.split("## 读取顺序", 1)[0])
+        self.assertIn("一行一条", brief.split("## 读取顺序", 1)[0])
         cognition = (ROOT / "skills" / "cognition" / "SKILL.md").read_text(encoding="utf-8")
         cognition_description = cognition.split("description:", 1)[1].split("\n", 1)[0]
         self.assertNotIn("写周记", cognition_description)

@@ -2,6 +2,10 @@
 
 最终闭环见 `setup.md`。周记 skill 只读下面这些。摄入由 `intake` 生产。除当周 digest 以外，缺文件就跳过，不抓 Snipd / YouTube / WeRead 原文。**「缺文件就跳过」不适用于 digest。**
 
+## 写周记的第一段输出
+
+说「写周记」之后，第一段输出必须是 digest 清单，在任何摘要或提问之前。一行一条，带文件里的编号（`T-` / `F-` / `C-` / `P-`，如 `T-2026W42-1`）、一句话和链接。分组标题是值得讨论的、可以引用的、可以借用的；待分组不是空的才单列。空组写「本周无」。一条都不能并进摘要。文件没有就第一句说「本周 digest 还没有」。
+
 ## Vault
 
 优先本机：`~/Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain`  
