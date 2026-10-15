@@ -21,6 +21,24 @@ SECTIONS = (
     ("Instagram", "instagram"),
     ("X", "x"),
 )
+# Fixed source-type map, written onto each daily item as `group:`.
+# F 可以引用的: highlight and excerpt sources.
+# T 值得讨论的: long-form video.
+# C 可以借用的: tips and saves.
+SOURCE_GROUP = {
+    "snipd": "F",
+    "weread": "F",
+    "youtube": "T",
+    "instagram": "C",
+    "x": "C",
+}
+SECTION_GROUP = {
+    "Snipd": "F",
+    "WeRead": "F",
+    "YouTube": "T",
+    "Instagram": "C",
+    "X": "C",
+}
 
 
 def heading_title(text: str, path: Path) -> str:
@@ -64,12 +82,6 @@ def collect_all(vault: Path, day: dt.date) -> dict[str, list]:
     }
 
 
-# TODO: usefulness groups (值得讨论的 / 可以引用的 / 可以借用的) are not known
-# here. Do not guess them from the source. build_weekly_digest.py leaves
-# unlabeled lines in 待分组. An explicit `group: T|F|C` sub-bullet can be
-# added later and will be honored; this generator does not write one.
-
-
 def render(day: dt.date, groups: dict[str, list]) -> str:
     total = sum(len(items) for items in groups.values())
     lines = [
@@ -94,6 +106,7 @@ def render(day: dt.date, groups: dict[str, list]) -> str:
             continue
         for item in items:
             lines.append(f"- [[{item.wiki}]] — {item.briefing_line}")
+            lines.append(f"  - group: {SOURCE_GROUP[key]}")
             for line in item.extra:
                 if line.strip().startswith("- 摄入："):
                     continue

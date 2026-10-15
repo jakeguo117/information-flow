@@ -14,10 +14,10 @@ If the week has no daily digest files, fall back to:
 
     📋 Digests/{YYYY-Wnn}/intake.md
 
-Usefulness groups (值得讨论的 / 可以引用的 / 可以借用的) are not inferred
-from the source channel or from title keywords. An item is grouped only
-when a section heading or an explicit `group:` / `分组:` tag says so.
-Everything else goes to 待分组. Empty groups are the line 本周无.
+Usefulness groups come from an explicit `group:` / `分组:` tag, a group
+heading, or the fixed source-type table in daily_takeaway.SECTION_GROUP
+(Snipd/WeRead F, YouTube T, X/Instagram C). Anything else is 待分组.
+Empty groups are the line 本周无.
 IDs are numeric: T-2026W42-1, F-2026W42-1, C-2026W42-1, P-2026W42-1.
 
 A generated file carries an HTML comment with the generator version and a
@@ -41,10 +41,11 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import daily_takeaway  # noqa: E402
 import weekly_intake  # noqa: E402
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
-WEEK_RE = re.compile(r"^(\d{4})-W(\d{2})$")
+WEEK_RE = re.compile(r"^(\d{4})-W(0[1-9]|[1-4][0-9]|5[0-3])$")
 WIKI_RE = re.compile(r"\[\[(.+?)\]\]")
 MD_LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
 BARE_URL_RE = re.compile(r"https?://[^\s)>\]]+")
@@ -115,7 +116,7 @@ def id_token(year: int, week: int) -> str:
 
 
 def group_token(label: str) -> str | None:
-    """Map an explicit group label. Source names are not groups."""
+    """Map an explicit group label. Source names are handled separately."""
     text = label.strip().lower()
     if text in {"t", "thesis"} or text.startswith("值得讨论"):
         return "T"
@@ -129,7 +130,10 @@ def group_token(label: str) -> str | None:
 
 
 def group_for_heading(title: str) -> str | None:
-    return group_token(title)
+    explicit = group_token(title)
+    if explicit:
+        return explicit
+    return daily_takeaway.SECTION_GROUP.get(title.strip())
 
 
 def clean_summary(body: str) -> str:
@@ -174,11 +178,24 @@ def inbox_url(vault: Path | None, wiki: str) -> str:
         raw.resolve().relative_to(vault.resolve())
     except ValueError:
         return ""
-    meta = weekly_intake.parse_frontmatter(raw.read_text(encoding="utf-8", errors="replace"))
+    text = raw.read_text(encoding="utf-8", errors="replace")
+    meta = weekly_intake.parse_frontmatter(text)
     for key in URL_KEYS:
         value = meta.get(key, "").strip()
         if value.startswith(("http://", "https://")):
             return value
+    for value in meta.values():
+        cleaned = value.strip()
+        if cleaned.startswith(("http://", "https://")):
+            return cleaned
+    body = text.split("\n---", 2)[-1] if text.startswith("---") else text
+    for line in body.splitlines():
+        found = BARE_URL_RE.search(line)
+        if not found:
+            continue
+        url = found.group(0).rstrip(".,，。)")
+        if url.startswith(("http://", "https://")):
+            return url
     return ""
 
 

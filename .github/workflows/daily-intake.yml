@@ -1,5 +1,9 @@
 name: daily-intake
 
+concurrency:
+  group: digitalbrain-digests
+  cancel-in-progress: false
+
 on:
   schedule:
     - cron: "0 0 * * *"    # 08:00 上海

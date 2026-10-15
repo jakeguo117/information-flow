@@ -52,12 +52,12 @@ class BuildTests(unittest.TestCase):
             self.assertLess(text.index("## 可以引用的"), text.index("## 可以借用的"))
             self.assertLess(text.index("## 可以借用的"), text.index("## 待分组"))
             self.assertIn(
-                "- **P-2026W42-1**｜Snipd · Synthetic Show — 合成讨论一句｜[[📥 Inbox/Snipd/Data/Synthetic/ep]]",
+                "- **F-2026W42-1**｜Snipd · Synthetic Show — 合成讨论一句｜[[📥 Inbox/Snipd/Data/Synthetic/ep]]",
                 text,
             )
             self.assertIn("  - 合成摘句应保留", text)
             self.assertNotIn("无字幕", text)
-            self.assertIn("- **F-2026W42-1**｜合成引用一句｜[原文](https://example.com/quote)", text)
+            self.assertIn("- **F-2026W42-2**｜合成引用一句｜[原文](https://example.com/quote)", text)
             self.assertIn(
                 "- **C-2026W42-1**｜合成可借用的方法｜[[📖 Resources/Synthetic/method]]",
                 text,
@@ -140,7 +140,7 @@ class BuildTests(unittest.TestCase):
 
 
 class RealWeekTests(unittest.TestCase):
-    def test_w42_dailies_stay_ungrouped_and_keep_quotes(self) -> None:
+    def test_w42_source_sections_land_in_the_three_groups(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             vault = Path(raw)
             for day in ("2026-10-12", "2026-10-13", "2026-10-14"):
@@ -151,33 +151,41 @@ class RealWeekTests(unittest.TestCase):
                 "---\nsource_url: https://example.com/watch\n---\n\n# synthetic note\n",
                 encoding="utf-8",
             )
+            snipd = vault / "📥 Inbox" / "Snipd" / "Data" / "Behind the Craft" / "We Built Grok Bot. Here Are Our 14 Best Bots _ Peng Zheng & Lauren Tan.md"
+            snipd.parent.mkdir(parents=True)
+            snipd.write_text(
+                "Episode page https://share.snipd.com/episode/example\n",
+                encoding="utf-8",
+            )
+            xnote = vault / "📥 Inbox" / "X-Bookmarks" / "2026-10-14-0x_kaize-2110055685048209702.md"
+            xnote.parent.mkdir(parents=True)
+            xnote.write_text(
+                "---\nbookmark_url: https://x.com/example/status/1\n---\n\n# tip\n",
+                encoding="utf-8",
+            )
             rc = weekly.main(["--vault", str(vault), "--week", "2026-W42"])
             self.assertEqual(rc, 0)
             text = weekly.digest_path(vault, "2026-W42").read_text(encoding="utf-8")
-            for heading in ("## 值得讨论的（thesis）", "## 可以引用的", "## 可以借用的"):
-                block = text.split(heading, 1)[1].split("## ", 1)[0]
-                self.assertIn("本周无", block)
-                self.assertNotIn("- **", block)
+            thesis = text.split("## 值得讨论的（thesis）", 1)[1].split("## ", 1)[0]
+            quoted = text.split("## 可以引用的", 1)[1].split("## ", 1)[0]
+            borrowed = text.split("## 可以借用的", 1)[1].split("## ", 1)[0]
             pending = text.split("## 待分组", 1)[1]
-            self.assertEqual(pending.count("- **P-2026W42-"), 4)
-            self.assertIn(
-                "P-2026W42-1**｜YouTube · Yan Talk — 柴油只是幌子，雅尔塔2.0已经上桌。 / 【岩论】｜"
-                "[[📥 Inbox/YouTube-Likes/2026-10-13-aw-zxPHhh8U]] [原文](https://example.com/watch)",
-                pending,
-            )
-            self.assertIn(
-                "P-2026W42-2**｜Snipd · Behind the Craft — We Built Grok Bot. Here Are Our 14 Best Bots | Peng Zheng & Lauren Tan｜",
-                pending,
-            )
-            self.assertIn("Lauren Tan, a Grok Bot engineer", pending)
-            self.assertIn(
-                "P-2026W42-3**｜YouTube · 禪心悟道 — 走出身分與得失焦慮的終極心法：《金剛經》第二十三品淨心行善分，教你在復雜紅塵中修出不被世俗綁架的自由！｜",
-                pending,
-            )
-            self.assertNotIn("#佛法智慧", pending)
-            self.assertNotIn("无字幕", pending)
-            self.assertIn("P-2026W42-4**｜X · @0x_kaize：不升级套餐也能省 Grok Bot Token 的九条习惯｜", pending)
-            self.assertNotIn("我的看法", text)
+            self.assertIn("本周无", pending)
+            self.assertNotIn("- **P-", pending)
+            self.assertEqual(thesis.count("- **T-2026W42-"), 2)
+            self.assertIn("Yan Talk", thesis)
+            self.assertIn("[原文](https://example.com/watch)", thesis)
+            self.assertIn("我的看法：", thesis)
+            self.assertIn("禪心悟道", thesis)
+            self.assertEqual(quoted.count("- **F-2026W42-"), 1)
+            self.assertIn("Behind the Craft", quoted)
+            self.assertIn("[原文](https://share.snipd.com/episode/example)", quoted)
+            self.assertIn("Lauren Tan, a Grok Bot engineer", quoted)
+            self.assertEqual(borrowed.count("- **C-2026W42-"), 1)
+            self.assertIn("@0x_kaize", borrowed)
+            self.assertIn("[原文](https://x.com/example/status/1)", borrowed)
+            self.assertNotIn("#佛法智慧", text)
+            self.assertNotIn("无字幕", text)
 
     def test_explicit_group_tag_is_not_a_source_guess(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
@@ -219,13 +227,15 @@ class RefreshTests(unittest.TestCase):
             self.assertEqual(first, 0)
             dest = weekly.digest_path(vault, "2026-W42")
             early = dest.read_text(encoding="utf-8")
-            self.assertEqual(early.count("- **P-2026W42-"), 1)
+            self.assertEqual(early.count("- **T-2026W42-"), 1)
             self.assertIn("Yan Talk", early)
             place(vault, "real/2026-10-14.md", "📋 Digests", "daily", "2026-10-14.md")
             second = weekly.main(["--vault", str(vault), "--date", "2026-10-15"])
             self.assertEqual(second, 0)
             later = dest.read_text(encoding="utf-8")
-            self.assertEqual(later.count("- **P-2026W42-"), 4)
+            self.assertEqual(later.count("- **T-2026W42-"), 2)
+            self.assertEqual(later.count("- **F-2026W42-"), 1)
+            self.assertEqual(later.count("- **C-2026W42-"), 1)
             self.assertIn("Behind the Craft", later)
             self.assertIn("@0x_kaize", later)
 
@@ -270,7 +280,7 @@ class RefreshTests(unittest.TestCase):
             self.assertEqual(weekly.previous_week("2026-W43"), "2026-W42")
             self.assertEqual(weekly.main(["--vault", str(vault), "--date", "2026-10-14"]), 0)
             dest = weekly.digest_path(vault, "2026-W42")
-            self.assertEqual(dest.read_text(encoding="utf-8").count("- **P-2026W42-"), 1)
+            self.assertEqual(dest.read_text(encoding="utf-8").count("- **T-2026W42-"), 1)
             sunday = vault / "📋 Digests" / "daily" / "2026-10-18.md"
             sunday.write_text(
                 "- [[📥 Inbox/X-Bookmarks/sunday-item]] — X · @synthetic：周日才到的一条\n",
@@ -354,6 +364,11 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn('EVENT_NAME" = "workflow_dispatch"', manual)
         self.assertIn("INPUT_WEEK", manual)
         self.assertIn("YYYY-Www", manual)
+        self.assertIn("^[0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$", manual)
+        self.assertIn("permissions:", manual)
+        self.assertIn("contents: read", manual)
+        self.assertIn("group: digitalbrain-digests", manual)
+        self.assertIn("group: digitalbrain-digests", workflow)
         self.assertNotIn("schedule:", manual)
         self.assertNotIn("pull_request:", manual)
         self.assertNotIn("--force", manual)

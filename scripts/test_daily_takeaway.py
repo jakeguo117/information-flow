@@ -50,6 +50,11 @@ class DailyTakeawayTests(unittest.TestCase):
             self.assertIn("[[📥 Inbox/Instagram-Saves/2026-09-14-author-abc]]", text)
             self.assertIn("[[📥 Inbox/X-Bookmarks/2026-09-14-user-1]]", text)
             self.assertNotIn("2026-09-13-old", text)
+            self.assertIn("group: F", text.split("## Snipd", 1)[1].split("## ", 1)[0])
+            self.assertIn("group: F", text.split("## WeRead", 1)[1].split("## ", 1)[0])
+            self.assertIn("group: T", text.split("## YouTube", 1)[1].split("## ", 1)[0])
+            self.assertIn("group: C", text.split("## Instagram", 1)[1].split("## ", 1)[0])
+            self.assertIn("group: C", text.split("## X", 1)[1])
             self.assertFalse(weekly_intake.intake_path(vault, "2026-W38").exists())
 
     def test_empty_day_still_writes_file(self) -> None:
