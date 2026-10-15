@@ -160,7 +160,7 @@ class RealWeekTests(unittest.TestCase):
             xnote = vault / "📥 Inbox" / "X-Bookmarks" / "2026-10-14-0x_kaize-2110055685048209702.md"
             xnote.parent.mkdir(parents=True)
             xnote.write_text(
-                "---\nbookmark_url: https://x.com/example/status/1\n---\n\n# tip\n",
+                "---\ntweet_url: https://x.com/example/status/1\n---\n\n# tip\n",
                 encoding="utf-8",
             )
             rc = weekly.main(["--vault", str(vault), "--week", "2026-W42"])
@@ -318,6 +318,52 @@ class RefreshTests(unittest.TestCase):
         self.assertEqual(len(recorded or ""), 64)
 
 
+class SourceUrlTests(unittest.TestCase):
+    def test_image_url_key_does_not_beat_episode_url(self) -> None:
+        text = (
+            "---\n"
+            "image_url: https://wsrv.nl/cover.png\n"
+            "episode_url: https://share.snipd.com/episode/example\n"
+            "---\n"
+        )
+        self.assertEqual(weekly.note_source_url(text), "https://share.snipd.com/episode/example")
+
+    def test_body_image_does_not_hide_the_source_link(self) -> None:
+        text = (
+            "---\n"
+            "title: note\n"
+            "---\n"
+            "\n"
+            "![](https://cdn.example/photo.jpg)\n"
+            "https://wsrv.nl/?url=thumb.webp\n"
+            "[原文](https://example.com/post)\n"
+        )
+        self.assertEqual(weekly.note_source_url(text), "https://example.com/post")
+
+    def test_body_rule_does_not_hide_the_first_link(self) -> None:
+        text = (
+            "---\n"
+            "title: note\n"
+            "---\n"
+            "\n"
+            "https://example.com/first\n"
+            "\n"
+            "---\n"
+            "\n"
+            "https://cdn.example/later.png\n"
+        )
+        self.assertEqual(weekly.note_source_url(text), "https://example.com/first")
+
+    def test_one_source_group_table(self) -> None:
+        import daily_takeaway
+        import source_groups
+
+        self.assertIs(daily_takeaway.SOURCE_GROUP, source_groups.SOURCE_GROUP)
+        self.assertIs(daily_takeaway.SECTION_GROUP, source_groups.SECTION_GROUP)
+        self.assertEqual(weekly.group_for_heading("YouTube"), source_groups.SECTION_GROUP["YouTube"])
+        self.assertEqual(weekly.GENERATOR_VERSION, "2")
+
+
 class SkillContractTests(unittest.TestCase):
     def test_read_order_matches_discussion_step(self) -> None:
         skill = (ROOT / "skills" / "journal" / "SKILL.md").read_text(encoding="utf-8")
@@ -373,6 +419,8 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("^[0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$", manual)
         self.assertIn("permissions:", manual)
         self.assertIn("contents: read", manual)
+        self.assertIn("contents: read", workflow)
+        self.assertIn("${{ secrets.DIGITALBRAIN_TOKEN }}", workflow)
         self.assertIn("group: digitalbrain-digests", manual)
         self.assertIn("group: digitalbrain-digests", workflow)
         self.assertNotIn("schedule:", manual)

@@ -23,7 +23,7 @@ DigitalBrain `.cursor/skills/` 里的副本由 information-flow Actions 覆盖�
 python3 scripts/build_weekly_digest.py --vault "$VAULT"
 ```
 
-它按 Asia/Shanghai 的 ISO 周，把 `📋 Digests/daily/YYYY-MM-DD.md` 和 `📋 Digests/YYYY-MM-DD-Digest.md` 收成唯一正式路径 `📋 Digests/{YYYY-Wnn}/digest.md`。日摘要按来源写成 `group:`：Snipd / WeRead 可以引用，YouTube 值得讨论，X / Instagram 可以借用。这一周没有任何日摘要文件时，脚本改用该周已经收好的周入口，仍然只写出上面的正式路径。没有真实条目就不写文件，退出码 2。文件末尾有生成标记、正文哈希还对得上、并且「我的看法：」仍是空的，才可以重写；手改过或看法已经写了就留着，退出码 3。只给 vault、不给周时，同时建本周和上一周。不要写占位。这张周摘要给周记用。本技能讨论的仍是昨天的日摘要，不要改去打开周 digest 代替昨天。
+它按 Asia/Shanghai 的 ISO 周，把 `📋 Digests/daily/YYYY-MM-DD.md` 和 `📋 Digests/YYYY-MM-DD-Digest.md` 收成唯一正式路径 `📋 Digests/{YYYY-Wnn}/digest.md`。日摘要按来源写成初始 `group:`：Snipd / WeRead 先放可以引用的，YouTube 先放值得讨论的，X / Instagram 先放可以借用的。讨论时可以按用途改组，编号不变。这一周没有任何日摘要文件时，脚本改用该周已经收好的周入口，仍然只写出上面的正式路径。没有真实条目就不写文件，退出码 2。文件末尾有生成标记、正文哈希还对得上、并且「我的看法：」仍是空的，才可以重写；手改过或看法已经写了就留着，退出码 3。只给 vault、不给周时，同时建本周和上一周。不要写占位。这张周摘要给周记用。本技能讨论的仍是昨天的日摘要，不要改去打开周 digest 代替昨天。
 
 ## 讨论
 

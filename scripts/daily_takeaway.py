@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import daily_digest  # noqa: E402
+from source_groups import SECTION_GROUP, SOURCE_GROUP  # noqa: E402
 from weekly_intake import new_item, parse_frontmatter, wiki_rel  # noqa: E402
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
@@ -21,24 +22,6 @@ SECTIONS = (
     ("Instagram", "instagram"),
     ("X", "x"),
 )
-# Fixed source-type map, written onto each daily item as `group:`.
-# F 可以引用的: highlight and excerpt sources.
-# T 值得讨论的: long-form video.
-# C 可以借用的: tips and saves.
-SOURCE_GROUP = {
-    "snipd": "F",
-    "weread": "F",
-    "youtube": "T",
-    "instagram": "C",
-    "x": "C",
-}
-SECTION_GROUP = {
-    "Snipd": "F",
-    "WeRead": "F",
-    "YouTube": "T",
-    "Instagram": "C",
-    "X": "C",
-}
 
 
 def heading_title(text: str, path: Path) -> str:
