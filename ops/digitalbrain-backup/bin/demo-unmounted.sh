@@ -43,7 +43,7 @@ cfg = {
     "github_remote": "https://github.com/jakeguo117/obsidian-digitalbrain.git",
     "git_branch": "main",
     "vault_path": os.environ["VAULT"],
-    "retention": {"daily": 14, "weekly": 8, "monthly": 12},
+    "retention": {"weekly": 8, "monthly": 12},
     "discord_channel_id": "123",
     "hermes_command": [
         os.environ["HERMES"], "send", "--to", "discord:{channel_id}",

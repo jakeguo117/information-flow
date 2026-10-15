@@ -21,6 +21,7 @@ import fcntl
 import hashlib
 import json
 import os
+import pickle
 import re
 import select
 import shlex
@@ -108,7 +109,6 @@ class Config:
     github_remote: str
     git_branch: str
     vault_path: Path
-    retention_daily: int
     retention_weekly: int
     retention_monthly: int
     discord_channel_id: str
@@ -282,7 +282,6 @@ def load_config(path: Path) -> Config:
         github_remote=remote,
         git_branch=branch,
         vault_path=require_abs(data.get("vault_path"), "vault_path"),
-        retention_daily=positive_int(retention.get("daily"), "retention.daily"),
         retention_weekly=positive_int(retention.get("weekly"), "retention.weekly"),
         retention_monthly=positive_int(retention.get("monthly"), "retention.monthly"),
         discord_channel_id=channel,
@@ -366,14 +365,12 @@ def disk_io_main(argv: list[str]) -> int:
             print(f"refusing symlink {path}", file=sys.stderr)
             return 1
         if action == "append":
-            path.parent.mkdir(parents=True, exist_ok=True)
             if path.is_symlink():
                 print(f"refusing symlink {path}", file=sys.stderr)
                 return 1
             with path.open("ab") as handle:
                 handle.write(sys.stdin.buffer.read())
         elif action == "write":
-            path.parent.mkdir(parents=True, exist_ok=True)
             temporary = path.with_name(path.name + ".tmp")
             if temporary.is_symlink() or path.is_symlink():
                 print(f"refusing symlink {path}", file=sys.stderr)
@@ -383,7 +380,7 @@ def disk_io_main(argv: list[str]) -> int:
         elif action == "read":
             sys.stdout.buffer.write(path.read_bytes())
         elif action == "mkdir":
-            path.mkdir(parents=True, exist_ok=True)
+            path.mkdir(parents=False, exist_ok=True)
         else:
             print(f"unknown disk-io action {action}", file=sys.stderr)
             return 2
@@ -391,6 +388,131 @@ def disk_io_main(argv: list[str]) -> int:
         print(str(exc), file=sys.stderr)
         return 1
     return 0
+
+
+def _raise_child_error(name: str, message: str) -> None:
+    if name == "DiskTimeout":
+        raise DiskTimeout(message)
+    if name == "GuardError":
+        raise GuardError(message)
+    if name == "ConfigError":
+        raise ConfigError(message)
+    if name == "VaultProblem":
+        raise VaultProblem(message)
+    raise BackupError(message)
+
+
+def _fork_timeout(timeout: float, func, args: tuple) -> object:
+    read_fd, write_fd = os.pipe()
+    pid = os.fork()
+    if pid == 0:
+        os.close(read_fd)
+        os.environ["DIGITALBRAIN_BACKUP_DISK_CHILD"] = "1"
+        try:
+            value = func(*args)
+            blob = pickle.dumps(("ok", value), protocol=pickle.HIGHEST_PROTOCOL)
+        except Exception as exc:
+            blob = pickle.dumps(("err", type(exc).__name__, str(exc)), protocol=pickle.HIGHEST_PROTOCOL)
+        try:
+            view = memoryview(blob)
+            while len(view):
+                wrote = os.write(write_fd, view)
+                view = view[wrote:]
+        except OSError:
+            pass
+        os.close(write_fd)
+        os._exit(0)
+    os.close(write_fd)
+    chunks: list[bytes] = []
+    deadline = time.monotonic() + timeout
+    timed_out = False
+    try:
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                timed_out = True
+                break
+            ready, _, _ = select.select([read_fd], [], [], remaining)
+            if not ready:
+                timed_out = True
+                break
+            piece = os.read(read_fd, 65536)
+            if not piece:
+                break
+            chunks.append(piece)
+    finally:
+        os.close(read_fd)
+    if timed_out:
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            pass
+        try:
+            os.waitpid(pid, 0)
+        except ChildProcessError:
+            pass
+        raise DiskTimeout(f"disk io timed out: {getattr(func, '__name__', 'disk')}")
+    try:
+        _pid, status = os.waitpid(pid, 0)
+    except ChildProcessError:
+        status = 0
+    if os.WIFSIGNALED(status):
+        raise DiskTimeout(f"disk io timed out: {getattr(func, '__name__', 'disk')}")
+    try:
+        kind, *rest = pickle.loads(b"".join(chunks))
+    except (pickle.UnpicklingError, EOFError, ValueError) as exc:
+        raise BackupError(f"disk io child failed: {exc}") from exc
+    if kind == "ok":
+        return rest[0]
+    _raise_child_error(str(rest[0]), str(rest[1]) if len(rest) > 1 else "")
+    raise BackupError("disk io child failed")
+
+
+def _mp_entry(func, args: tuple, queue) -> None:
+    os.environ["DIGITALBRAIN_BACKUP_DISK_CHILD"] = "1"
+    try:
+        queue.put(("ok", func(*args)))
+    except Exception as exc:
+        queue.put(("err", type(exc).__name__, str(exc)))
+
+
+def _spawn_timeout(timeout: float, func, args: tuple) -> object:
+    import multiprocessing
+
+    package = str(Path(__file__).resolve().parent)
+    current = os.environ.get("PYTHONPATH", "")
+    parts = [part for part in current.split(os.pathsep) if part]
+    if package not in parts:
+        os.environ["PYTHONPATH"] = os.pathsep.join([package, *parts])
+    ctx = multiprocessing.get_context("spawn")
+    queue = ctx.Queue()
+    proc = ctx.Process(target=_mp_entry, args=(func, args, queue))
+    proc.start()
+    proc.join(timeout)
+    if proc.is_alive():
+        proc.kill()
+        proc.join(5)
+        queue.close()
+        raise DiskTimeout(f"disk io timed out: {getattr(func, '__name__', 'disk')}")
+    try:
+        kind, *rest = queue.get_nowait()
+    except Exception as exc:
+        raise BackupError(f"disk io child failed: {exc}") from exc
+    finally:
+        queue.close()
+    if kind == "ok":
+        return rest[0]
+    _raise_child_error(str(rest[0]), str(rest[1]) if len(rest) > 1 else "")
+    raise BackupError("disk io child failed")
+
+
+def external_disk(timeout: float, root: Path, func, *args, how: str = "fork"):
+    """Run one external-disk operation in a child the parent can SIGKILL."""
+    if os.environ.get("DIGITALBRAIN_BACKUP_DISK_CHILD") == "1" or not uses_timed_disk_io(root):
+        return func(*args)
+    if how == "spawn":
+        return _spawn_timeout(timeout, func, args)
+    return _fork_timeout(timeout, func, args)
 
 
 _OPEN_LOGGER: "Logger | None" = None
@@ -567,15 +689,19 @@ def write_status(cfg: Config, status: dict) -> None:
     os.replace(temporary, path)
 
 
-def persist_status(cfg: Config, status: dict, logger: Logger) -> None:
+def persist_status(cfg: Config, status: dict, logger: Logger) -> bool:
     try:
         write_status(cfg, status)
+        return True
     except DiskTimeout:
         logger.write("disk status/log write timed out; wrote local fallback")
-        try:
-            write_local_fallback(cfg, status)
-        except OSError as exc:
-            logger.write(f"local fallback status failed: {exc}")
+    except (BackupError, OSError) as exc:
+        logger.write(f"disk status write failed; wrote local fallback: {exc}")
+    try:
+        write_local_fallback(cfg, status)
+    except OSError as exc:
+        logger.write(f"local fallback status failed: {exc}")
+    return False
 
 
 def read_disk_bytes(path: Path, timeout: float) -> bytes:
@@ -716,7 +842,7 @@ def evaluate_mount_point(
     return MountVerdict(True, "mounted")
 
 
-def collect_mount_facts(cfg: Config) -> MountVerdict:
+def _collect_mount_facts(cfg: Config) -> MountVerdict:
     volume = cfg.volume
     if ".." in volume.parts:
         return MountVerdict(False, "volume path contains ..")
@@ -738,7 +864,17 @@ def collect_mount_facts(cfg: Config) -> MountVerdict:
     )
 
 
-def marker_status(path: Path) -> tuple[bool, str]:
+def collect_mount_facts(cfg: Config) -> MountVerdict:
+    try:
+        verdict = external_disk(cfg.disk_io_timeout_seconds, cfg.volume, _collect_mount_facts, cfg, how="fork")
+    except DiskTimeout:
+        return MountVerdict(False, "mount check timed out")
+    if not isinstance(verdict, MountVerdict):
+        return MountVerdict(False, "mount check failed")
+    return verdict
+
+
+def _marker_status(path: Path) -> tuple[bool, str]:
     try:
         info = path.lstat()
     except FileNotFoundError:
@@ -759,14 +895,44 @@ def marker_status(path: Path) -> tuple[bool, str]:
     return True, "ok"
 
 
+def marker_status(path: Path, *, timeout: float | None = None, root: Path | None = None) -> tuple[bool, str]:
+    if timeout is None or root is None:
+        return _marker_status(path)
+    try:
+        result = external_disk(timeout, root, _marker_status, path, how="fork")
+    except DiskTimeout:
+        return False, "timed out"
+    if not isinstance(result, tuple) or len(result) != 2:
+        return False, "unreadable"
+    return bool(result[0]), str(result[1])
+
+
+def _path_is_symlink(path: Path) -> bool:
+    return path.is_symlink()
+
+
 def target_ready(cfg: Config) -> MountVerdict:
     point = collect_mount_facts(cfg)
     if not point.ok:
         return point
-    ok, detail = marker_status(cfg.backup_root / MARKER_NAME)
+    ok, detail = marker_status(
+        cfg.backup_root / MARKER_NAME,
+        timeout=cfg.disk_io_timeout_seconds,
+        root=cfg.backup_root,
+    )
     if not ok:
         return MountVerdict(False, f"backup target marker is missing or invalid: {detail}")
-    if cfg.backup_root.is_symlink():
+    try:
+        linked = external_disk(
+            cfg.disk_io_timeout_seconds,
+            cfg.backup_root,
+            _path_is_symlink,
+            cfg.backup_root,
+            how="fork",
+        )
+    except DiskTimeout:
+        return MountVerdict(False, "marker check timed out")
+    if linked:
         return MountVerdict(False, "backup root is a symlink")
     return MountVerdict(True, "mounted")
 
@@ -816,12 +982,19 @@ def safe_remove(backup_root: Path, target: Path) -> None:
     raise GuardError("refusing special file")
 
 
-def discard_incoming(backup_root: Path) -> None:
+def _discard_incoming(backup_root: Path) -> None:
     incoming = backup_root / "incoming"
     if incoming.is_symlink():
         raise GuardError("refusing symlink incoming directory")
     if incoming.exists():
         safe_remove(backup_root, incoming)
+
+
+def discard_incoming(backup_root: Path, timeout: float | None = None) -> None:
+    if timeout is None:
+        _discard_incoming(backup_root)
+        return
+    external_disk(timeout, backup_root, _discard_incoming, backup_root, how="spawn")
 
 
 def remote_path(remote: str) -> Path | None:
@@ -1418,7 +1591,9 @@ def sync_git(cfg: Config, logger: Logger, git_sync: GitSync) -> None:
     logger.write(f"git-bundle-verify rc={proc.returncode}\n{git_sync.verify_output.rstrip()}")
     if proc.returncode != 0:
         raise BackupError(git_fail("bundle verify", proc))
-    git_sync.bundle_bytes = bundle.stat().st_size
+    git_sync.bundle_bytes = int(
+        external_disk(cfg.disk_io_timeout_seconds, cfg.backup_root, _file_size, bundle, how="spawn")
+    )
 
 
 def copy_vault(cfg: Config, worker: VaultWorker, scan: Scan, logger: Logger) -> dict:
@@ -1530,7 +1705,7 @@ def link_period(cfg: Config, period: str, label: str, daily_vault: Path, daily_m
     move_into_place(stage_bundle, cfg.backup_root / "git" / period / f"{label}.bundle", cfg.backup_root)
 
 
-def publish_snapshots(cfg: Config, labels: dict) -> tuple[Path, Path, Path]:
+def _publish_snapshots(cfg: Config, labels: dict) -> tuple[Path, Path, Path]:
     daily_vault = cfg.backup_root / "vault" / "daily" / labels["daily"]
     daily_manifest = cfg.backup_root / "vault" / "daily" / f"{labels['daily']}.manifest.json"
     daily_bundle = cfg.backup_root / "git" / "daily" / f"{labels['daily']}.bundle"
@@ -1542,6 +1717,20 @@ def publish_snapshots(cfg: Config, labels: dict) -> tuple[Path, Path, Path]:
     if labels["month_start"]:
         link_period(cfg, "monthly", labels["monthly"], daily_vault, daily_manifest, daily_bundle)
     return daily_vault, daily_manifest, daily_bundle
+
+
+def publish_snapshots(cfg: Config, labels: dict) -> tuple[Path, Path, Path]:
+    result = external_disk(
+        cfg.disk_io_timeout_seconds,
+        cfg.backup_root,
+        _publish_snapshots,
+        cfg,
+        labels,
+        how="spawn",
+    )
+    if not isinstance(result, tuple) or len(result) != 3:
+        raise BackupError("publish snapshots failed")
+    return result[0], result[1], result[2]
 
 
 def matching_names(directory: Path, pattern: re.Pattern) -> list[str]:
@@ -1562,11 +1751,10 @@ def remove_entry(backup_root: Path, path: Path, deleted: list[str], skipped: lis
         skipped.append({"path": str(path), "reason": str(exc)})
 
 
-def apply_retention(backup_root: Path, cfg: Config) -> dict:
+def _apply_retention(backup_root: Path, cfg: Config) -> dict:
     deleted: list[str] = []
     skipped: list[dict] = []
     specs = [
-        ("daily", cfg.retention_daily, DAILY_NAME, DAILY_BUNDLE, DAILY_MANIFEST),
         ("weekly", cfg.retention_weekly, WEEKLY_NAME, WEEKLY_BUNDLE, WEEKLY_MANIFEST),
         ("monthly", cfg.retention_monthly, MONTHLY_NAME, MONTHLY_BUNDLE, MONTHLY_MANIFEST),
     ]
@@ -1589,6 +1777,20 @@ def apply_retention(backup_root: Path, cfg: Config) -> dict:
             if name not in kept_bundles:
                 remove_entry(backup_root, git_dir / name, deleted, skipped)
     return {"deleted": deleted, "ran": True, "reason": "", "skipped": skipped}
+
+
+def apply_retention(backup_root: Path, cfg: Config) -> dict:
+    result = external_disk(
+        cfg.disk_io_timeout_seconds,
+        backup_root,
+        _apply_retention,
+        backup_root,
+        cfg,
+        how="spawn",
+    )
+    if not isinstance(result, dict):
+        raise BackupError("retention failed")
+    return result
 
 
 def copy_snapshot(src: Path, dst: Path) -> None:
@@ -1624,17 +1826,13 @@ def make_restore_dir(cfg: Config) -> Path:
     return path
 
 
-def run_restore(cfg: Config, logger: Logger, expected_sha: str | None = None) -> RestoreReport:
-    chunks: list[str] = []
+def _file_size(path: Path) -> int:
+    if path.is_symlink() or not path.is_file():
+        return 0
+    return path.stat().st_size
 
-    def emit(title: str, text: str) -> None:
-        block = f"--- {title} ---\n{text}"
-        if not block.endswith("\n"):
-            block += "\n"
-        chunks.append(block)
-        print(block, end="", flush=True)
-        logger.write(block.rstrip("\n"))
 
+def _load_restore_inputs(cfg: Config, expected_sha: str | None) -> dict:
     names = matching_names(cfg.backup_root / "vault" / "daily", DAILY_NAME)
     chosen = None
     for name in reversed(names):
@@ -1651,11 +1849,46 @@ def run_restore(cfg: Config, logger: Logger, expected_sha: str | None = None) ->
         raise BackupError("daily bundle missing")
     if manifest_path.is_symlink() or not manifest_path.is_file():
         raise BackupError("manifest missing")
+    manifest_text = manifest_path.read_text(encoding="utf-8")
     if expected_sha is None:
         status_path = cfg.backup_root / "status.json"
         if status_path.is_file() and not status_path.is_symlink():
             raw = read_disk_bytes(status_path, cfg.disk_io_timeout_seconds)
             expected_sha = json.loads(raw.decode("utf-8")).get("head_sha")
+    return {
+        "bundle": str(bundle),
+        "manifest": manifest_text,
+        "vault": str(vault_snap),
+        "expected": expected_sha,
+    }
+
+
+def run_restore(cfg: Config, logger: Logger, expected_sha: str | None = None) -> RestoreReport:
+    chunks: list[str] = []
+
+    def emit(title: str, text: str) -> None:
+        block = f"--- {title} ---\n{text}"
+        if not block.endswith("\n"):
+            block += "\n"
+        chunks.append(block)
+        print(block, end="", flush=True)
+        logger.write(block.rstrip("\n"))
+
+    loaded = external_disk(
+        cfg.disk_io_timeout_seconds,
+        cfg.backup_root,
+        _load_restore_inputs,
+        cfg,
+        expected_sha,
+        how="spawn",
+    )
+    if not isinstance(loaded, dict):
+        raise BackupError("restore inputs failed")
+    bundle = Path(str(loaded["bundle"]))
+    manifest_text = str(loaded["manifest"])
+    vault_snap = Path(str(loaded["vault"]))
+    if loaded.get("expected"):
+        expected_sha = str(loaded["expected"])
     tmp = make_restore_dir(cfg)
     errors: list[str] = []
     try:
@@ -1683,7 +1916,7 @@ def run_restore(cfg: Config, logger: Logger, expected_sha: str | None = None) ->
                 errors.append(f"HEAD {head} != expected {expected_sha}")
         restored_vault = tmp / "vault"
         copy_snapshot(vault_snap, restored_vault)
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest = json.loads(manifest_text)
         manifest_errors = verify_manifest(restored_vault, manifest)
         if manifest_errors:
             errors.extend(manifest_errors)
@@ -1705,11 +1938,25 @@ def run_restore(cfg: Config, logger: Logger, expected_sha: str | None = None) ->
     return RestoreReport(not errors, output, errors)
 
 
-def acquire_lock(backup_root: Path) -> int | None:
+def _probe_lock(path_text: str) -> None:
+    path = Path(path_text)
+    if path.is_symlink():
+        raise BackupError("refusing symlink lock file")
+    fd = os.open(path_text, os.O_CREAT | os.O_RDWR, 0o644)
+    os.close(fd)
+
+
+def acquire_lock(backup_root: Path, timeout: float | None = None) -> int | None:
     path = backup_root / ".backup.lock"
+    if timeout is not None and uses_timed_disk_io(backup_root):
+        external_disk(timeout, backup_root, _probe_lock, str(path), how="fork")
     if path.is_symlink():
         raise BackupError("refusing symlink lock file")
     fd = os.open(path, os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        os.set_inheritable(fd, False)
+    except OSError:
+        pass
     try:
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
@@ -1723,7 +1970,7 @@ def perform_backup(cfg: Config, logger: Logger) -> dict:
     worker: VaultWorker | None = None
     try:
         assert_layout(cfg)
-        discard_incoming(cfg.backup_root)
+        discard_incoming(cfg.backup_root, cfg.disk_io_timeout_seconds)
         worker = VaultWorker(cfg, logger)
         scan = None
         vault_exc: VaultProblem | None = None
@@ -1737,7 +1984,7 @@ def perform_backup(cfg: Config, logger: Logger) -> dict:
         except (BackupError, GuardError) as exc:
             git_exc = exc
         if vault_exc or git_exc or scan is None:
-            discard_incoming(cfg.backup_root)
+            discard_incoming(cfg.backup_root, cfg.disk_io_timeout_seconds)
             errors = [str(item) for item in (vault_exc, git_exc) if item]
             return failure_status(
                 errors or ["backup failed"],
@@ -1754,12 +2001,16 @@ def perform_backup(cfg: Config, logger: Logger) -> dict:
             if not report.ok:
                 raise BackupError("restore test failed: " + "; ".join(report.errors))
         try:
-            discard_incoming(cfg.backup_root)
+            discard_incoming(cfg.backup_root, cfg.disk_io_timeout_seconds)
         except GuardError:
             pass
         prune = apply_retention(cfg.backup_root, cfg)
         bundle = cfg.backup_root / "git" / "daily" / f"{labels['daily']}.bundle"
-        bundle_bytes = bundle.stat().st_size if bundle.is_file() else git_sync.bundle_bytes
+        bundle_bytes = int(
+            external_disk(cfg.disk_io_timeout_seconds, cfg.backup_root, _file_size, bundle, how="spawn")
+        )
+        if not bundle_bytes:
+            bundle_bytes = git_sync.bundle_bytes
         return {
             "alert_sent": False,
             "errors": [],
@@ -1779,7 +2030,7 @@ def perform_backup(cfg: Config, logger: Logger) -> dict:
         }
     except (BackupError, VaultProblem, GuardError) as exc:
         try:
-            discard_incoming(cfg.backup_root)
+            discard_incoming(cfg.backup_root, cfg.disk_io_timeout_seconds)
         except GuardError:
             pass
         placeholders = list(getattr(exc, "placeholders", []) or [])
@@ -1811,6 +2062,11 @@ def cmd_backup(cfg: Config) -> int:
         print(f"digitalbrain-backup result=failed reason={verdict.reason}", file=sys.stderr)
         status = failure_status([verdict.reason])
         send_alert(cfg, status, home_logger)
+        if "timed out" in verdict.reason:
+            try:
+                write_local_fallback(cfg, status)
+            except OSError as exc:
+                home_logger.write(f"local fallback status failed: {exc}")
         return 1
     logger = Logger(
         cfg.home_log,
@@ -1821,10 +2077,19 @@ def cmd_backup(cfg: Config) -> int:
     try:
         logger.write("backup start")
         logger.write(f"interpreter sys.executable={sys.executable}")
-        lock_fd = acquire_lock(cfg.backup_root)
+        try:
+            lock_fd = acquire_lock(cfg.backup_root, cfg.disk_io_timeout_seconds)
+        except (DiskTimeout, BackupError, OSError) as exc:
+            status = failure_status([f"lock open failed: {exc}"])
+            send_alert(cfg, status, logger)
+            try:
+                write_local_fallback(cfg, status)
+            except OSError as fallback_exc:
+                logger.write(f"local fallback status failed: {fallback_exc}")
+            print("digitalbrain-backup result=failed head=None", file=sys.stderr)
+            return 1
         if lock_fd is None:
             status = failure_status(["another backup is already running"])
-            persist_status(cfg, status, logger)
             send_alert(cfg, status, logger)
             persist_status(cfg, status, logger)
             print("digitalbrain-backup result=failed head=None")
@@ -1834,17 +2099,32 @@ def cmd_backup(cfg: Config) -> int:
         except Exception as exc:
             logger.write(traceback.format_exc())
             try:
-                discard_incoming(cfg.backup_root)
+                discard_incoming(cfg.backup_root, cfg.disk_io_timeout_seconds)
             except GuardError:
                 pass
             status = failure_status([str(exc)])
         finally:
             os.close(lock_fd)
-        persist_status(cfg, status, logger)
         if status["result"] != "ok":
             send_alert(cfg, status, logger)
-            persist_status(cfg, status, logger)
-        else:
+        try:
+            disk_ok = persist_status(cfg, status, logger)
+        except (BackupError, OSError) as exc:
+            logger.write(f"disk status write failed; wrote local fallback: {exc}")
+            disk_ok = False
+            try:
+                write_local_fallback(cfg, status)
+            except OSError as fallback_exc:
+                logger.write(f"local fallback status failed: {fallback_exc}")
+        if status["result"] == "ok" and not disk_ok:
+            status["errors"].append("disk status write failed")
+            status["result"] = "failed"
+            send_alert(cfg, status, logger)
+            try:
+                write_local_fallback(cfg, status)
+            except OSError as exc:
+                logger.write(f"local fallback status failed: {exc}")
+        elif status["result"] == "ok":
             logger.write("backup result=ok")
         print(f"digitalbrain-backup result={status['result']} head={status.get('head_sha')}")
         return 0 if status["result"] == "ok" else 1
@@ -1866,6 +2146,18 @@ def record_run_timeout(cfg: Config) -> int:
     status["result"] = "timeout"
     status["prune"]["reason"] = "backup timed out"
     send_alert(cfg, status, home_logger)
+    try:
+        verdict = target_ready(cfg)
+    except (BackupError, OSError) as exc:
+        verdict = MountVerdict(False, str(exc))
+    if not verdict.ok:
+        home_logger.write(f"backup target unavailable: {verdict.reason}")
+        try:
+            write_local_fallback(cfg, status)
+        except OSError as exc:
+            home_logger.write(f"local fallback status failed: {exc}")
+        print("digitalbrain-backup result=timeout head=None", file=sys.stderr)
+        return 1
     payload = status_bytes(status)
     disk_log = cfg.backup_root / cfg.disk_log_name
     note = f"{shanghai_now().isoformat()} {message}\n".encode()
@@ -1876,7 +2168,7 @@ def record_run_timeout(cfg: Config) -> int:
     except DiskTimeout:
         need_fallback = True
         timed_out = True
-    except BackupError as exc:
+    except (BackupError, OSError) as exc:
         home_logger.write(f"disk status write failed: {exc}")
         need_fallback = True
     try:
@@ -1884,7 +2176,7 @@ def record_run_timeout(cfg: Config) -> int:
     except DiskTimeout:
         need_fallback = True
         timed_out = True
-    except BackupError as exc:
+    except (BackupError, OSError) as exc:
         home_logger.write(f"disk log write failed: {exc}")
         need_fallback = True
     if need_fallback:
@@ -1952,33 +2244,59 @@ def cmd_restore_test(cfg: Config) -> int:
     return 1
 
 
+def _dir_kind(path: Path) -> str:
+    if path.is_symlink():
+        return "symlink"
+    if not path.exists():
+        return "missing"
+    if not path.is_dir():
+        return "other"
+    return "dir"
+
+
+def _mkdir_leaf(path: Path) -> None:
+    path.mkdir(parents=False, exist_ok=False)
+
+
 def ensure_backup_root(cfg: Config) -> Path:
-    if not cfg.volume.is_dir() or cfg.volume.is_symlink():
+    try:
+        kind = external_disk(cfg.disk_io_timeout_seconds, cfg.volume, _dir_kind, cfg.volume, how="spawn")
+    except DiskTimeout as exc:
+        raise BackupError(f"volume stat timed out: {cfg.volume}") from exc
+    if kind != "dir":
         raise BackupError("volume is not a directory")
     root = cfg.volume
     for part in Path(cfg.backup_folder).parts:
         if part in {"", ".", ".."}:
             raise BackupError("bad backup folder")
         root = root / part
-        if root.is_symlink():
+        try:
+            kind = external_disk(cfg.disk_io_timeout_seconds, root, _dir_kind, root, how="spawn")
+        except DiskTimeout as exc:
+            raise BackupError(f"backup path stat timed out: {root}") from exc
+        if kind == "symlink":
             raise BackupError("refusing symlink in backup path")
-        if not root.exists():
-            if uses_timed_disk_io(root):
-                try:
-                    perform_disk_io("mkdir", root, b"", cfg.disk_io_timeout_seconds)
-                except DiskTimeout as exc:
-                    raise BackupError(f"mkdir timed out: {root}") from exc
-            else:
-                root.mkdir(exist_ok=False)
-        if not root.is_dir():
+        if kind == "missing":
+            try:
+                external_disk(cfg.disk_io_timeout_seconds, root, _mkdir_leaf, root, how="spawn")
+            except DiskTimeout as exc:
+                raise BackupError(f"mkdir timed out: {root}") from exc
+        elif kind != "dir":
             raise BackupError("backup folder is not a directory")
     return root
 
 
-def write_marker(path: Path, volume: Path) -> None:
+def _write_marker(path: Path, volume_text: str) -> None:
     if path.is_symlink():
         raise BackupError("refusing symlink marker")
-    path.write_text(f"{MARKER_TOKEN}\nvolume={volume}\n", encoding="utf-8")
+    path.write_text(f"{MARKER_TOKEN}\nvolume={volume_text}\n", encoding="utf-8")
+
+
+def write_marker(path: Path, volume: Path, timeout: float | None = None, root: Path | None = None) -> None:
+    if timeout is None or root is None:
+        _write_marker(path, str(volume))
+        return
+    external_disk(timeout, root, _write_marker, path, str(volume), how="spawn")
 
 
 def is_usr_bin_python3(path: Path) -> bool:
@@ -2127,7 +2445,7 @@ def cmd_install(config_path: Path, home: Path, launch_agents: Path) -> int:
         if marker.is_symlink() or detail == "symlink":
             raise BackupError("refusing symlink marker")
         if not ok:
-            write_marker(marker, cfg.volume)
+            write_marker(marker, cfg.volume, cfg.disk_io_timeout_seconds, cfg.backup_root)
         text = render_plist(dedicated, home)
         launch_agents.mkdir(parents=True, exist_ok=True)
         dest = launch_agents / PLIST_NAME
