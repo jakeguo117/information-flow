@@ -102,7 +102,7 @@ def event_id_of(text: str) -> str | None:
     return _frontmatter_value(text, "event_id")
 
 
-def render_journal(approval: dict[str, Any]) -> str:
+def render_journal(approval: dict[str, Any], digest_text: str | None = None) -> str:
     date = str(approval.get("date") or "")
     if not DATE_RE.match(date):
         raise ValueError("date must be YYYY-MM-DD")
@@ -155,7 +155,42 @@ def render_journal(approval: dict[str, Any]) -> str:
     prev = f"[[{previous}]]" if previous else "（无）"
     lines.append(f"**Previous / 上一篇:** {prev}")
     lines.append("")
+    if digest_text is not None:
+        lines.extend(render_digest_section(approval, digest_text))
     return "\n".join(lines)
+
+
+def strip_frontmatter(text: str) -> str:
+    if text.startswith("---\n"):
+        end = text.find("\n---", 4)
+        if end >= 0:
+            text = text[end + 4 :]
+    return text.strip("\n")
+
+
+def render_digest_section(approval: dict[str, Any], digest_text: str) -> list[str]:
+    """Weekly digest copied in full as one separate section at the journal end."""
+    body = strip_frontmatter(digest_text)
+    if not body.strip():
+        raise ValueError("digest file is empty")
+    week = str(approval.get("digest_week") or "")
+    label = f"（{week}）" if week else ""
+    return ["---", f"## 本周 digest{label}", "", body.rstrip(), ""]
+
+
+def read_digest(vault: Path, digest_path: Path) -> str:
+    """Read a weekly digest that must live inside the vault under 📋 Digests/."""
+    path = digest_path if digest_path.is_absolute() else vault / digest_path
+    if path.is_symlink():
+        raise OSError("refusing to read digest through a symlink")
+    resolved = path.resolve()
+    try:
+        rel = resolved.relative_to(vault.resolve())
+    except ValueError as exc:
+        raise OSError("digest path escapes the vault") from exc
+    if not rel.parts or rel.parts[0] != "📋 Digests" or resolved.suffix != ".md":
+        raise OSError("digest must be a .md file under 📋 Digests/")
+    return resolved.read_text(encoding="utf-8")
 
 
 def journal_filename(approval: dict[str, Any]) -> str:
@@ -228,7 +263,9 @@ def confirmation_granted(approval: dict[str, Any]) -> bool:
     return approval.get("confirmed") is True and approval.get("phrase") in CONFIRM_PHRASES
 
 
-def perform(vault: Path, action: str, approval: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+def perform(
+    vault: Path, action: str, approval: dict[str, Any], digest_text: str | None = None
+) -> tuple[dict[str, Any], bool]:
     event_id = str(approval.get("event_id") or "")
     if action not in {"save", "retry"}:
         return {"status": "unavailable", "message": "action must be save or retry", "files_written": 0}, False
@@ -251,7 +288,7 @@ def perform(vault: Path, action: str, approval: dict[str, Any]) -> tuple[dict[st
         }, False
 
     try:
-        rendered = render_journal(approval)
+        rendered = render_journal(approval, digest_text)
     except ValueError as exc:
         return {
             "status": "validation_error",
@@ -370,3 +407,4 @@ def perform(vault: Path, action: str, approval: dict[str, Any]) -> tuple[dict[st
         "files_written": 1,
         "journal_files_for_event": 1,
     }, True
+

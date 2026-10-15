@@ -13,7 +13,7 @@
   "interface": {
     "displayName": "Information Flow",
     "shortDescription": "Intake daily, journal weekly, retrieve cognition",
-    "longDescription": "Pulls Snipd, WeRead, and YouTube likes into weekly intake.md. Discussion starts from recent journals and old project echoes, not a week dump. Journal writes only after Jake says OK. Cognition (Evidence/Belief/Principle, schema_version 1.1) is a separate Markdown layer in DigitalBrain with a human gate; private cognition is not stored in this repo. Skill copies sync into DigitalBrain.",
+    "longDescription": "Pulls Snipd, WeRead, and YouTube likes into weekly intake.md. Journal opens the weekly digest at 📋 Digests/{YYYY-Wnn}/digest.md on its own, shows all three groups in full with item IDs, and discusses by ID; write_journal.py --append-digest saves the full digest as a separate section at the journal end in the same write. Discussion starts from recent journals and old project echoes, not a week dump. Journal writes only after Jake says OK. Cognition (Evidence/Belief/Principle, schema_version 1.1) is a separate Markdown layer in DigitalBrain with a human gate; private cognition is not stored in this repo. Skill copies sync into DigitalBrain.",
     "developerName": "Jake Guo",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],
