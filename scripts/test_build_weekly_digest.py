@@ -283,6 +283,30 @@ class RefreshTests(unittest.TestCase):
             self.assertIn("Yan Talk", text)
             self.assertFalse(weekly.digest_path(vault, "2026-W43").exists())
 
+    def test_marker_pattern_is_shared_and_strips_crlf(self) -> None:
+        journal = ROOT / "skills" / "journal" / "tools" / "journal_lib.py"
+        builder = ROOT / "scripts" / "build_weekly_digest.py"
+
+        def pattern_line(path: Path) -> str:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if line.startswith("DIGEST_MARKER_PATTERN = "):
+                    return line
+            raise AssertionError(path)
+
+        self.assertEqual(pattern_line(journal), pattern_line(builder))
+        sys.path.insert(0, str(ROOT / "skills" / "journal" / "tools"))
+        import journal_lib  # noqa: E402
+
+        body = "---\nweek: 2026-W42\n---\n\n# 本周 digest（2026-W42）\n\n合成正文。\n"
+        stamped = weekly.stamp(body).replace("\n", "\r\n")
+        self.assertIn("\r\n<!-- information-flow-weekly-digest", stamped)
+        stripped = journal_lib.strip_generator_marker(stamped)
+        self.assertNotIn("information-flow-weekly-digest", stripped)
+        self.assertIn("合成正文。", stripped)
+        parsed, recorded = weekly.split_generated(weekly.stamp(body))
+        self.assertEqual(parsed, body if body.endswith("\n") else body + "\n")
+        self.assertEqual(len(recorded or ""), 64)
+
 
 class SkillContractTests(unittest.TestCase):
     def test_read_order_matches_discussion_step(self) -> None:
@@ -310,6 +334,12 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn(phrase, reading)
         self.assertIn(phrase, step)
         self.assertIn("T-2026W42-1", step)
+        description = skill.split("description:", 1)[1].split("\n", 1)[0]
+        self.assertIn("写周记", description)
+        self.assertTrue(description.strip().strip('"').startswith("写周记"))
+        cognition = (ROOT / "skills" / "cognition" / "SKILL.md").read_text(encoding="utf-8")
+        cognition_description = cognition.split("description:", 1)[1].split("\n", 1)[0]
+        self.assertNotIn("写周记", cognition_description)
         workflow = (ROOT / ".github" / "workflows" / "daily-intake.yml").read_text(encoding="utf-8")
         self.assertIn("python3 scripts/build_weekly_digest.py --vault digitalbrain --also-previous", workflow)
         self.assertIn('"$status" -eq 2', workflow)

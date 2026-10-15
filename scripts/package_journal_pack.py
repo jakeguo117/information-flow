@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import subprocess
 import zipfile
 from pathlib import Path
@@ -86,14 +87,19 @@ def plugin_version() -> str:
 def chatgpt_manifest(name: str) -> bytes:
     """ChatGPT upload manifests keep the uploaded ZIP's JSON shape.
 
-    packaging/chatgpt-upload/*.json is the 0.1.1 layout baseline. The packed
-    bytes take their version from .codex-plugin/plugin.json.
+    packaging/chatgpt-upload/*.json keeps the uploaded ZIP's JSON shape. The
+    packed bytes take their version from .codex-plugin/plugin.json.
     """
     text = (ROOT / "packaging" / "chatgpt-upload" / name).read_text(encoding="utf-8")
-    pin = '"version": "0.1.1"'
-    if pin not in text:
-        raise SystemExit(f"chatgpt manifest missing version pin: {name}")
-    return text.replace(pin, f'"version": "{plugin_version()}"', 1).encode("utf-8")
+    updated, count = re.subn(
+        r'"version"\s*:\s*"[^"]*"',
+        f'"version": "{plugin_version()}"',
+        text,
+        count=1,
+    )
+    if count != 1:
+        raise SystemExit(f"chatgpt manifest missing version: {name}")
+    return updated.encode("utf-8")
 
 
 def zip_info(name: str) -> zipfile.ZipInfo:

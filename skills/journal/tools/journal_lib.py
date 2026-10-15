@@ -22,9 +22,8 @@ KNOWN_CHANNELS = frozenset({"snipd", "weread", "youtube"})
 CHANNEL_RE = re.compile(r"摄入：(\d{4}-\d{2}-\d{2})\s*·\s*(\S+)")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 EVENT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$")
-DIGEST_MARKER_RE = re.compile(
-    r"\n?<!-- information-flow-weekly-digest generator=\S+ sha256=[0-9a-f]{64} -->\s*\Z"
-)
+DIGEST_MARKER_PATTERN = r"(?:\r?\n)?<!-- information-flow-weekly-digest generator=(\S+) sha256=([0-9a-f]{64}) -->\s*\Z"
+DIGEST_MARKER_RE = re.compile(DIGEST_MARKER_PATTERN)
 
 
 def fingerprint(text: str) -> str:

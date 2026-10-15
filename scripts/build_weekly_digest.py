@@ -68,9 +68,8 @@ GENERATOR = "information-flow-weekly-digest"
 GENERATOR_VERSION = "1"
 NO_CONTENT_EXIT = 2
 EXISTS_EXIT = 3
-MARKER_RE = re.compile(
-    r"^<!-- information-flow-weekly-digest generator=(\S+) sha256=([0-9a-f]{64}) -->$"
-)
+DIGEST_MARKER_PATTERN = r"(?:\r?\n)?<!-- information-flow-weekly-digest generator=(\S+) sha256=([0-9a-f]{64}) -->\s*\Z"
+DIGEST_MARKER_RE = re.compile(DIGEST_MARKER_PATTERN)
 
 
 @dataclass
@@ -382,13 +381,12 @@ def stamp(body: str) -> str:
 
 def split_generated(text: str) -> tuple[str, str | None]:
     """Return the body and its recorded sha256, or (text, None) when unmarked."""
-    if not text.endswith("\n"):
-        return text, None
-    head, _, last = text.rstrip("\n").rpartition("\n")
-    match = MARKER_RE.match(last)
+    match = DIGEST_MARKER_RE.search(text)
     if not match:
         return text, None
-    body = head + "\n" if head else ""
+    body = text[: match.start()]
+    if not body.endswith("\n"):
+        body += "\n"
     return body, match.group(2)
 
 
