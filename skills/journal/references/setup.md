@@ -13,6 +13,8 @@ GitHub Actions 每天 08:00 上海
   → 先拉 YouTube，再写前一个上海日的 `📋 Digests/daily/YYYY-MM-DD.md`
   → Snipd 和 WeRead 只列当时已经在 main 上的文件
   → 空日也写文件，并写明为空
+  → 固定再跑 `python3 scripts/build_weekly_digest.py --vault <vault>`，把本周（Asia/Shanghai ISO 周）已有的日摘要收成 `📋 Digests/{YYYY-Wnn}/digest.md`
+  → 没有真实条目就不写这个文件（脚本退出码 2，当天的日摘要任务继续）
   → 不再追加 `📋 Digests/{YYYY-Wnn}/intake.md`
   → 直接 push obsidian-digitalbrain main（不经过 PR）
 
@@ -31,7 +33,8 @@ information-flow 的 intake / journal / cognition skill 一进 main
   → 精确路径暂存，禁止 `git add -A`。只新增文件的提交（想法文件、消化清单）可以直接推 main；任何修改或删除都不直推 main，不强推。勾选、reflection、Resource 页、index.md 和 log.md 都是修改，不直推 main，走 task branch 和 PR。
 
 写周记
-  → 先旧线呼应，再对已勾选 intake
+  → 先打开正式路径 `📋 Digests/{YYYY-Wnn}/digest.md`，三组编号列完再讨论。不在就再查 `📋 Digests/weekly-briefs/` 下同周的文件，并说明用了哪条路径。都没有就说「本周 digest 还没有」
+  → 再旧线呼应，再对已勾选 intake
   → 未勾选即使相关也不进入材料
   → 客户说「可以写 / 写吧 / OK 写」之前不落盘
   → 持久写入只走 skills/journal/tools/write_journal.py
@@ -64,7 +67,7 @@ Daily Briefing / Weekly Synthesis / 日 Digest / Journal Briefs 不再作为输�
 | 规则源 | `information-flow/skills/{journal,intake,cognition}` |
 | 仓库 skill（手机 Cloud） | DigitalBrain `.cursor/skills/{intake,journal,cognition}/`，由 Actions 覆盖 |
 | AGENTS 硬路由 | DigitalBrain `AGENTS.md` 里 `information-flow:digest-route` 段，由 Actions 覆盖 |
-| 主文件 | `📋 Digests/daily/YYYY-MM-DD.md` 和 `📋 Digests/讨论说明.md` 在 GitHub `main`。旧的周 intake 只留历史 |
+| 主文件 | 每日 `📋 Digests/daily/YYYY-MM-DD.md`。周记用的周摘要正式路径只有 `📋 Digests/{YYYY-Wnn}/digest.md`。旧的周 intake 只留历史 |
 | Actions | 08:00 上海写每日摘要；skill 变更另走 sync-digitalbrain-skills |
 | 本机 source push | `com.jake.intake-source-push`：登录 + 每 4 小时，只推 `📥 Inbox/Snipd/` 与 `Inbox/WeRead` |
 | Obsidian Git | `disablePush: true`，不整仓 push |

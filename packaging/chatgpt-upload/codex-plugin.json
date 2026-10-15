@@ -1,0 +1,25 @@
+{
+  "interface": {
+    "displayName": "Information Flow \u2014 Journal",
+    "shortDescription": "Journal \u4e0e\u72ec\u7acb\u8ba4\u77e5\u786e\u8ba4",
+    "longDescription": "\u901a\u8fc7\u5bf9\u8bdd\u6574\u7406 Jake \u7684\u5468\u8bb0\uff1b\u4ec5\u5728\u660e\u786e\u786e\u8ba4\u540e\u4fdd\u5b58\u5230\u6307\u5b9a\u53ef\u8bbf\u95ee\u7684 vault\u3002Cognition \u63a5\u53d7\u4e0e\u4fdd\u5b58\u72ec\u7acb\u786e\u8ba4\u3002\u5f53\u524d\u5305\u4e0d\u5305\u542b\u91c7\u96c6\u5668\u6216\u63d0\u9192\uff1b\u4e91\u7aef\u6301\u4e45\u4fdd\u5b58\u8def\u5f84\u987b\u53e6\u884c\u6838\u9a8c\u3002",
+    "developerName": "Jake Guo",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive"
+    ],
+    "defaultPrompt": [
+      "\u5199\u5468\u8bb0",
+      "\u8ba8\u8bba\u4e00\u6b21\u53cd\u601d\uff0c\u5148\u4e0d\u8981\u4fdd\u5b58"
+    ]
+  },
+  "name": "information-flow",
+  "version": "0.1.1",
+  "description": "Journal discussion and separately confirmed Cognition, with local vault tools.",
+  "author": {
+    "name": "Jake Guo",
+    "url": "https://github.com/jakeguo117"
+  },
+  "keywords": [],
+  "skills": "./skills"
+}

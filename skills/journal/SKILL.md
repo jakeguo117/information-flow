@@ -1,6 +1,6 @@
 ---
 name: journal
-description: Jake 的周记，以及「记一下：」「想法：」/thought 的随手记。先读旧周记和已挂上的老项目，找呼应后再讨论；客户说 OK 之前不写周记。说「写周记」「周记」或 /journal 时用。随手记不分析、不追问。不生成 Digest。
+description: Jake 的周记，以及「记一下：」「想法：」/thought 的随手记。说「写周记」「周记」或 /journal 时先列出当周 digest 三组编号，再读旧周记和已挂上的老项目；客户说 OK 之前不写周记。不生成、不改写 digest 文件。随手记不分析、不追问。
 ---
 
 # journal
@@ -41,7 +41,7 @@ Vault 目录（按这个顺序认，认到就停）：
 2. 当前工作区根目录，若有 `📝 Journal/`（Cursor 云端 clone 的 GitHub DigitalBrain）
 3. 否则停下来问 Jake，不要猜路径
 
-按 `references/weekly-brief.md` 读。先旧周记和已经挂上的老项目 / 小线。**自己认周**：Asia/Shanghai 当天的 ISO 周，没有文件就回落到 `📋 Digests/` 里已有的最近一周。不要问他是哪一周。再拿那一周 `intake.md` 里 **`[x]`** 的条目和已有 Resource 卡片去对呼应。未勾选的当索引略过，即使标题和旧线相关，也不进入这篇周记的材料。新的来源渠道样本同样先作为未勾选条目，不因为渠道名字新就落盘。周记 Connections 链已经进 `📖 Resources/` 的卡片，不再拦一道入库。
+按 `references/weekly-brief.md` 读。**先读当周 digest**，和下面步骤 0 是同一条规则：Asia/Shanghai 当天的 ISO 周，正式路径只有 `📋 Digests/{YYYY-Wnn}/digest.md`。三组是按有用程度（值得讨论的 / 可以引用的 / 可以借用的），不是按来源，脚本也不靠关键词去猜。文件里已经标明的用原组；「待分组」里的条目由你在展示时分进这三组，编号仍用文件里的（如 `T-2026W42-1`、`F-2026W42-1`、`C-2026W42-1`、`P-2026W42-1`），不要另编一套。空组写着「本周无」，照说，不要补条目。正式路径不在时，再查 `📋 Digests/weekly-briefs/{YYYY-Wnn}.md` 和 `📋 Digests/weekly-briefs/{YYYY-Wnn}/digest.md`，并说明实际用的路径。两处都没有就说「本周 digest 还没有」，不要自己编。**「缺文件就跳过」不适用于 digest。** digest 不回落到别的周。然后先旧周记和已经挂上的老项目 / 小线。**自己认周**只用于 intake：Asia/Shanghai 当天的 ISO 周，intake 没有文件才回落到 `📋 Digests/` 里已有的最近一周。不要问他是哪一周。再拿那一周 `intake.md` 里 **`[x]`** 的条目和已有 Resource 卡片去对呼应。未勾选的当索引略过，即使标题和旧线相关，也不进入这篇周记的材料。新的来源渠道样本同样先作为未勾选条目，不因为渠道名字新就落盘。周记 Connections 链已经进 `📖 Resources/` 的卡片，不再拦一道入库。
 
 再跑 `capture_thought.py list-open`。它返回的是全部未消化想法，不限本周。未消化 = `📝 Journal/想法/` 里的想法文件，减去任何消化清单里出现过的 id。清单里标成「看过未展开」的不再出现。想法文件和消化清单都不是周记条目。
 
@@ -53,7 +53,7 @@ Vault 目录（按这个顺序认，认到就停）：
 
 不要一上来甩摘要清单。不要整周 appendix。顺序：
 
-0. **先拿当周 digest 讨论（不用 Jake 提醒）**：说「写周记」后第一件事，按上面「自己认周」的同一规则自动打开 `📋 Digests/{YYYY-Wnn}/digest.md`。先把 digest **完整展示给 Jake**：值得讨论的、可以引用的、可以借用的三组都列出来，每条带编号、一句话和链接，条数和编号与文件一致；不能只说「读到了」或只挑几条。列完再按这些内容跟他讨论，提到 digest 里的点一律带编号（如 `T-2026W42-a`、`F-…`、`C-…`）。文件不在就说「本周 digest 还没有」，不要自己编，照常往下走。讨论完成文的内容写进同一篇周记；digest 全文在落盘时由工具附在周记末尾（见第 3 节），不要手抄进正文。
+0. **先拿当周 digest 讨论（不用 Jake 提醒）**：说「写周记」后第一件事，按「读输入」里的同一规则打开 digest。正式路径是 `📋 Digests/{YYYY-Wnn}/digest.md`。不在就再查 `📋 Digests/weekly-briefs/{YYYY-Wnn}.md` 和 `📋 Digests/weekly-briefs/{YYYY-Wnn}/digest.md`，并告诉 Jake 实际用的路径。先把 digest **完整展示**。三组按有用程度，不按来源：值得讨论的、可以引用的、可以借用的。文件已经标好的组照列，每条先编号，再一句话和链接，条数和编号与文件一致（`T-2026W42-1`、`F-2026W42-1`、`C-2026W42-1`）。「待分组」的 `P-2026W42-1` 由你在这一步分进三组再展示，编号仍用文件里的 P- 号，不要改成另一套。空组是「本周无」，说没有，不要补条目。值得讨论的条目下有「我的看法：」，讨论时用；还在待分组里的先不要替他写看法。不能只说「读到了」或只挑几条。两处都没有就说「本周 digest 还没有」，不要自己编，照常往下走。**「缺文件就跳过」不适用于 digest。** 讨论完成文的内容写进同一篇周记；digest 全文在落盘时由工具附在周记末尾（见第 3 节），不要手抄进正文。写周记时不要跑 `build_weekly_digest.py`，也不要手写占位 digest。
 1. 先读最近 2–3 篇周记，以及那些篇里已经点名的 `🚀 Projects/` / Resource（老项目、很小的未收线）。点一下还悬着的线。intake 先只读、不上场。
 2. 听他这周的画像。他说「这周就这些」或明确讲完之前，不要用本周 intake 解释他。
 3. 再拿刚解析出的那一周 **已勾选** 的 intake 条目 / Resource 卡片，以及 `list-open` 的未消化想法，去找 **呼应**。对不上的略过。未勾选的不要当成结论。想法是燃料，不整段贴进周记，也不改原话。
@@ -71,7 +71,7 @@ python3 skills/journal/tools/write_journal.py save --vault "$VAULT" --approval F
 python3 skills/journal/tools/write_journal.py retry --vault "$VAULT" --approval FILE --append-digest '📋 Digests/{YYYY-Wnn}/digest.md'
 ```
 
-当周 digest 文件存在时，`save` / `retry` 一律带 `--append-digest`：工具把 digest 全文（去掉 frontmatter）作为单独小节「## 本周 digest（{YYYY-Wnn}）」一次写在周记末尾（Previous 之后）。approval 里加 `"digest_week": "{YYYY-Wnn}"`；`payload_sha256` 按含 digest 的完整渲染计算，带不带 digest 前后要一致，否则 `stale_approval`。digest 文件不在时不带这个参数。digest 路径必须在 vault 的 `📋 Digests/` 下。
+当周 digest 实际打开的那一条存在时，`save` / `retry` 一律带 `--append-digest`，路径用这一条（正式路径 `📋 Digests/{YYYY-Wnn}/digest.md`，或上面查到的 weekly-briefs 回退路径）。工具把 digest 全文（去掉 frontmatter）作为单独小节「## 本周 digest（{YYYY-Wnn}）」一次写在周记末尾（Previous 之后）。approval 里加 `"digest_week": "{YYYY-Wnn}"`；`payload_sha256` 按含 digest 的完整渲染计算，带不带 digest 前后要一致，否则 `stale_approval`。digest 文件不在时不带这个参数。digest 路径必须在 vault 的 `📋 Digests/` 下。
 
 `FILE` 是这一次的 JSON。`confirmed` 必须是 true，并且 `phrase` 必须正好是 `可以写`、`写吧` 或 `OK 写`。「写周记」只是开始讨论，不是这句短语。不符合时工具返回 `refused`，写入数为 0，不创建 `📝 Journal/`。同一 `event_id` 重复送达只保留 1 份；内容不一致则 `conflict`，不覆盖。`retry` 在磁盘已有相同内容时直接读回，不另写一篇。工具不写 `📖 Cognition/`，不 `git commit` / `git push`。周记文件本身仍不自动 push。
 

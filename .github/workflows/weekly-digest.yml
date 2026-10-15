@@ -1,0 +1,61 @@
+name: weekly-digest
+
+on:
+  workflow_dispatch:
+    inputs:
+      week:
+        description: ISO week YYYY-Wnn (Asia/Shanghai)
+        required: true
+        type: string
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - name: Checkout information-flow
+        uses: actions/checkout@v4
+
+      - name: Checkout DigitalBrain
+        uses: actions/checkout@v4
+        with:
+          repository: jakeguo117/obsidian-digitalbrain
+          token: ${{ secrets.DIGITALBRAIN_TOKEN }}
+          path: digitalbrain
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build weekly digest
+        env:
+          WEEK: ${{ inputs.week }}
+        run: |
+          set +e
+          python3 scripts/build_weekly_digest.py --vault digitalbrain --week "$WEEK"
+          status=$?
+          set -e
+          if [ "$status" -eq 2 ] || [ "$status" -eq 3 ]; then
+            echo "weekly digest left unchanged ($status)"
+          elif [ "$status" -ne 0 ]; then
+            echo "weekly digest failed: $status"
+            exit "$status"
+          fi
+
+      - name: Commit weekly digest
+        working-directory: digitalbrain
+        env:
+          WEEK: ${{ inputs.week }}
+        run: |
+          git config user.name "information-flow"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -f "📋 Digests/${WEEK}/digest.md" ]; then
+            git add -- "📋 Digests/${WEEK}/digest.md"
+          fi
+          if git diff --cached --quiet; then
+            echo "no weekly digest changes"
+          else
+            git commit -m "digest: week ${WEEK}"
+            git push
+          fi
