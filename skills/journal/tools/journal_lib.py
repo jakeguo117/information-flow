@@ -22,6 +22,9 @@ KNOWN_CHANNELS = frozenset({"snipd", "weread", "youtube"})
 CHANNEL_RE = re.compile(r"摄入：(\d{4}-\d{2}-\d{2})\s*·\s*(\S+)")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 EVENT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$")
+DIGEST_MARKER_RE = re.compile(
+    r"\n?<!-- information-flow-weekly-digest generator=\S+ sha256=[0-9a-f]{64} -->\s*\Z"
+)
 
 
 def fingerprint(text: str) -> str:
@@ -160,6 +163,11 @@ def render_journal(approval: dict[str, Any], digest_text: str | None = None) -> 
     return "\n".join(lines)
 
 
+def strip_generator_marker(text: str) -> str:
+    """Drop the trailing weekly-digest generator comment, if present."""
+    return DIGEST_MARKER_RE.sub("", text)
+
+
 def strip_frontmatter(text: str) -> str:
     if text.startswith("---\n"):
         end = text.find("\n---", 4)
@@ -190,7 +198,7 @@ def read_digest(vault: Path, digest_path: Path) -> str:
         raise OSError("digest path escapes the vault") from exc
     if not rel.parts or rel.parts[0] != "📋 Digests" or resolved.suffix != ".md":
         raise OSError("digest must be a .md file under 📋 Digests/")
-    return resolved.read_text(encoding="utf-8")
+    return strip_generator_marker(resolved.read_text(encoding="utf-8"))
 
 
 def journal_filename(approval: dict[str, Any]) -> str:

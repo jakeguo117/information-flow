@@ -34,6 +34,16 @@ try:
     b = dict(base, event_id="journal-test-legacy", title="旧用法"); b["payload_sha256"] = fingerprint(render_journal(b))
     rc, out = run(vault, b)                                             # 旧用法不受影响
     assert rc == 0 and "本周 digest" not in Path(out["path"]).read_text(encoding="utf-8"), out
-    print("ALL PASS (5 cases)")
+    marked = dg.read_text(encoding="utf-8").rstrip("\n") + "\n<!-- information-flow-weekly-digest generator=1 sha256=" + ("ab" * 32) + " -->\n"
+    dg.write_text(marked, encoding="utf-8")
+    assert "information-flow-weekly-digest" not in read_digest(vault, Path(rel))
+    assert "information-flow-weekly-digest" in dg.read_text(encoding="utf-8")
+    c = dict(base, event_id="journal-test-marker", title="去掉标记")
+    c["payload_sha256"] = fingerprint(render_journal(c, read_digest(vault, Path(rel))))
+    rc, out = run(vault, c, "--append-digest", rel)
+    assert rc == 0 and out["status"] == "success", out
+    saved = Path(out["path"]).read_text(encoding="utf-8")
+    assert "T-2026W42-1" in saved and "information-flow-weekly-digest" not in saved and "sha256=" not in saved, saved
+    print("ALL PASS (6 cases)")
 finally:
     shutil.rmtree(tmp)
