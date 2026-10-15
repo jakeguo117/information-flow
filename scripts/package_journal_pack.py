@@ -52,8 +52,99 @@ FORBIDDEN_PARTS = (
 )
 
 
+CHATGPT_ZIP_NAME = "information-flow-plugin.zip"
+CHATGPT_FILES = (
+    "packaging/JOURNAL_PACK_README.md",
+    "scripts/build_weekly_digest.py",
+    "scripts/package_journal_pack.py",
+    "scripts/sync_digitalbrain_skills.py",
+    "scripts/test_journal_pack.py",
+    "scripts/weekly_intake.py",
+    "skills/digitalbrain-agents-route.md",
+)
+CHATGPT_TREES = (
+    "skills/cognition",
+    "skills/journal",
+    "tests/synthetic/journal_pack",
+)
+ZIP_DATE = (1980, 1, 1, 0, 0, 0)
+ZIP_MODE = 0x81A40000
+
+
 def sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def plugin_version() -> str:
+    path = ROOT / ".codex-plugin" / "plugin.json"
+    version = json.loads(path.read_text(encoding="utf-8")).get("version")
+    if not isinstance(version, str) or not version.strip():
+        raise SystemExit(f"plugin.json missing version: {path}")
+    return version
+
+
+def chatgpt_manifest(name: str) -> bytes:
+    """ChatGPT upload manifests keep the uploaded ZIP's JSON shape.
+
+    packaging/chatgpt-upload/*.json is the 0.1.1 layout baseline. The packed
+    bytes take their version from .codex-plugin/plugin.json.
+    """
+    text = (ROOT / "packaging" / "chatgpt-upload" / name).read_text(encoding="utf-8")
+    pin = '"version": "0.1.1"'
+    if pin not in text:
+        raise SystemExit(f"chatgpt manifest missing version pin: {name}")
+    return text.replace(pin, f'"version": "{plugin_version()}"', 1).encode("utf-8")
+
+
+def zip_info(name: str) -> zipfile.ZipInfo:
+    info = zipfile.ZipInfo(filename=name, date_time=ZIP_DATE)
+    info.compress_type = zipfile.ZIP_DEFLATED
+    info.create_system = 3
+    info.external_attr = ZIP_MODE
+    info.flag_bits = 0
+    return info
+
+
+def write_deterministic_zip(path: Path, entries: list[tuple[str, bytes]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+        for name, data in entries:
+            archive.writestr(zip_info(name), data)
+
+
+def chatgpt_repo_files() -> list[str]:
+    files = list(CHATGPT_FILES)
+    for rel in CHATGPT_TREES:
+        root = ROOT / rel
+        if not root.is_dir():
+            raise SystemExit(f"missing pack tree: {rel}")
+        for path in root.rglob("*"):
+            if not path.is_file():
+                continue
+            if "__pycache__" in path.parts or path.suffix == ".pyc":
+                continue
+            files.append(path.relative_to(ROOT).as_posix())
+    missing = [rel for rel in files if not (ROOT / rel).is_file()]
+    if missing:
+        raise SystemExit(f"missing chatgpt pack files: {missing}")
+    for rel in files:
+        for part in FORBIDDEN_PARTS:
+            if part in rel:
+                raise SystemExit(f"chatgpt pack contains forbidden path: {rel}")
+    return sorted(set(files))
+
+
+def build_chatgpt_plugin(dist_dir: Path) -> Path:
+    """Upload ZIP for the ChatGPT plugin. Fixed 1980-01-01 timestamps."""
+    entries = [
+        ("plugin.json", chatgpt_manifest("root-plugin.json")),
+        (".codex-plugin/plugin.json", chatgpt_manifest("codex-plugin.json")),
+    ]
+    for rel in chatgpt_repo_files():
+        entries.append((rel, (ROOT / rel).read_bytes()))
+    dest = dist_dir / CHATGPT_ZIP_NAME
+    write_deterministic_zip(dest, entries)
+    return dest
 
 
 def git_output(args: list[str]) -> str:
@@ -108,7 +199,7 @@ def build(out_dir: Path) -> dict:
         "git_commit_of_package": None,
         "published": False,
         "working_tree_dirty": bool(git_output(["status", "--porcelain"])),
-        "plugin_version_field": "0.1.0",
+        "plugin_version_field": plugin_version(),
         "requirements": "AIC-DOC-REQ@0.1.1",
         "workflow": "AIC-DOC-WORKFLOW@0.2.0",
         "handoff": "AIC-DOC-HANDOFF@0.2.0",
@@ -139,10 +230,27 @@ def build(out_dir: Path) -> dict:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Package the journal + cognition ZIP")
-    parser.add_argument("--out-dir", required=True)
+    parser.add_argument("--out-dir", help="write the unpublished task pack and MANIFEST.json here")
+    parser.add_argument(
+        "--chatgpt-plugin",
+        action="store_true",
+        help="write dist/information-flow-plugin.zip for the ChatGPT upload",
+    )
+    parser.add_argument("--dist", default=str(ROOT / "dist"))
     args = parser.parse_args(argv)
-    manifest = build(Path(args.out_dir))
-    print(json.dumps({"zip_sha256": manifest["zip_sha256"], "files": len(manifest["files"])}))
+    if not args.out_dir and not args.chatgpt_plugin:
+        parser.error("pass --out-dir and/or --chatgpt-plugin")
+    payload: dict = {}
+    if args.out_dir:
+        manifest = build(Path(args.out_dir))
+        payload["zip_sha256"] = manifest["zip_sha256"]
+        payload["files"] = len(manifest["files"])
+    if args.chatgpt_plugin:
+        dest = build_chatgpt_plugin(Path(args.dist))
+        payload["chatgpt_zip"] = str(dest)
+        payload["chatgpt_sha256"] = sha256_file(dest)
+        payload["chatgpt_files"] = len(zipfile.ZipFile(dest).namelist())
+    print(json.dumps(payload))
     return 0
 
 

@@ -47,6 +47,16 @@ jobs:
           export YOUTUBE_CLIENT_FILE="$HOME/.secrets/google_client.json"
           python3 scripts/youtube_likes.py --vault digitalbrain
           python3 scripts/daily_takeaway.py --vault digitalbrain
+          set +e
+          python3 scripts/build_weekly_digest.py --vault digitalbrain
+          status=$?
+          set -e
+          if [ "$status" -eq 2 ]; then
+            echo "weekly digest: no real content, file not written"
+          elif [ "$status" -ne 0 ]; then
+            echo "weekly digest failed: $status"
+            exit "$status"
+          fi
 
       - name: Commit Digests
         working-directory: digitalbrain

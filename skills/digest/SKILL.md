@@ -15,6 +15,16 @@ DigitalBrain `.cursor/skills/` 里的副本由 information-flow Actions 覆盖�
 
 这份文件不在 `main` 上：停下来，说明当天摘要还没有。不要自己编条目，不要改去读按周累积的旧入口。
 
+## 周 digest
+
+日摘要写完之后，固定再跑：
+
+```bash
+python3 scripts/build_weekly_digest.py --vault "$VAULT"
+```
+
+它按 Asia/Shanghai 的 ISO 周，把 `📋 Digests/daily/YYYY-MM-DD.md` 和 `📋 Digests/YYYY-MM-DD-Digest.md` 收成唯一正式路径 `📋 Digests/{YYYY-Wnn}/digest.md`。这一周没有任何日摘要文件时，脚本改用该周已经收好的周入口，仍然只写出上面的正式路径。没有真实条目就不写文件，退出码 2。不要写占位。这张周摘要给周记用。本技能讨论的仍是昨天的日摘要，不要改去打开周 digest 代替昨天。
+
 ## 讨论
 
 从这份摘要提出最多两个概念。一个概念可以挂上多条原文。先说概念和它对应的原文，不要先写文件。

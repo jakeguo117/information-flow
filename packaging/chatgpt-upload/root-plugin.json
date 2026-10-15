@@ -1,0 +1,28 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "information-flow",
+  "version": "0.1.1",
+  "description": "Journal discussion and separately confirmed Cognition, with local vault tools.",
+  "author": {
+    "name": "Jake Guo",
+    "url": "https://github.com/jakeguo117"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Information Flow — Journal",
+        "shortDescription": "Journal 与独立认知确认",
+        "longDescription": "通过对话整理 Jake 的周记；仅在明确确认后保存到指定可访问的 vault。Cognition 接受与保存独立确认。当前包不包含采集器或提醒；云端持久保存路径须另行核验。",
+        "developerName": "Jake Guo",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive"
+        ],
+        "defaultPrompt": [
+          "写周记",
+          "讨论一次反思，先不要保存"
+        ]
+      }
+    }
+  }
+}

@@ -12,7 +12,7 @@
 
 用户说「写周记」「周记」或 `/journal`：
 
-- 一开始自动打开当周 `📋 Digests/{YYYY-Wnn}/digest.md`，把三组完整列给 Jake（每条编号、一句话、链接，和文件一致），再按它讨论、提到时带编号；文件不在就说没有，不编。保存时用 `write_journal.py save … --append-digest '📋 Digests/{YYYY-Wnn}/digest.md'`，把 digest 全文一次附在周记末尾。
+- 一开始自动打开当周 `📋 Digests/{YYYY-Wnn}/digest.md`（唯一正式路径）。把三组完整列给 Jake（每条先编号，再一句话和链接，和文件一致），再按它讨论、提到时带编号。这个文件不在时，再查 `📋 Digests/weekly-briefs/{YYYY-Wnn}.md` 和 `📋 Digests/weekly-briefs/{YYYY-Wnn}/digest.md`，并说明实际打开的路径。两处都没有就说「本周 digest 还没有」，不编，也不当成缺文件跳过。保存时 `--append-digest` 用实际打开的那条路径，把 digest 全文一次附在周记末尾。
 - 自己认周，先用旧周记和已经挂上的老项目找呼应，再对已勾选 intake。未勾选即使相关也不进入周记材料。
 - 客户说「可以写 / 写吧 / OK 写」之前，不要写 `📝 Journal/`。持久写入只走 `.cursor/skills/journal/tools/write_journal.py`。不写 Cognition。Journal 仍不自动 push。
 

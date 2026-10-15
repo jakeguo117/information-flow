@@ -1,0 +1,26 @@
+name: package-chatgpt-plugin
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout information-flow
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build ChatGPT plugin ZIP
+        run: python3 scripts/package_journal_pack.py --chatgpt-plugin
+
+      - name: Upload plugin ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: information-flow-plugin
+          path: dist/information-flow-plugin.zip
+          if-no-files-found: error

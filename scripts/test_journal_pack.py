@@ -282,6 +282,42 @@ class PackageTests(unittest.TestCase):
                 info = zipfile.ZipFile(zip_path).read(item["path"])
                 self.assertEqual(hashlib.sha256(info).hexdigest(), item["sha256"])
                 self.assertEqual(hashlib.sha256((ROOT / item["path"]).read_bytes()).hexdigest(), item["sha256"])
+            version = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
+            self.assertEqual(version, "0.1.2")
+            self.assertEqual(manifest["plugin_version_field"], version)
+
+    def test_chatgpt_upload_zip_matches_uploaded_layout(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            first = package_journal_pack.build_chatgpt_plugin(Path(raw) / "a")
+            second = package_journal_pack.build_chatgpt_plugin(Path(raw) / "b")
+            self.assertEqual(first.read_bytes(), second.read_bytes())
+            archive = zipfile.ZipFile(first)
+            names = archive.namelist()
+            self.assertEqual(names[0], "plugin.json")
+            self.assertEqual(names[1], ".codex-plugin/plugin.json")
+            self.assertEqual(names[2:], sorted(names[2:]))
+            self.assertIn("scripts/build_weekly_digest.py", names)
+            self.assertIn("skills/journal/tools/capture_thought.py", names)
+            self.assertIn("skills/journal/references/thoughts.md", names)
+            self.assertIn("skills/cognition/tools/write_cognition.py", names)
+            self.assertNotIn("packaging/chatgpt-upload/root-plugin.json", names)
+            blob = "\n".join(names)
+            for part in package_journal_pack.FORBIDDEN_PARTS:
+                self.assertNotIn(part, blob)
+            version = package_journal_pack.plugin_version()
+            self.assertEqual(version, "0.1.2")
+            for entry in ("plugin.json", ".codex-plugin/plugin.json"):
+                meta = json.loads(archive.read(entry))
+                self.assertEqual(meta["version"], version)
+                info = archive.getinfo(entry)
+                self.assertEqual(info.date_time, (1980, 1, 1, 0, 0, 0))
+                self.assertEqual(info.compress_type, zipfile.ZIP_DEFLATED)
+                self.assertEqual(info.create_system, 3)
+                self.assertEqual(info.external_attr, 0x81A40000)
+                self.assertEqual(info.flag_bits, 0)
+            for info in archive.infolist():
+                self.assertEqual(info.date_time, (1980, 1, 1, 0, 0, 0))
+                self.assertEqual(info.extra, b"")
 
 
 if __name__ == "__main__":
