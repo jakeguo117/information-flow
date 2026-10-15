@@ -50,6 +50,10 @@ HERMES_TIMEOUT = 30
 DISKUTIL_TIMEOUT = 30
 RUN_TIMEOUT = 3600
 DISK_IO_TIMEOUT = 30
+SNAPSHOT_TIMEOUT = 3600
+REAP_WAIT_SECONDS = 5
+DAILY_STAGING_KEEP = 1
+HANG_SECONDS = 6
 ALLOWED_GIT = {"clone", "fetch", "fsck", "bundle", "ls-remote", "rev-parse"}
 VOLUMES = Path("/Volumes")
 
@@ -118,6 +122,7 @@ class Config:
     read_timeout_seconds: float
     run_timeout_seconds: float
     disk_io_timeout_seconds: float
+    snapshot_timeout_seconds: float
     mount_table: Path | None
     diskutil_bin: Path | None
     stat_bin: Path | None
@@ -266,6 +271,10 @@ def load_config(path: Path) -> Config:
         raise ConfigError("read_timeout_seconds must be a positive number")
     run_timeout = positive_number(data.get("run_timeout_seconds", RUN_TIMEOUT), "run_timeout_seconds")
     disk_io_timeout = positive_number(data.get("disk_io_timeout_seconds", DISK_IO_TIMEOUT), "disk_io_timeout_seconds")
+    snapshot_timeout = positive_number(
+        data.get("snapshot_timeout_seconds", SNAPSHOT_TIMEOUT),
+        "snapshot_timeout_seconds",
+    )
     remote = data.get("github_remote")
     repo = data.get("github_repo")
     if not isinstance(remote, str) or not remote:
@@ -291,6 +300,7 @@ def load_config(path: Path) -> Config:
         read_timeout_seconds=float(timeout),
         run_timeout_seconds=run_timeout,
         disk_io_timeout_seconds=disk_io_timeout,
+        snapshot_timeout_seconds=snapshot_timeout,
         mount_table=optional_abs(data, "mount_table"),
         diskutil_bin=optional_abs(data, "diskutil_bin"),
         stat_bin=optional_abs(data, "stat_bin"),
@@ -402,6 +412,28 @@ def _raise_child_error(name: str, message: str) -> None:
     raise BackupError(message)
 
 
+def _reap_child(pid: int, seconds: float = REAP_WAIT_SECONDS) -> int | None:
+    """Non-blocking wait. Return the status, or None if the child is still unreaped."""
+    deadline = time.monotonic() + seconds
+    while True:
+        try:
+            got, status = os.waitpid(pid, os.WNOHANG)
+        except ChildProcessError:
+            return 0
+        if got == pid:
+            return status
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return None
+        time.sleep(min(0.05, remaining))
+
+
+def _maybe_hang(step: str) -> None:
+    wanted = os.environ.get("DIGITALBRAIN_BACKUP_HANG_STEP", "")
+    if wanted and wanted == step:
+        time.sleep(HANG_SECONDS)
+
+
 def _fork_timeout(timeout: float, func, args: tuple) -> object:
     read_fd, write_fd = os.pipe()
     pid = os.fork()
@@ -447,15 +479,16 @@ def _fork_timeout(timeout: float, func, args: tuple) -> object:
             os.kill(pid, signal.SIGKILL)
         except OSError:
             pass
-        try:
-            os.waitpid(pid, 0)
-        except ChildProcessError:
-            pass
+        _reap_child(pid)
         raise DiskTimeout(f"disk io timed out: {getattr(func, '__name__', 'disk')}")
-    try:
-        _pid, status = os.waitpid(pid, 0)
-    except ChildProcessError:
-        status = 0
+    status = _reap_child(pid)
+    if status is None:
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            pass
+        _reap_child(pid, 1)
+        raise DiskTimeout(f"disk io timed out: {getattr(func, '__name__', 'disk')}")
     if os.WIFSIGNALED(status):
         raise DiskTimeout(f"disk io timed out: {getattr(func, '__name__', 'disk')}")
     try:
@@ -1539,25 +1572,60 @@ def verify_manifest(root: Path, manifest: dict) -> list[str]:
     return errors
 
 
-def sync_git(cfg: Config, logger: Logger, git_sync: GitSync) -> None:
-    git = Git(cfg.vault_path, cfg.backup_root, logger)
-    mirror = cfg.backup_root / "git" / "mirror.git"
-    require_inside(cfg.backup_root, mirror)
-    if path_is_icloud(mirror) or is_within(mirror, cfg.vault_path):
+def _prepare_git_disk(backup_root: Path, mirror: Path, vault_path: Path) -> str:
+    _maybe_hang("sync_git_prepare")
+    require_inside(backup_root, mirror)
+    if path_is_icloud(mirror) or is_within(mirror, vault_path):
         raise BackupError("git mirror must be outside iCloud and outside the vault")
     mirror.parent.mkdir(parents=True, exist_ok=True)
     if mirror.is_symlink():
         raise BackupError("refusing symlink git mirror")
-    if not mirror.exists():
+    incoming = backup_root / "incoming"
+    if incoming.is_symlink():
+        raise GuardError("refusing symlink incoming directory")
+    if not incoming.exists():
+        incoming.mkdir()
+    return "clone" if not mirror.exists() else "fetch"
+
+
+def _remove_partial_mirror(backup_root: Path, mirror: Path) -> None:
+    _maybe_hang("sync_git_remove")
+    if mirror.is_symlink():
+        return
+    if mirror.exists():
+        safe_remove(backup_root, mirror)
+
+
+def sync_git(cfg: Config, logger: Logger, git_sync: GitSync) -> None:
+    git = Git(cfg.vault_path, cfg.backup_root, logger)
+    mirror = cfg.backup_root / "git" / "mirror.git"
+    action = external_disk(
+        cfg.disk_io_timeout_seconds,
+        cfg.backup_root,
+        _prepare_git_disk,
+        cfg.backup_root,
+        mirror,
+        cfg.vault_path,
+        how="spawn",
+    )
+    if action == "clone":
         proc = git.clone_mirror(cfg.github_remote, mirror)
         if proc.returncode != 0:
-            if mirror.exists() and not mirror.is_symlink():
-                safe_remove(cfg.backup_root, mirror)
+            external_disk(
+                cfg.disk_io_timeout_seconds,
+                cfg.backup_root,
+                _remove_partial_mirror,
+                cfg.backup_root,
+                mirror,
+                how="spawn",
+            )
             raise BackupError(git_fail("clone", proc))
-    else:
+    elif action == "fetch":
         proc = git.fetch(mirror)
         if proc.returncode != 0:
             raise BackupError(git_fail("fetch", proc))
+    else:
+        raise BackupError("git mirror prepare failed")
     proc = git.rev_parse(mirror, f"refs/heads/{cfg.git_branch}")
     if proc.returncode != 0:
         raise BackupError(git_fail("rev-parse", proc))
@@ -1576,13 +1644,7 @@ def sync_git(cfg: Config, logger: Logger, git_sync: GitSync) -> None:
     logger.write(f"git-fsck rc={proc.returncode}\n{git_sync.fsck_output.rstrip()}")
     if proc.returncode != 0:
         raise BackupError(git_fail("fsck", proc))
-    incoming = cfg.backup_root / "incoming"
-    if incoming.exists() or incoming.is_symlink():
-        if incoming.is_symlink():
-            raise GuardError("refusing symlink incoming directory")
-    else:
-        incoming.mkdir()
-    bundle = incoming / "repo.bundle"
+    bundle = cfg.backup_root / "incoming" / "repo.bundle"
     proc = git.bundle_create(mirror, bundle)
     if proc.returncode != 0:
         raise BackupError(git_fail("bundle create", proc))
@@ -1596,14 +1658,37 @@ def sync_git(cfg: Config, logger: Logger, git_sync: GitSync) -> None:
     )
 
 
+def _prepare_incoming_vault(backup_root: Path, incoming_vault: Path) -> None:
+    _maybe_hang("copy_vault_prepare")
+    require_inside(backup_root, incoming_vault)
+    if incoming_vault.is_symlink():
+        raise GuardError("refusing symlink incoming vault")
+    if incoming_vault.exists():
+        safe_remove(backup_root, incoming_vault)
+    incoming_vault.mkdir(parents=True)
+
+
+def _write_manifest_file(backup_root: Path, manifest_path: Path, manifest: dict) -> None:
+    _maybe_hang("manifest_write")
+    require_inside(backup_root, manifest_path)
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _verify_manifest_read(incoming_vault: Path, manifest: dict) -> list[str]:
+    _maybe_hang("verify_manifest")
+    return verify_manifest(incoming_vault, manifest)
+
+
 def copy_vault(cfg: Config, worker: VaultWorker, scan: Scan, logger: Logger) -> dict:
     incoming_vault = cfg.backup_root / "incoming" / "vault"
-    require_inside(cfg.backup_root, incoming_vault)
-    if incoming_vault.exists() or incoming_vault.is_symlink():
-        if incoming_vault.is_symlink():
-            raise GuardError("refusing symlink incoming vault")
-        safe_remove(cfg.backup_root, incoming_vault)
-    incoming_vault.mkdir(parents=True)
+    external_disk(
+        cfg.disk_io_timeout_seconds,
+        cfg.backup_root,
+        _prepare_incoming_vault,
+        cfg.backup_root,
+        incoming_vault,
+        how="spawn",
+    )
     files = []
     total = 0
     for rel in scan.files:
@@ -1622,9 +1707,25 @@ def copy_vault(cfg: Config, worker: VaultWorker, scan: Scan, logger: Logger) -> 
         "total_bytes": total,
     }
     manifest_path = cfg.backup_root / "incoming" / "manifest.json"
-    require_inside(cfg.backup_root, manifest_path)
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    errors = verify_manifest(incoming_vault, manifest)
+    external_disk(
+        cfg.disk_io_timeout_seconds,
+        cfg.backup_root,
+        _write_manifest_file,
+        cfg.backup_root,
+        manifest_path,
+        manifest,
+        how="spawn",
+    )
+    errors = external_disk(
+        cfg.disk_io_timeout_seconds,
+        cfg.backup_root,
+        _verify_manifest_read,
+        incoming_vault,
+        manifest,
+        how="spawn",
+    )
+    if not isinstance(errors, list):
+        raise BackupError("manifest verification failed")
     if errors:
         raise BackupError("manifest verification failed: " + "; ".join(errors))
     again = collect_tree(worker, cfg.vault_path, logger)
@@ -1706,6 +1807,7 @@ def link_period(cfg: Config, period: str, label: str, daily_vault: Path, daily_m
 
 
 def _publish_snapshots(cfg: Config, labels: dict) -> tuple[Path, Path, Path]:
+    _maybe_hang("publish")
     daily_vault = cfg.backup_root / "vault" / "daily" / labels["daily"]
     daily_manifest = cfg.backup_root / "vault" / "daily" / f"{labels['daily']}.manifest.json"
     daily_bundle = cfg.backup_root / "git" / "daily" / f"{labels['daily']}.bundle"
@@ -1721,7 +1823,7 @@ def _publish_snapshots(cfg: Config, labels: dict) -> tuple[Path, Path, Path]:
 
 def publish_snapshots(cfg: Config, labels: dict) -> tuple[Path, Path, Path]:
     result = external_disk(
-        cfg.disk_io_timeout_seconds,
+        cfg.snapshot_timeout_seconds,
         cfg.backup_root,
         _publish_snapshots,
         cfg,
@@ -1752,11 +1854,13 @@ def remove_entry(backup_root: Path, path: Path, deleted: list[str], skipped: lis
 
 
 def _apply_retention(backup_root: Path, cfg: Config) -> dict:
+    _maybe_hang("prune")
     deleted: list[str] = []
     skipped: list[dict] = []
     specs = [
         ("weekly", cfg.retention_weekly, WEEKLY_NAME, WEEKLY_BUNDLE, WEEKLY_MANIFEST),
         ("monthly", cfg.retention_monthly, MONTHLY_NAME, MONTHLY_BUNDLE, MONTHLY_MANIFEST),
+        ("daily", DAILY_STAGING_KEEP, DAILY_NAME, DAILY_BUNDLE, DAILY_MANIFEST),
     ]
     for period, keep, name_re, bundle_re, manifest_re in specs:
         vault_dir = backup_root / "vault" / period
@@ -1781,7 +1885,7 @@ def _apply_retention(backup_root: Path, cfg: Config) -> dict:
 
 def apply_retention(backup_root: Path, cfg: Config) -> dict:
     result = external_disk(
-        cfg.disk_io_timeout_seconds,
+        cfg.snapshot_timeout_seconds,
         backup_root,
         _apply_retention,
         backup_root,
@@ -1794,6 +1898,7 @@ def apply_retention(backup_root: Path, cfg: Config) -> dict:
 
 
 def copy_snapshot(src: Path, dst: Path) -> None:
+    _maybe_hang("copy_snapshot")
     if src.is_symlink():
         raise BackupError("refusing to restore a symlink snapshot")
     dst.mkdir(parents=True, exist_ok=True)
@@ -1915,7 +2020,14 @@ def run_restore(cfg: Config, logger: Logger, expected_sha: str | None = None) ->
             elif expected_sha and head != expected_sha:
                 errors.append(f"HEAD {head} != expected {expected_sha}")
         restored_vault = tmp / "vault"
-        copy_snapshot(vault_snap, restored_vault)
+        external_disk(
+            cfg.disk_io_timeout_seconds,
+            cfg.backup_root,
+            copy_snapshot,
+            vault_snap,
+            restored_vault,
+            how="spawn",
+        )
         manifest = json.loads(manifest_text)
         manifest_errors = verify_manifest(restored_vault, manifest)
         if manifest_errors:
