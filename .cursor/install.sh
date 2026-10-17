@@ -11,8 +11,7 @@ PY="${PYTHON:-python3}"
 python -m pip install -q --upgrade pip
 # CI uses yt-dlp for YouTube intake; keep quiet
 python -m pip install -q yt-dlp
-# offline smoke: pack builder + one unit module (no vault / secrets)
+# offline smoke (same as .github/workflows/package-chatgpt-plugin.yml; no vault/secrets)
 python scripts/package_journal_pack.py --chatgpt-plugin >/dev/null
-python -m unittest -q scripts.test_journal_pack.PackageTests.test_extracted_zip_runs_builder 2>/dev/null \
-  || python scripts/test_journal_pack.py PackageTests.test_extracted_zip_runs_builder
+python scripts/test_journal_pack.py PackageTests.test_extracted_zip_runs_builder
 echo "cursor install ok: $(python --version)"
