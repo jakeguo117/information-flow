@@ -6,10 +6,12 @@ import hashlib
 import json
 import os
 import plistlib
+import shlex
 import shutil
 import stat
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -146,7 +148,7 @@ def make_world(
         "github_remote": remote,
         "git_branch": "main",
         "vault_path": str(vault),
-        "retention": {"daily": 14, "weekly": 8, "monthly": 12},
+        "retention": {"weekly": 8, "monthly": 12},
         "discord_channel_id": "123",
         "hermes_command": [
             str(hermes),
@@ -178,6 +180,21 @@ def read_status(backup: Path) -> dict:
     return json.loads((backup / "status.json").read_text())
 
 
+def arm_hang(
+    world: World,
+    monkeypatch: pytest.MonkeyPatch,
+    step: str,
+    *,
+    disk: float = 1.0,
+    snapshot: float | None = None,
+) -> None:
+    monkeypatch.setenv("DIGITALBRAIN_BACKUP_TIMED_DISK_IO", "1")
+    monkeypatch.setenv("DIGITALBRAIN_BACKUP_HANG_STEP", step)
+    world.cfg.disk_io_timeout_seconds = disk
+    if snapshot is not None:
+        world.cfg.snapshot_timeout_seconds = snapshot
+
+
 def assert_old_kept(world: World, rc: int, status: dict, *, day: str = "2026-10-13") -> None:
     assert rc == 1
     assert status["result"] == "failed"
@@ -195,9 +212,9 @@ def test_example_config_and_plist() -> None:
     raw = (ROOT / "config.example.json").read_text()
     assert "/Users/jake/Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain" in raw
     cfg = db.load_config(ROOT / "config.example.json")
-    assert cfg.retention_daily == 14
     assert cfg.retention_weekly == 8
     assert cfg.retention_monthly == 12
+    assert '"daily"' not in raw
     assert cfg.github_repo == "jakeguo117/obsidian-digitalbrain"
     assert cfg.volume == Path("/Volumes/Disk")
     assert cfg.backup_folder == "DigitalBrain-Backups"
@@ -207,8 +224,13 @@ def test_example_config_and_plist() -> None:
     assert "__DIGITALBRAIN_BACKUP_ROOT__" in text
     plist = plistlib.loads(text.encode())
     assert plist["Label"] == "com.jake.digitalbrain-backup"
+    assert plist["StartCalendarInterval"]["Weekday"] == 0
     assert plist["StartCalendarInterval"]["Hour"] == 3
     assert plist["StartCalendarInterval"]["Minute"] == 30
+    assert cfg.run_timeout_seconds == 3600
+    assert cfg.disk_io_timeout_seconds == 30
+    assert cfg.snapshot_timeout_seconds == 3600
+    assert "snapshot_timeout_seconds" in raw
     assert "RunAtLoad" not in plist
     assert plist["ProgramArguments"][0] == "__DEDICATED_PYTHON__"
     for path in [ROOT / "digitalbrain_backup.py", * (ROOT / "bin").glob("*"), *(ROOT / "launchd").glob("*")]:
@@ -230,13 +252,20 @@ def test_readme_documents_permission_and_schedule() -> None:
         "/Volumes/Disk",
         "DigitalBrain-Backups",
         "jakeguo117/obsidian-digitalbrain",
-        "14",
+        "8 weekly",
         "Operation not permitted",
         "python-build-standalone",
         "brew cleanup",
         "Homebrew Cellar framework",
+        "Weekday",
+        "Sundays only",
+        "run_timeout_seconds",
+        "snapshot_timeout_seconds",
+        "newest daily",
+        "SF_DATALESS",
     ):
         assert needle in text
+    assert "nightly" not in text.lower()
 
 
 MOUNTED_DISKUTIL_INFO = """\
@@ -491,6 +520,10 @@ def test_success_backup_prunes_and_restore(tmp_path: Path, monkeypatch: pytest.M
             folder = world.backup / "vault" / "daily" / f"2000-01-{day:02d}"
             folder.mkdir(parents=True)
             (folder / "keep.txt").write_text(f"keep-{day:02d}")
+        for week in range(1, 11):
+            folder = world.backup / "vault" / "weekly" / f"2020-W{week:02d}"
+            folder.mkdir(parents=True)
+            (folder / "keep.txt").write_text(f"week-{week:02d}")
         outside_dir = world.work / "outside-snap"
         outside_dir.mkdir()
         (outside_dir / "secret.txt").write_text("secret-data")
@@ -524,6 +557,8 @@ def test_success_backup_prunes_and_restore(tmp_path: Path, monkeypatch: pytest.M
         log = (world.backup / "digitalbrain-backup.log").read_text()
         home = world.home_log.read_text()
         assert "backup start" in log and "backup start" in home
+        assert "debug opening" in log
+        assert "notes/hello.md" in log
         assert f"interpreter sys.executable={sys.executable}" in log
         assert f"interpreter sys.executable={sys.executable}" in home
         assert "git-fsck rc=0" in log
@@ -569,11 +604,18 @@ def test_success_backup_prunes_and_restore(tmp_path: Path, monkeypatch: pytest.M
         assert (outside_dir / "secret.txt").read_text() == "secret-data"
         assert secret_file.read_text() == "secret-bundle"
         assert (world.backup / "git" / "daily" / "1998-01-01.bundle").is_symlink()
-        for gone in ("2000-01-01", "2000-01-02", "2000-01-03"):
-            assert not (world.backup / "vault" / "daily" / gone).exists()
-        assert (world.backup / "vault" / "daily" / "2000-01-04" / "keep.txt").read_text() == "keep-04"
+        deleted = set(status["prune"]["deleted"])
+        for day in range(1, 17):
+            name = f"2000-01-{day:02d}"
+            assert not (world.backup / "vault" / "daily" / name).exists()
+            assert f"vault/daily/{name}" in deleted
+        daily_names = sorted(path.name for path in (world.backup / "vault" / "daily").iterdir())
+        assert daily_names == ["1999-01-01", "2026-10-13", "2026-10-13.manifest.json"]
+        for gone in ("2020-W01", "2020-W02"):
+            assert not (world.backup / "vault" / "weekly" / gone).exists()
+        assert (world.backup / "vault" / "weekly" / "2020-W03" / "keep.txt").read_text() == "week-03"
+        assert (world.backup / "vault" / "weekly" / "2020-W10" / "keep.txt").read_text() == "week-10"
         assert (sibling / "stay.txt").read_text() == "stay"
-        assert not (world.backup / "vault" / "weekly").exists()
 
         status_bytes = (world.backup / "status.json").read_bytes()
         interpreter_line = f"interpreter sys.executable={sys.executable}"
@@ -599,7 +641,8 @@ def test_success_backup_prunes_and_restore(tmp_path: Path, monkeypatch: pytest.M
         assert second["head_sha"] != status["head_sha"]
         remote = subprocess.check_output(["git", "ls-remote", str(world.bare), "refs/heads/main"], text=True).split()[0]
         assert second["head_sha"] == remote
-        assert (world.backup / "vault" / "daily" / "2000-01-04" / "keep.txt").read_text() == "keep-04"
+        assert not (world.backup / "vault" / "daily" / "2000-01-04").exists()
+        assert (world.backup / "vault" / "daily" / "2026-10-13").is_dir()
         assert hermes_lines(world.hermes_log) == []
     finally:
         _restore_vault_modes(world.vault)
@@ -692,14 +735,15 @@ exec __GIT__ "$@"
 def test_manifest_mismatch_does_not_prune(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     world = make_world(tmp_path, monkeypatch)
     preseed_old(world.backup)
-    original = db.sha256_file
+    original = db.VaultWorker.copy
 
-    def fake(path: Path) -> str:
-        if path.name == "hello.md":
-            return "0" * 64
-        return original(path)
+    def copy_then_corrupt(self: db.VaultWorker, src: Path, dst: Path) -> dict:
+        info = original(self, src, dst)
+        if src.name == "hello.md":
+            dst.write_bytes(b"corrupted")
+        return info
 
-    monkeypatch.setattr(db, "sha256_file", fake)
+    monkeypatch.setattr(db.VaultWorker, "copy", copy_then_corrupt)
     rc = db.cmd_backup(world.cfg)
     status = read_status(world.backup)
     assert_old_kept(world, rc, status)
@@ -761,6 +805,170 @@ def test_sunday_restore_failure_does_not_prune(tmp_path: Path, monkeypatch: pyte
     for day in range(1, 17):
         path = world.backup / "vault" / "daily" / f"2000-01-{day:02d}" / "keep.txt"
         assert path.read_text() == f"2000-01-{day:02d}"
+
+
+def test_daily_staging_keeps_newest_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    world = make_world(tmp_path, monkeypatch)
+    for day in range(1, 21):
+        folder = world.backup / "vault" / "daily" / f"2000-01-{day:02d}"
+        folder.mkdir(parents=True)
+        (folder / "keep.txt").write_text(f"keep-{day:02d}")
+    git_daily = world.backup / "git" / "daily"
+    git_daily.mkdir(parents=True)
+    (git_daily / "2000-01-01.bundle").write_text("old-bundle")
+    (world.backup / "vault" / "daily" / "2000-01-02.manifest.json").write_text("{}\n")
+    rc = db.cmd_backup(world.cfg)
+    assert rc == 0
+    status = read_status(world.backup)
+    assert status["result"] == "ok"
+    assert status["prune"]["ran"] is True
+    deleted = set(status["prune"]["deleted"])
+    for day in range(1, 21):
+        assert f"vault/daily/2000-01-{day:02d}" in deleted
+    assert "git/daily/2000-01-01.bundle" in deleted
+    assert "vault/daily/2000-01-02.manifest.json" in deleted
+    daily_names = sorted(path.name for path in (world.backup / "vault" / "daily").iterdir())
+    assert daily_names == ["2026-10-13", "2026-10-13.manifest.json"]
+    assert sorted(path.name for path in git_daily.iterdir()) == ["2026-10-13.bundle"]
+    assert (world.backup / "vault" / "daily" / "2026-10-13" / "notes" / "hello.md").read_text() == "hello\n"
+
+
+def _assert_disk_hang(world: World, rc: int, elapsed: float, *, limit: float = 5.0) -> None:
+    status = read_status(world.backup)
+    assert_old_kept(world, rc, status)
+    assert any("timed out" in item for item in status["errors"])
+    assert elapsed < limit
+
+
+def test_restore_copy_snapshot_hang_is_interrupted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    world = make_world(tmp_path, monkeypatch)
+    assert db.cmd_backup(world.cfg) == 0
+    capsys.readouterr()
+    arm_hang(world, monkeypatch, "copy_snapshot")
+    started = time.monotonic()
+    rc = db.cmd_restore_test(world.cfg)
+    elapsed = time.monotonic() - started
+    captured = capsys.readouterr()
+    assert rc == 1
+    assert elapsed < 5
+    assert "timed out" in captured.err
+    assert len(hermes_lines(world.hermes_log)) == 1
+    assert (world.backup / "vault" / "daily" / "2026-10-13").is_dir()
+
+
+def test_sync_git_prepare_hang_is_interrupted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    world = make_world(tmp_path, monkeypatch)
+    preseed_old(world.backup)
+    arm_hang(world, monkeypatch, "sync_git_prepare")
+    started = time.monotonic()
+    rc = db.cmd_backup(world.cfg)
+    _assert_disk_hang(world, rc, time.monotonic() - started)
+
+
+def test_sync_git_remove_hang_is_interrupted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    world = make_world(tmp_path, monkeypatch)
+    preseed_old(world.backup)
+    arm_hang(world, monkeypatch, "sync_git_remove")
+
+    def fail_clone(self: db.Git, url: str, dest: Path) -> subprocess.CompletedProcess:
+        dest.mkdir(parents=True, exist_ok=True)
+        (dest / "HEAD").write_text("ref: refs/heads/main\n")
+        return subprocess.CompletedProcess(["git", "clone"], 1, "", "clone failed")
+
+    monkeypatch.setattr(db.Git, "clone_mirror", fail_clone)
+    started = time.monotonic()
+    rc = db.cmd_backup(world.cfg)
+    _assert_disk_hang(world, rc, time.monotonic() - started)
+
+
+def test_copy_vault_prepare_hang_is_interrupted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    world = make_world(tmp_path, monkeypatch)
+    preseed_old(world.backup)
+    arm_hang(world, monkeypatch, "copy_vault_prepare")
+    started = time.monotonic()
+    rc = db.cmd_backup(world.cfg)
+    _assert_disk_hang(world, rc, time.monotonic() - started, limit=8)
+
+
+def test_manifest_write_hang_is_interrupted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    world = make_world(tmp_path, monkeypatch)
+    preseed_old(world.backup)
+    arm_hang(world, monkeypatch, "manifest_write")
+    started = time.monotonic()
+    rc = db.cmd_backup(world.cfg)
+    _assert_disk_hang(world, rc, time.monotonic() - started, limit=8)
+
+
+def test_verify_manifest_hang_is_interrupted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    world = make_world(tmp_path, monkeypatch)
+    preseed_old(world.backup)
+    arm_hang(world, monkeypatch, "verify_manifest")
+    started = time.monotonic()
+    rc = db.cmd_backup(world.cfg)
+    _assert_disk_hang(world, rc, time.monotonic() - started, limit=8)
+
+
+def test_publish_uses_snapshot_timeout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    world = make_world(tmp_path, monkeypatch)
+    preseed_old(world.backup)
+    arm_hang(world, monkeypatch, "publish", disk=30, snapshot=1)
+    started = time.monotonic()
+    rc = db.cmd_backup(world.cfg)
+    elapsed = time.monotonic() - started
+    _assert_disk_hang(world, rc, elapsed, limit=12)
+    assert world.cfg.disk_io_timeout_seconds == 30
+    assert world.cfg.snapshot_timeout_seconds == 1
+
+
+def test_prune_uses_snapshot_timeout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    world = make_world(tmp_path, monkeypatch)
+    old = world.backup / "vault" / "daily" / "2000-01-01"
+    old.mkdir(parents=True)
+    (old / "keep.txt").write_text("keep-me")
+    arm_hang(world, monkeypatch, "prune", disk=30, snapshot=1)
+    started = time.monotonic()
+    rc = db.cmd_backup(world.cfg)
+    elapsed = time.monotonic() - started
+    status = read_status(world.backup)
+    assert rc == 1
+    assert status["result"] == "failed"
+    assert any("timed out" in item for item in status["errors"])
+    assert elapsed < 12
+    assert (old / "keep.txt").read_text() == "keep-me"
+    assert (world.backup / "vault" / "daily" / "2026-10-13").is_dir()
+    assert len(hermes_lines(world.hermes_log)) == 1
+
+
+def test_reap_child_gives_up() -> None:
+    pid = os.fork()
+    if pid == 0:
+        time.sleep(30)
+        os._exit(0)
+    started = time.monotonic()
+    try:
+        status = db._reap_child(pid, 0.3)
+        elapsed = time.monotonic() - started
+        assert status is None
+        assert elapsed < 1.5
+    finally:
+        try:
+            os.kill(pid, 9)
+        except OSError:
+            pass
+        db._reap_child(pid, 2)
+
+
+def test_fork_timeout_does_not_block_after_kill() -> None:
+    def sleeper() -> str:
+        time.sleep(6)
+        return "done"
+
+    started = time.monotonic()
+    with pytest.raises(db.DiskTimeout):
+        db._fork_timeout(0.4, sleeper, ())
+    assert time.monotonic() - started < 3
 
 
 def standalone_python() -> str:
@@ -1063,6 +1271,256 @@ def test_install_unmounted_writes_nothing(tmp_path: Path, monkeypatch: pytest.Mo
     assert rc == 1
     assert list(world.vol.iterdir()) == [world.vol / "do-not-touch.txt"]
     assert len(hermes_lines(world.hermes_log)) == 1
+
+
+def test_probe_diskutil_nonzero_is_not_mounted(tmp_path: Path) -> None:
+    script = tmp_path / "diskutil"
+    write_exec(
+        script,
+        "#!/bin/bash\nprintf '   Mounted:                   Yes\\n   Mount Point:               /Volumes/Disk\\n'\nexit 1\n",
+    )
+    assert db.probe_diskutil(script, Path("/Volumes/Disk")) is False
+
+
+def _rewrite_timeouts(world: World, *, run_timeout: float, disk_timeout: float) -> None:
+    data = json.loads(world.cfg_path.read_text())
+    data["run_timeout_seconds"] = run_timeout
+    data["disk_io_timeout_seconds"] = disk_timeout
+    world.cfg_path.write_text(json.dumps(data))
+    world.cfg = db.load_config(world.cfg_path)
+
+
+def _git_sleeper(world: World, monkeypatch: pytest.MonkeyPatch) -> Path:
+    real = shutil.which("git")
+    assert real
+    bindir = world.work / "gitbin"
+    bindir.mkdir()
+    pidfile = world.work / "git.pid"
+    script = """#!/bin/bash
+real=__REAL__
+for arg in "$@"; do
+  if [[ "$arg" == "clone" || "$arg" == "fetch" || "$arg" == "fsck" ]]; then
+    echo $$ > __PID__
+    sleep 120
+    exit 0
+  fi
+done
+exec "$real" "$@"
+"""
+    text = script.replace("__REAL__", shlex.quote(real)).replace("__PID__", shlex.quote(str(pidfile)))
+    write_exec(bindir / "git", text)
+    monkeypatch.setenv("PATH", str(bindir) + os.pathsep + os.environ.get("PATH", ""))
+    return pidfile
+
+
+def _assert_dead(pid: int) -> None:
+    deadline = time.monotonic() + 2
+    while time.monotonic() < deadline:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return
+        time.sleep(0.05)
+    raise AssertionError(f"pid {pid} still alive")
+
+
+def _disk_io_procs() -> list[str]:
+    proc = subprocess.run(["ps", "-eo", "args"], capture_output=True, text=True, check=False)
+    return [line for line in proc.stdout.splitlines() if "--disk-io" in line]
+
+
+def test_disk_io_hung_open_is_killed(tmp_path: Path) -> None:
+    fifo = tmp_path / "block.log"
+    os.mkfifo(fifo)
+    started = time.monotonic()
+    with pytest.raises(db.DiskTimeout):
+        db.perform_disk_io("append", fifo, b"x\n", timeout=1)
+    assert time.monotonic() - started < 8
+    assert _disk_io_procs() == []
+
+
+def test_watchdog_kills_hung_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    world = make_world(tmp_path, monkeypatch)
+    preseed_old(world.backup)
+    pidfile = _git_sleeper(world, monkeypatch)
+    _rewrite_timeouts(world, run_timeout=3, disk_timeout=5)
+    started = time.monotonic()
+    rc = db.supervise_backup(world.cfg)
+    elapsed = time.monotonic() - started
+    assert rc == 1
+    assert elapsed < 20
+    assert pidfile.is_file()
+    _assert_dead(int(pidfile.read_text().strip()))
+    status = read_status(world.backup)
+    assert status["result"] == "timeout"
+    assert status["prune"]["ran"] is False
+    assert status["alert_sent"] is True
+    assert any("timed out" in item for item in status["errors"])
+    home = world.home_log.read_text()
+    assert "backup timed out after 3s" in home
+    assert f"interpreter sys.executable={sys.executable}" in home
+    lines = hermes_lines(world.hermes_log)
+    assert len(lines) == 1
+    assert "send" in lines[0] and "discord:" in lines[0]
+    assert "timeout" in lines[0]
+    assert (world.backup / "vault" / "daily" / "1999-01-01" / "keep.txt").read_text() == "keep-me"
+    assert (world.backup / "git" / "daily" / "1999-01-01.bundle").read_text() == "old-bundle"
+    assert not (world.backup / "vault" / "daily" / "2026-10-13").exists()
+    assert _disk_io_procs() == []
+
+
+def test_watchdog_hung_disk_writes_local_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    world = make_world(tmp_path, monkeypatch)
+    preseed_old(world.backup)
+    os.mkfifo(world.backup / "digitalbrain-backup.log")
+    _rewrite_timeouts(world, run_timeout=3, disk_timeout=120)
+    world.cfg.disk_io_timeout_seconds = 1
+    monkeypatch.setenv("DIGITALBRAIN_BACKUP_TIMED_DISK_IO", "1")
+    started = time.monotonic()
+    rc = db.supervise_backup(world.cfg)
+    elapsed = time.monotonic() - started
+    assert rc == 1
+    assert elapsed < 20
+    status = read_status(world.backup)
+    assert status["result"] == "timeout"
+    assert status["alert_sent"] is True
+    fallback = json.loads((world.home_log.parent / "digitalbrain-backup-timeout-status.json").read_text())
+    assert fallback["result"] == "timeout"
+    assert fallback["alert_sent"] is True
+    home = world.home_log.read_text()
+    assert "backup timed out after 3s" in home
+    assert "disk status/log write timed out; wrote local fallback" in home
+    lines = hermes_lines(world.hermes_log)
+    assert len(lines) == 1
+    assert "send" in lines[0] and "discord:" in lines[0]
+    assert (world.backup / "vault" / "daily" / "1999-01-01" / "keep.txt").read_text() == "keep-me"
+    assert (world.backup / "git" / "daily" / "1999-01-01.bundle").read_text() == "old-bundle"
+    assert _disk_io_procs() == []
+
+
+def test_mkdir_on_external_path_uses_timed_io(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    world = make_world(tmp_path, monkeypatch, create_root=False, with_git=False)
+    monkeypatch.setenv("DIGITALBRAIN_BACKUP_TIMED_DISK_IO", "1")
+    calls: list[str] = []
+    real = db.external_disk
+
+    def wrapped(timeout: float, root: Path, func, *args, how: str = "fork"):
+        calls.append(getattr(func, "__name__", ""))
+        return func(*args)
+
+    monkeypatch.setattr(db, "external_disk", wrapped)
+    root = db.ensure_backup_root(world.cfg)
+    assert root.is_dir()
+    assert "_mkdir_leaf" in calls
+    assert "_dir_kind" in calls
+
+
+def test_status_directory_alerts_and_falls_back(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    world = make_world(tmp_path, monkeypatch)
+    preseed_old(world.backup)
+    (world.backup / "status.json").mkdir()
+    (world.vault / "notes" / "stub.md.icloud").write_text("stub")
+    rc = db.cmd_backup(world.cfg)
+    assert rc == 1
+    assert (world.backup / "status.json").is_dir()
+    lines = hermes_lines(world.hermes_log)
+    assert len(lines) == 1
+    assert "send" in lines[0] and "discord:" in lines[0]
+    fallback = json.loads((world.home_log.parent / "digitalbrain-backup-timeout-status.json").read_text())
+    assert fallback["result"] == "failed"
+    assert fallback["alert_sent"] is True
+    assert (world.backup / "vault" / "daily" / "1999-01-01" / "keep.txt").read_text() == "keep-me"
+    assert "disk status write failed" in world.home_log.read_text()
+
+
+def test_mount_check_hang_alerts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    world = make_world(tmp_path, monkeypatch)
+    preseed_old(world.backup)
+    _rewrite_timeouts(world, run_timeout=30, disk_timeout=1)
+    monkeypatch.setenv("DIGITALBRAIN_BACKUP_TIMED_DISK_IO", "1")
+    real_ismount = os.path.ismount
+
+    def hang_ismount(path: object) -> bool:
+        if os.environ.get("DIGITALBRAIN_BACKUP_DISK_CHILD") == "1":
+            time.sleep(30)
+        return real_ismount(path)
+
+    monkeypatch.setattr(os.path, "ismount", hang_ismount)
+    started = time.monotonic()
+    rc = db.cmd_backup(world.cfg)
+    assert rc == 1
+    assert time.monotonic() - started < 10
+    lines = hermes_lines(world.hermes_log)
+    assert len(lines) == 1
+    assert "send" in lines[0] and "discord:" in lines[0]
+    fallback = json.loads((world.home_log.parent / "digitalbrain-backup-timeout-status.json").read_text())
+    assert fallback["alert_sent"] is True
+    assert any("timed out" in item for item in fallback["errors"])
+    assert not (world.backup / "status.json").exists()
+    assert not (world.backup / "vault" / "daily" / "2026-10-13").exists()
+    assert (world.backup / "vault" / "daily" / "1999-01-01" / "keep.txt").read_text() == "keep-me"
+
+
+def test_lock_open_hang_alerts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    world = make_world(tmp_path, monkeypatch)
+    preseed_old(world.backup)
+    _rewrite_timeouts(world, run_timeout=30, disk_timeout=1)
+    monkeypatch.setenv("DIGITALBRAIN_BACKUP_TIMED_DISK_IO", "1")
+    real_open = os.open
+
+    def hang_open(path: object, flags: int, *args: object):
+        if os.environ.get("DIGITALBRAIN_BACKUP_DISK_CHILD") == "1" and str(path).endswith(".backup.lock"):
+            time.sleep(30)
+        return real_open(path, flags, *args)
+
+    monkeypatch.setattr(os, "open", hang_open)
+    started = time.monotonic()
+    rc = db.cmd_backup(world.cfg)
+    assert rc == 1
+    assert time.monotonic() - started < 10
+    lines = hermes_lines(world.hermes_log)
+    assert len(lines) == 1
+    assert "send" in lines[0] and "discord:" in lines[0]
+    fallback = json.loads((world.home_log.parent / "digitalbrain-backup-timeout-status.json").read_text())
+    assert fallback["alert_sent"] is True
+    assert any("lock" in item for item in fallback["errors"])
+    assert (world.backup / "vault" / "daily" / "1999-01-01" / "keep.txt").read_text() == "keep-me"
+    assert not (world.backup / "vault" / "daily" / "2026-10-13").exists()
+
+
+def test_timeout_does_not_write_unmounted_volume(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    world = make_world(tmp_path, monkeypatch, mounted=False, create_root=False, with_git=False)
+    write_exec(world.work / "diskutil", "#!/bin/bash\nsleep 30\n")
+    _rewrite_timeouts(world, run_timeout=1, disk_timeout=30)
+    world.cfg.run_timeout_seconds = 1
+    # The worker blocks inside diskutil. The parent probe uses the shorter timeout
+    # and must treat that failure as not mounted, without creating the backup tree.
+    monkeypatch.setattr(db, "DISKUTIL_TIMEOUT", 0.3)
+    started = time.monotonic()
+    rc = db.supervise_backup(world.cfg)
+    assert rc == 1
+    assert time.monotonic() - started < 8
+    assert [path.name for path in world.vol.iterdir()] == ["do-not-touch.txt"]
+    assert not (world.vol / "DigitalBrain-Backups").exists()
+    lines = hermes_lines(world.hermes_log)
+    assert len(lines) == 1
+    assert "send" in lines[0] and "discord:" in lines[0]
+    fallback = json.loads((world.home_log.parent / "digitalbrain-backup-timeout-status.json").read_text())
+    assert fallback["result"] == "timeout"
+    assert fallback["alert_sent"] is True
+
+
+def test_sha256_dataless_fails_before_open(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    fifo = tmp_path / "hang.fifo"
+    os.mkfifo(fifo)
+    stat_bin = tmp_path / "stat"
+    write_exec(stat_bin, "#!/bin/bash\necho 1073741824\n")
+    monkeypatch.setenv("DIGITALBRAIN_BACKUP_STAT_BIN", str(stat_bin))
+    started = time.monotonic()
+    with pytest.raises(db.BackupError, match="hang.fifo"):
+        db.sha256_file(fifo)
+    assert time.monotonic() - started < 3
+    assert f"debug opening {fifo}" in capsys.readouterr().err
 
 
 def test_config_rejects_dotdot(tmp_path: Path) -> None:

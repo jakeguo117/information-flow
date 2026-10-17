@@ -1,23 +1,25 @@
-# DigitalBrain nightly backup
+# DigitalBrain weekly backup
 
-Nightly copy of the DigitalBrain vault onto the iMac external disk.
+Weekly copy of the DigitalBrain vault onto the iMac external disk. launchd runs it on Sundays at 03:30 Asia/Shanghai.
 
 Two sources:
 
 - Git is primary. The GitHub repo `jakeguo117/obsidian-digitalbrain` is cloned and fetched into `<volume>/DigitalBrain-Backups/git/mirror.git`. That mirror is outside iCloud. This program never runs git against the vault and never reads the vault `.git` entry. On the iCloud copy that entry is a not-downloaded gitdir pointer, and reading it hangs.
 - The Obsidian vault folder is copied as files. The default path is `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain` (often `/Users/jake/...`). Confirm `vault_path` on the iMac before the first real run.
 
-The disk is not encrypted. The default volume is `/Volumes/Disk` and the folder is `DigitalBrain-Backups`. Both are config keys. Retention is 14 daily, 8 weekly, and 12 monthly snapshots.
+The disk is not encrypted. The default volume is `/Volumes/Disk` and the folder is `DigitalBrain-Backups`. Both are config keys. Retention of record is 8 weekly and 12 monthly snapshots. Each run also publishes one dated snapshot under `vault/daily` and `git/daily`. That daily copy is staging: after the weekly and monthly snapshots are built, only the newest daily snapshot is kept, because the Sunday restore-test reads it.
 
 Each run writes `status.json` (time, result, sizes, HEAD sha, errors). Logs go to `DigitalBrain-Backups/digitalbrain-backup.log` on the backup disk and to `~/Library/Logs/digitalbrain-backup.log`. On failure, Hermes sends one Discord message. Hermes only notifies. The backup work is this program, started by launchd.
 
-A failed run does not publish that day's snapshot and does not delete or rotate older ones. An unreadable vault, an iCloud placeholder (`.icloud` or dataless), or a vault read that exceeds `read_timeout_seconds` is a failure (`result` is `failed`), alerts, and leaves old snapshots in place.
+A failed run does not publish that run's snapshot and does not delete or rotate older ones. An unreadable vault, an iCloud placeholder (`.icloud` or dataless), or a vault read that exceeds `read_timeout_seconds` is a failure (`result` is `failed`), alerts, and leaves old snapshots in place. Before any source file is opened, the run checks the macOS dataless flag (`st_flags` `SF_DATALESS`, `0x40000000`) and fails with an alert that names the path. The log line `debug opening <path>` is written first.
 
-Sunday's 03:30 run also restores the latest bundle and vault snapshot into a temp directory and checks `git fsck`, HEAD, and the sha256 manifest.
+The whole run has a watchdog, `run_timeout_seconds` (default 60 minutes). The parent process enforces that deadline and `SIGKILL`s the backup child, including child git processes, even when the child is blocked inside `open()`. `result` is `timeout`, and Hermes alerts even when that overall deadline is what stops the run. Disk status and logs are written only after the volume is mounted and the marker file is valid. External-disk reads, writes, the mount check, the marker, the lock file, git mirror setup, the vault copy's incoming directory, manifest write and read-back, and the restore-test snapshot copy each run through one timeout (`disk_io_timeout_seconds`, default 30 seconds). Publishing snapshots and pruning them use a separate longer timeout (`snapshot_timeout_seconds`, default 3600 seconds). A failed or timed-out disk write, including when `status.json` cannot be replaced, still sends the alert and writes `digitalbrain-backup-timeout-status.json` next to the home log. Nothing is created on an unmounted volume.
+
+The Sunday 03:30 run restores the latest bundle and vault snapshot into a temp directory and checks `git fsck`, HEAD, and the sha256 manifest.
 
 ## Schedule
 
-`launchd/com.jake.digitalbrain-backup.plist` uses `StartCalendarInterval` at 03:30. That hour is local time. launchd has no timezone field, so the iMac timezone must be Asia/Shanghai. The plist ships with placeholders. `install` fills them. Install does not load the agent.
+`launchd/com.jake.digitalbrain-backup.plist` uses `StartCalendarInterval` with `Weekday` 0 (Sunday), `Hour` 3, and `Minute` 30. The job runs on Sundays only. That clock is local time. launchd has no timezone field, so the iMac timezone must be Asia/Shanghai. The plist ships with placeholders. `install` fills them. Install does not load the agent.
 
 ## Full Disk Access
 
@@ -71,7 +73,7 @@ bin/uninstall.sh
 
 `config.example.json` lists every key. `discord_channel_id` is still `REPLACE_WITH_DISCORD_CHANNEL_ID` until you set the existing Discord channel. `hermes_command` is an argv list, not a shell string. `{channel_id}`, `{subject}`, and `{message}` are replaced without a shell.
 
-Optional test keys, not in the example: `mount_table`, `diskutil_bin`, `stat_bin`, `ls_bin`.
+`run_timeout_seconds` defaults to 3600. `disk_io_timeout_seconds` defaults to 30. `snapshot_timeout_seconds` defaults to 3600 and applies to snapshot publish and prune. Optional test keys, not in the example: `mount_table`, `diskutil_bin`, `stat_bin`, `ls_bin`.
 
 ## First real backup and restore
 
@@ -80,7 +82,7 @@ bin/backup.sh
 bin/backup.sh restore-test
 ```
 
-`backup.sh` defaults to `backup`. `restore-test` restores the latest daily bundle and vault snapshot, prints the raw `git fsck`, `git bundle verify`, HEAD, and manifest output, and does not rewrite `status.json` when the check passes.
+`backup.sh` defaults to `backup`. `restore-test` restores the latest dated bundle and vault snapshot, prints the raw `git fsck`, `git bundle verify`, HEAD, and manifest output, and does not rewrite `status.json` when the check passes.
 
 ## Manual demos
 
@@ -101,4 +103,5 @@ bin/demo-failure.sh
 - The volume is a real mount. `diskutil info` saying it is not mounted is a veto. A path directly under `/Volumes` that is not a mount point is refused even if other checks are positive. The marker file `DigitalBrain-Backups/.backup-target` must already exist (install creates it). The backup never creates the volume directory.
 - Git clone, fetch, fsck, bundle, ls-remote, and rev-parse run only against the mirror on the backup disk or a restore temp dir. Backed-up HEAD must equal GitHub `main`. The bundle must pass `git bundle verify`.
 - Vault file bytes are hashed with sha256 and checked after the copy.
-- Pruning deletes only inside `DigitalBrain-Backups`, and only after a fully successful run, including the Sunday restore test. Symlinks and `..` are refused. A sibling such as `DigitalBrain-Backups-evil` is not a backup root.
+- Pruning deletes only inside `DigitalBrain-Backups`, and only after a fully successful run, including the Sunday restore test. Weekly and monthly retention follow the config. The dated daily snapshot is staging and only the newest one is kept. Symlinks and `..` are refused. A sibling such as `DigitalBrain-Backups-evil` is not a backup root.
+- A run still going after `run_timeout_seconds` is killed. `diskutil` exiting non-zero, timing out, or omitting `Mounted: Yes` means the volume is not mounted, and nothing is written on it.
