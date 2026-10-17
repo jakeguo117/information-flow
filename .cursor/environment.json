@@ -1,0 +1,4 @@
+{
+  "install": "bash .cursor/install.sh",
+  "start": "grep -q 'information-flow .venv' ~/.bashrc || echo '[ -f \"$PWD/.venv/bin/activate\" ] && . \"$PWD/.venv/bin/activate\"  # information-flow .venv' >> ~/.bashrc"
+}
