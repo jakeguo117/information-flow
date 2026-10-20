@@ -39,7 +39,7 @@ PM 10-20 定：开工包文件本身不在 Drive 上。23:57 是它在 box 上�
 | 字段 | 类型 | 必填 | 含义 | 取值规则 |
 |---|---|---|---|---|
 | `schema_version` | 字面量字符串 | 是 | 本规范版本 | `"inbox-0.1"` |
-| `input_id` | 字符串 | 是 | 输入记录的稳定 ID | `in-{platform}-{sha1 前 12 位}`。拼接式见上。PM 10-20 定：有 `external_item_id` 时，`event_key` 等于 `external_item_id`；没有事件 ID 时，`event_key` 等于「指纹」一节的 sha256 |
+| `input_id` | 字符串 | 是 | 输入记录的稳定 ID | `in-{platform}-{sha1 前 12 位}`。拼接式见上。PM 10-20 定：有 `external_item_id` 时，`event_key` 等于 `external_item_id`；没有事件 ID 时，`event_key` 等于「指纹」一节里 platform、`event_type` 和规范化内容拼出来的 sha256 |
 | `source_id` | 字符串 | 是 | 指向 Source | 指向 3.1 的 `source_id` |
 | `external_item_id` | 未规定 | 有就填 | 平台上的事件 ID | YouTube `video_id@like_at`；Snipd snip uuid；WeRead 划线块 ID（`^bookId-章-起-止`）；X / Instagram 同 `external_content_id`；想法用 thought id。PM 10-20 定：`like_at` 取来源给的点赞时间，ISO 8601 UTC，精确到秒，以 `Z` 结尾，例如 `2026-10-14T02:00:00Z`；绝不用运行时间。来源没给时间怎么办：未规定 |
 | `event_type` | 枚举字符串 | 是 | 这一条是哪种动作 | `like`｜`save`｜`bookmark`｜`highlight`｜`snip`｜`note`｜`thought`。PM 10-20 定：`manual` 定为 `note` |
@@ -49,7 +49,7 @@ PM 10-20 定：开工包文件本身不在 Drive 上。23:57 是它在 box 上�
 | `source_published_at` | 可空；有值时为带偏移的 ISO 8601 | 可空 | 冗余的原内容发布时间 | 冗余存一份，方便汇总显示 |
 | `source_week` | 可空；有值时为 ISO 周 | 可空 | 收藏或记录所在的周 | 按 `captured_at` 在香港时区算的 ISO 周。`time_basis=unknown` 时为空，不算本周新增（AC05）。周次字符串的写法 §3 未规定 |
 | `origin` | 枚举字符串 | 是 | 这条记录怎么进来的 | `collected` 或 `historical_import`。PM 10-20 定：与 `time_basis` 独立。只有本字段为 `historical_import` 时，才允许 `time_basis=unknown` |
-| `content_fingerprint` | sha256 | 是 | 摘录或原话的指纹 | 见「指纹」。没有事件 ID 时，`event_key` 等于这个值 |
+| `content_fingerprint` | sha256 | 是 | 摘录或原话的指纹 | 见「指纹」。所有条目都只对规范化内容做 sha256，不带 platform 和 `event_type` |
 | `completeness` | 枚举字符串 | 是 | 这条记录齐不齐 | `full`｜`excerpt`｜`metadata_only`｜`missing` |
 | `missing_reason` | 未规定 | 不是 full 时必填 | 为什么不齐 | 例如 `transcript: none` |
 | `process_state` | 枚举字符串 | 是 | 处理状态 | `pending`｜`processing`｜`completed`｜`failed`｜`retry_pending` |
@@ -65,7 +65,7 @@ PM 10-20 定：开工包文件本身不在 Drive 上。23:57 是它在 box 上�
 
 照 §3：先找来源（平台 ID → 规范化 URL）；再找输入（`external_item_id` → 指纹）。同一事件重复同步：返回已有的 `input_id`，不新增（AC01）。同一来源有新划线或新备注：新建 Input，复用 Source（AC02）。只是看起来像：记 `suspected_duplicate_of`，不删除。
 
-有 `external_item_id` 时，`event_key` 等于它。没有事件 ID 时，`event_key` 等于 `content_fingerprint`。算法见「指纹」。
+有 `external_item_id` 时，`event_key` 等于它。没有事件 ID 时，`event_key` 按「指纹」一节的拼接串计算，不等于 `content_fingerprint`。
 
 WeRead：每条划线单独成为一条 Input。同一本书再来一条划线，是新的 `external_item_id` / `event_key`，因此是新的 `input_id`，`source_id` 不变。
 
@@ -96,7 +96,7 @@ X 和 Instagram 没有收藏时间时：`time_basis` 写 `first_seen`，`capture
 | 字段 | 类型 | 必填 | 含义 | 取值规则 |
 |---|---|---|---|---|
 | `cycle_id` | 未规定 | 未规定 | 批次 ID | `cy-YYYYMMDD`（周四的日期） |
-| `cutoff_at` | 带偏移的 ISO 8601 | 未规定 | 本批截止时间 | 存储用带时区偏移的 ISO 8601。PM 10-20 定：见 J03（Jake 10-20 定：周四 08:00 香港时间截止、20:00 出汇总） |
+| `cutoff_at` | 带偏移的 ISO 8601 | 未规定 | 本批截止时间 | 存储用带时区偏移的 ISO 8601。PM 10-20 定：见 J03 |
 | `coverage_start` | 带偏移的 ISO 8601 | 未规定 | 本批覆盖的起点 | 上一批的 `cutoff_at` |
 | `selected_input_ids` | 字符串列表 | 未规定 | 本批选中的输入 | `received_at` ≤ `cutoff_at`，且状态是 `pending`、`retry_pending` 或 `failed` 的全部记录，跨周扫描 |
 | `late_input_ids` | 字符串列表 | 未规定 | 赶不上本批的输入 | cutoff 之后才到的，留给下一批 |
@@ -137,17 +137,19 @@ X 和 Instagram 没有收藏时间时：`time_basis` 写 `first_seen`，`capture
 
 ### 指纹
 
-PM 10-20 定：没有事件 ID 时按 Drive 02 §4 算指纹。`content_fingerprint` 用同一算法。
+规范化：取正文。`manual` / `thought` 就是用户写的那段文字。依次：a. Unicode NFC；b. 去首尾空白；c. 用 Python `re.sub(r'\s+', ' ', s)` 把连续空白（含换行、制表、全角空格）合并成一个半角空格。不转小写，不删标点。
 
-1. 取正文。`manual` / `thought` 就是用户写的那段文字。依次：a. Unicode NFC；b. 去首尾空白；c. 用 Python `re.sub(r'\s+', ' ', s)` 把连续空白（含换行、制表、全角空格）合并成一个半角空格。不转小写，不删标点。
-2. 拼接串是下面这三截，中间是换行符 U+000A，不是反斜杠加 n：
+PM 10-20 定：`event_key` 和 `content_fingerprint` 分开算。有事件 ID 时，`event_key` 等于 `external_item_id`。只有没有事件 ID 时，`event_key` 才是拼接串的 sha256。拼接串是下面三截，中间是换行符 U+000A：
 
 ```text
 {platform}
 {event_type}
 {整理后内容}
 ```
-3. 指纹 = sha256(UTF-8) 的小写十六进制。`input_id` 前缀和截断沿用 `in-{platform}-{sha1(source_id + '|' + event_key)[:12]}`。sha1 同样按 UTF-8、小写十六进制，取前 12 位。
+
+`content_fingerprint`：所有条目都只算 sha256(规范化内容)，不带 platform 和 `event_type`。UTF-8，小写十六进制。用途是跨平台标疑似重复。
+
+`input_id` 前缀和截断仍是 `in-{platform}-{sha1(source_id + '|' + event_key)[:12]}`。sha1 按 UTF-8、小写十六进制，取前 12 位。
 
 可复算例子（manual 样例；原文没有首尾空白或连续空白，整理后与原文相同）：
 
@@ -160,8 +162,8 @@ manual
 note
 合成笔记：这是一条虚构的手工记录。
 ```
-- sha256：`41f8ff5e18a1d296058161f6a6655a562319cea2dca6001c33a53fad21307872`
-- 没有 `external_item_id`，所以 `event_key` 等于这个 sha256
+- `event_key`：`41f8ff5e18a1d296058161f6a6655a562319cea2dca6001c33a53fad21307872`（拼接串的 sha256）
+- `content_fingerprint`：`d06273963ddfaaf7ab116fef416571570870eefa0afe805ad501e18a82006769`（只对整理后内容做 sha256）
 - `source_id`：`src-manual-u888511f02cc3`
 - `input_id`：`in-manual-25610e98807b`
 
@@ -200,7 +202,7 @@ note
     "source_published_at": "2026-10-01T12:00:00+08:00",
     "source_week": "2026-W42",
     "origin": "collected",
-    "content_fingerprint": "2da4ad3bd62fd9355de629f8c2a3f0fc78d79c97dd80bc907a330f1fe658af4c",
+    "content_fingerprint": "3941d306060eb0f4160e6bc95d62d2e44496b32cd678be59ae92dd99f03fe86c",
     "completeness": "full",
     "missing_reason": null,
     "process_state": "pending",
@@ -217,7 +219,7 @@ note
 
 ### Snipd
 
-本条 snip 没有自己的时间，所以 `time_basis=first_seen`，`captured_at` 用首次捕获时间。已有一集上的新 snip 若自带时间，`captured_at` 用 snip 自己的时间，不用这一集的时间（见字段表）。本条没有 git 提交时间，`received_at` 用索引首次看到的时间。
+本条 snip 没有自己的时间，所以 `time_basis=first_seen`，`captured_at` 用首次捕获时间。已有一集上的新 snip 若自带时间，`captured_at` 用 snip 自己的时间，不用这一集的时间（见字段表）。已有的一集出了新 snip，而这条 snip 没有自己的时间时，用这条 snip 自己第一次被看到的时间（它的 `received_at`），不用 `Source.first_seen_at`。本条没有 git 提交时间，`received_at` 用索引首次看到的时间。
 
 指纹原文：`合成摘录：示例播客里的一句虚构原话。`
 
@@ -250,7 +252,7 @@ note
     "source_published_at": "2026-09-01T08:00:00+08:00",
     "source_week": "2026-W42",
     "origin": "collected",
-    "content_fingerprint": "a40839e9033d009993f042292025c41dfdfca79a7187399d3394d4e38b61c9a0",
+    "content_fingerprint": "7418d4c958935036356c13ff5569e8c424e976b4cfdb424b92059a6f2e5a964c",
     "completeness": "full",
     "missing_reason": null,
     "process_state": "pending",
@@ -300,7 +302,7 @@ note
     "source_published_at": "2020-01-01T00:00:00+08:00",
     "source_week": "2026-W42",
     "origin": "collected",
-    "content_fingerprint": "634132f354d2c8ce0df6078a20210ca182c494b6907dab11a9883d0ee952aa1f",
+    "content_fingerprint": "793c679661f6af6016f35a7f0fe7e0c695c2e64b3f68b261feb032b908920574",
     "completeness": "full",
     "missing_reason": null,
     "process_state": "pending",
@@ -350,7 +352,7 @@ note
     "source_published_at": "2026-10-10T12:00:00+08:00",
     "source_week": "2026-W42",
     "origin": "collected",
-    "content_fingerprint": "caa50bc998839678f7130b603a974a1eef319628420d0e51659180e0fa330c72",
+    "content_fingerprint": "5fe0dd5f05ab1de6e5e9248977f4ed6a381ca4395bc0355a0ac2e2213cc076e4",
     "completeness": "full",
     "missing_reason": null,
     "process_state": "pending",
@@ -402,7 +404,7 @@ note
     "source_published_at": "2026-10-01T18:00:00+08:00",
     "source_week": "2026-W42",
     "origin": "collected",
-    "content_fingerprint": "fe78a3345efd7f140ca0ed895a690c4f40f989b42546597db30e890c54dae18d",
+    "content_fingerprint": "27d7702cdc2e0564f3ea74a7713209ab36886b0ac32122ac6dbfc6619daacf9c",
     "completeness": "full",
     "missing_reason": null,
     "process_state": "pending",
@@ -452,7 +454,7 @@ note
     "source_published_at": "2021-12-01T12:00:00+08:00",
     "source_week": null,
     "origin": "historical_import",
-    "content_fingerprint": "bde88ee0031787f59cd4a4a0c1538f0f11a2becde9bb96445a823e9ec9e32367",
+    "content_fingerprint": "14bcf404f642b673353c104f639f77cdc0cc1ce62767e802569528dcca86c27b",
     "completeness": "full",
     "missing_reason": null,
     "process_state": "pending",
@@ -502,7 +504,7 @@ note
     "source_published_at": null,
     "source_week": "2026-W43",
     "origin": "collected",
-    "content_fingerprint": "556580fd9dcdc1483d8d729c96b35e0e3b59bcf68a8e8d7421862446fc127e1d",
+    "content_fingerprint": "3ae699348b0d289c10e328d4a24b90be5409496cf0a9bad2d25170645e74bdb1",
     "completeness": "full",
     "missing_reason": null,
     "process_state": "pending",
@@ -519,7 +521,7 @@ note
 
 ### manual
 
-`event_type` 定为 `note`，`time_basis` 定为 `platform`。没有 `external_content_id`，`source_id` 用 URL 的 sha1。没有事件 ID，`event_key` 与 `content_fingerprint` 都是「指纹」一节算出的 sha256，`input_id` 为 `in-manual-25610e98807b`。`canonical_url` 用 example.com，因为 §3 要求每条 Source 都有 `canonical_url`，但没有写没有平台地址时填什么。
+`event_type` 定为 `note`，`time_basis` 定为 `platform`。没有 `external_content_id`，`source_id` 用 URL 的 sha1。没有事件 ID。`event_key` 是 `41f8ff5e18a1d296058161f6a6655a562319cea2dca6001c33a53fad21307872`，`content_fingerprint` 是 `d06273963ddfaaf7ab116fef416571570870eefa0afe805ad501e18a82006769`。`input_id` 为 `in-manual-25610e98807b`。`canonical_url` 用 example.com，因为 §3 要求每条 Source 都有 `canonical_url`，但没有写没有平台地址时填什么。
 
 指纹原文：`合成笔记：这是一条虚构的手工记录。`
 
@@ -552,7 +554,7 @@ note
     "source_published_at": null,
     "source_week": "2026-W43",
     "origin": "collected",
-    "content_fingerprint": "41f8ff5e18a1d296058161f6a6655a562319cea2dca6001c33a53fad21307872",
+    "content_fingerprint": "d06273963ddfaaf7ab116fef416571570870eefa0afe805ad501e18a82006769",
     "completeness": "full",
     "missing_reason": null,
     "process_state": "pending",
@@ -607,7 +609,11 @@ note
 
 `source_weeks` 样例写成「周 → 条数」。§3 没有规定这个结构。
 
-正文一行（不是字段）：`D-cy-20261015-01`｜合成一句话｜`https://example.com/watch?v=exmplvid01`｜pending｜否
+正文两行（不是字段）：
+
+`D-cy-20261015-01`｜合成一句话｜`https://example.com/watch?v=exmplvid01`｜pending｜否
+
+`D-cy-20261015-02`｜合成划线｜`https://example.com/weread/book/synthbook001`｜pending｜否
 
 `D-{cycle}-{nn}` 里 `{cycle}` 样例填了 `cy-20261015`。§3 没有写 `{cycle}` 是 `cycle_id` 还是日期。末尾三节只保留 §3 的节名，样例不填正文。
 
