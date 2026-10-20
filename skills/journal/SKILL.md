@@ -1,6 +1,6 @@
 ---
 name: journal
-description: "写周记、周记、weekly journal。用户说「写周记」「周记」或 /journal 时使用。第一段输出必须逐条列出 digest 的每一条，一行一条，带 T-/F-/C-/P- 编号，分在三个组标题下；在这之前不要摘要、不要提问。没有 digest 就说还没有，不要凭记忆写周记。客户说可以写之前不落盘。「记一下：」「想法：」或 /thought 只做随手记。"
+description: "写周记、周记、weekly journal：Jake 在 Obsidian（DigitalBrain vault）里的每周周记流程，要读当周 digest 文件和旧周记，不能凭空写。用户说「写周记」「周记」「写这周的周记」或 /journal 时，直接用这个 skill，不用等 @。第一段一行一条列出当周 digest 的每一条（带编号）；没有 digest 就说还没有。Jake 说「可以写」之前不落盘。也处理「记一下：」「想法：」或 /thought 的随手记。不处理日 Digest，不写 Cognition。"
 ---
 
 # journal

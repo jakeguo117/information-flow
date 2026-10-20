@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "information-flow",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "写周记、周记、weekly journal。用户说「写周记」时先列出当周 digest；没有文件就说明还没有，不要凭记忆写。Journal and separately confirmed Cognition, with local vault tools.",
   "author": {
     "name": "Jake Guo",
