@@ -2,7 +2,9 @@
 
 schema_version = inbox-0.1
 
-来自开工包 §3（10-17 23:57 版）。字段的名字、必填、含义、取值规则照该节转录，不增不减。§3 没有单列类型。类型列只复述说明里已经写明的形态；没有写明的标「未规定」。
+PM 10-20 定：开工包文件本身不在 Drive 上。23:57 是它在 box 上的修改时间（2026-10-17 23:57:09 香港时间）。§3 的上游是 Drive 上的「02_数据规则与开发验收_V2.0_Draft」，文件 id `11gFwzKUxHsQ5_KSk3NFXcM_5vaB-QbJwrq5hk71XBIQ`，Drive 修改时间 2026-10-17 22:57:58 香港时间。
+
+除文中另标「PM 10-20 定」的三处以外，字段的名字、必填、含义、取值规则照开工包 §3 转录。这三处是：Digest 的 `counts`、`origin` 与 `time_basis` 的搭配、`suspected_duplicate_of`。§3 没有单列类型。类型列只复述说明里已经写明的形态；没有写明的标「未规定」。
 
 ## 存放与时间
 
@@ -42,11 +44,11 @@ schema_version = inbox-0.1
 | `external_item_id` | 未规定 | 有就填 | 平台上的事件 ID | YouTube `video_id@like_at`；Snipd snip uuid；WeRead 划线块 ID（`^bookId-章-起-止`）；X / Instagram 同 `external_content_id`；想法用 thought id |
 | `event_type` | 枚举字符串 | 是 | 这一条是哪种动作 | `like`｜`save`｜`bookmark`｜`highlight`｜`snip`｜`note`｜`thought` |
 | `captured_at` | 可空；有值时为带偏移的 ISO 8601 | 可空 | Jake 收藏或记录的时间 | 存储用带时区偏移的 ISO 8601 |
-| `time_basis` | 枚举字符串 | 是 | `captured_at` 的时间依据 | `platform`（平台给的时间）、`first_seen`（用首次捕获时间代替，并标出来）或 `unknown`（历史导入，不知道时间） |
+| `time_basis` | 枚举字符串 | 是 | `captured_at` 的时间依据 | `platform`（平台给的时间）、`first_seen`（用首次捕获时间代替，并标出来）或 `unknown`（不知道时间）。PM 10-20 定：与 `origin` 是两个独立字段。只有 `origin=historical_import` 的条目允许 `unknown`；其他条目必须是 `platform` 或 `first_seen` |
 | `received_at` | 带偏移的 ISO 8601 | 是 | 系统接收时间 | git 第一次加进这个文件的提交时间，或索引首次看到的时间 |
 | `source_published_at` | 可空；有值时为带偏移的 ISO 8601 | 可空 | 冗余的原内容发布时间 | 冗余存一份，方便汇总显示 |
 | `source_week` | 可空；有值时为 ISO 周 | 可空 | 收藏或记录所在的周 | 按 `captured_at` 在香港时区算的 ISO 周。`time_basis=unknown` 时为空，不算本周新增（AC05）。周次字符串的写法 §3 未规定 |
-| `origin` | 枚举字符串 | 是 | 这条记录怎么进来的 | `collected` 或 `historical_import` |
+| `origin` | 枚举字符串 | 是 | 这条记录怎么进来的 | `collected` 或 `historical_import`。PM 10-20 定：与 `time_basis` 独立。只有本字段为 `historical_import` 时，才允许 `time_basis=unknown` |
 | `content_fingerprint` | sha256 | 是 | 摘录或原话的指纹 | 规范化摘录或原话的 sha256。规范化步骤 §3 未规定 |
 | `completeness` | 枚举字符串 | 是 | 这条记录齐不齐 | `full`｜`excerpt`｜`metadata_only`｜`missing` |
 | `missing_reason` | 未规定 | 不是 full 时必填 | 为什么不齐 | 例如 `transcript: none` |
@@ -57,12 +59,13 @@ schema_version = inbox-0.1
 | `summary_ref` | 未规定 | Process 之后填 | 摘要所在位置 | 见「由周四 AI 整理写回」 |
 | `process_version` | 未规定 | Process 之后填 | 处理规则的版本 | 见「由周四 AI 整理写回」 |
 | `inbox_ref` | 字符串 | 是 | 笔记位置 | 笔记路径加锚点。路径和锚点怎么连，§3 未规定 |
+| `suspected_duplicate_of` | 字符串 | 可选填 | 疑似重复标记 | PM 10-20 定：值是另一条 Input 的 `input_id`。只标记，不合并、不删除 |
 
 ### 去重
 
 照 §3：先找来源（平台 ID → 规范化 URL）；再找输入（`external_item_id` → 指纹）。同一事件重复同步：返回已有的 `input_id`，不新增（AC01）。同一来源有新划线或新备注：新建 Input，复用 Source（AC02）。只是看起来像：记 `suspected_duplicate_of`，不删除。
 
-`suspected_duplicate_of` 只出现在这句去重说明里，不在字段表中，本文不把它加进字段表。去重句里的「指纹」、`content_fingerprint`、以及没有 `event_key` 时用的「指纹」，§3 没有写是不是同一个值。
+去重句里的「指纹」、`content_fingerprint`、以及没有 `event_key` 时用的「指纹」，§3 没有写是不是同一个值。
 
 WeRead：每条划线单独成为一条 Input。同一本书再来一条划线，是新的 `external_item_id` / `event_key`，因此是新的 `input_id`，`source_id` 不变。
 
@@ -117,18 +120,16 @@ X 和 Instagram 没有收藏时间时：`time_basis` 写 `first_seen`，`capture
 | `snapshot_revision` | 整数 | 未规定 | 快照修订号 | n。每次修订都另写一个 `r{n+1}.md`，旧文件永远不改（AC07） |
 | `input_ids` | 字符串列表 | 未规定 | 本批全部条目 | 全部条目 |
 | `source_weeks` | 未规定 | 未规定 | 本批涉及的周 | 本批涉及哪些周，每周多少条。数据结构 §3 未规定 |
-| `counts` | 未规定 | 未规定 | 状态计数 | `ready` / `pending` / `failed` / `incomplete` / `total`。`total` == `len(input_ids)`，各项相加等于 total（AC06） |
+| `counts` | 未规定 | 未规定 | 状态计数 | PM 10-20 定：每个键就是一个 `process_state` 值（`pending`｜`processing`｜`completed`｜`failed`｜`retry_pending`），另加 `total`。各项相加等于 `total`，且 `total` == `len(input_ids)`（AC06） |
 | `late_or_cross_week` | 字符串列表 | 未规定 | 迟到或跨周材料 | 迟到或跨周材料的 id 列表 |
 | `generated_at` | 带偏移的 ISO 8601 | 未规定 | 生成时间 | 存储用带时区偏移的 ISO 8601 |
 | `generator` | 未规定 | 未规定 | 生成者 | §3 说明为「—」 |
-
-`counts` 的四个状态词和 Input 的 `process_state` 不是同一套枚举。§3 没有写对应关系，本文不补。
 
 正文：按 `topics` 聚合，每个主题一节。没打主题的放「待归类」一节，照样列出来。每条一行：`D-{cycle}-{nn}`｜一句话摘要｜来源链接｜状态｜是不是迟到或跨周。末尾三节：「失败和不完整」「历史关联（只放链接）」「本批来源统计（哪个来源是 0）」。`D-` 编号在一个批次里固定不变。周记、Idea、内容都用它连回来。`{cycle}` 和 `{nn}` 的具体拼法，§3 只给了这个模式。
 
 ## 合成样例
 
-每类来源一条，Batch 一条，Digest 一条。全部是编造的标题和句子。URL 只用 `example.com`。
+每类来源一条，另加一条 `historical_import` 样例，Batch 一条，Digest 一条。全部是编造的标题和句子。URL 只用 `example.com`。
 
 样例外层的 `source` 和 `input` 只是分组，不是字段。条件未触发的值，以及收集阶段留空的 `topics`、`summary_ref`、`process_version`，样例写成 `null`。§3 没有规定用 `null` 还是省略键。
 
@@ -180,6 +181,7 @@ X 和 Instagram 没有收藏时间时：`time_basis` 写 `first_seen`，`capture
     "topics": null,
     "summary_ref": null,
     "process_version": null,
+    "suspected_duplicate_of": null,
     "inbox_ref": "📥 Inbox/YouTube-Likes/2026-10-14-exmplvid01.md#摘句"
   }
 }
@@ -229,6 +231,7 @@ X 和 Instagram 没有收藏时间时：`time_basis` 写 `first_seen`，`capture
     "topics": null,
     "summary_ref": null,
     "process_version": null,
+    "suspected_duplicate_of": null,
     "inbox_ref": "📥 Inbox/Snipd/example-show/synth-episode.md#22222222-2222-4222-8222-222222222222"
   }
 }
@@ -278,6 +281,7 @@ X 和 Instagram 没有收藏时间时：`time_basis` 写 `first_seen`，`capture
     "topics": null,
     "summary_ref": null,
     "process_version": null,
+    "suspected_duplicate_of": null,
     "inbox_ref": "📥 Inbox/WeRead/synthbook001.md#^synthbook001-1-10-20"
   }
 }
@@ -327,6 +331,7 @@ X 和 Instagram 没有收藏时间时：`time_basis` 写 `first_seen`，`capture
     "topics": null,
     "summary_ref": null,
     "process_version": null,
+    "suspected_duplicate_of": null,
     "inbox_ref": "📥 Inbox/X-Bookmarks/2026-10-18-example-user.md#1000000000000000001"
   }
 }
@@ -336,7 +341,7 @@ X 和 Instagram 没有收藏时间时：`time_basis` 写 `first_seen`，`capture
 
 没有收藏时间。`time_basis` 为 `first_seen`，`captured_at` 用首次捕获时间。`published_at` 是视频发布时间，不是收藏时间。`external_item_id` 与 `external_content_id` 相同。
 
-§4 另有一条：2021–2022 的大批文件标 `historical_import`，`source_week` 留空（AC05）。§3 只规定 `time_basis=unknown` 时 `source_week` 为空，没有写 `historical_import` 是否必须搭配 `unknown`。本条不合并这两句，只演示 `first_seen`。
+本条 `origin=collected`，没有收藏时间，所以 `time_basis=first_seen`。PM 10-20 定：`origin` 与 `time_basis` 独立；只有 `historical_import` 允许 `unknown`。那种条目见下一条样例。`time_basis=unknown` 时 `source_week` 仍为空（AC05）。
 
 指纹原文：`合成收藏：这是一条虚构的短视频说明。`
 
@@ -378,7 +383,58 @@ X 和 Instagram 没有收藏时间时：`time_basis` 写 `first_seen`，`capture
     "topics": null,
     "summary_ref": null,
     "process_version": null,
+    "suspected_duplicate_of": null,
     "inbox_ref": "📥 Inbox/Instagram-Saves/2026-10-01-example-author.md#EXMPL00001"
+  }
+}
+```
+
+### Instagram-Saves（历史导入）
+
+单独一条。PM 10-20 定：`origin=historical_import`，`time_basis=unknown`，`source_week` 为空。`captured_at` 为空，因为不知道收藏时间。`published_at` 仍是视频发布时间。
+
+指纹原文：`合成收藏：这是一条虚构的历史导入说明。`
+
+```json
+{
+  "source": {
+    "schema_version": "inbox-0.1",
+    "source_id": "src-instagram-EXMPLHIST01",
+    "platform": "instagram",
+    "external_content_id": "EXMPLHIST01",
+    "canonical_url": "https://example.com/p/EXMPLHIST01",
+    "title": "虚构短视频：历史导入示例",
+    "author": "example_author",
+    "published_at": "2021-12-01T12:00:00+08:00",
+    "raw_refs": [
+      "📥 Inbox/Instagram-Saves/2021-12-01-example-author.md"
+    ],
+    "content_revision": 1,
+    "first_seen_at": "2026-10-17T08:00:00+08:00"
+  },
+  "input": {
+    "schema_version": "inbox-0.1",
+    "input_id": "in-instagram-781395e78b4b",
+    "source_id": "src-instagram-EXMPLHIST01",
+    "external_item_id": "EXMPLHIST01",
+    "event_type": "save",
+    "captured_at": null,
+    "time_basis": "unknown",
+    "received_at": "2026-10-17T08:00:00+08:00",
+    "source_published_at": "2021-12-01T12:00:00+08:00",
+    "source_week": null,
+    "origin": "historical_import",
+    "content_fingerprint": "14bcf404f642b673353c104f639f77cdc0cc1ce62767e802569528dcca86c27b",
+    "completeness": "full",
+    "missing_reason": null,
+    "process_state": "pending",
+    "last_error": null,
+    "last_cycle_id": null,
+    "topics": null,
+    "summary_ref": null,
+    "process_version": null,
+    "suspected_duplicate_of": null,
+    "inbox_ref": "📥 Inbox/Instagram-Saves/2021-12-01-example-author.md#EXMPLHIST01"
   }
 }
 ```
@@ -427,6 +483,7 @@ X 和 Instagram 没有收藏时间时：`time_basis` 写 `first_seen`，`capture
     "topics": null,
     "summary_ref": null,
     "process_version": null,
+    "suspected_duplicate_of": null,
     "inbox_ref": "📝 Journal/想法/thought-20261020-example.md#thought-20261020-example"
   }
 }
@@ -476,6 +533,7 @@ X 和 Instagram 没有收藏时间时：`time_basis` 写 `first_seen`，`capture
     "topics": null,
     "summary_ref": null,
     "process_version": null,
+    "suspected_duplicate_of": null,
     "inbox_ref": "📥 Inbox/manual/synth-manual-001.md#note"
   }
 }
@@ -511,7 +569,7 @@ X 和 Instagram 没有收藏时间时：`time_basis` 写 `first_seen`，`capture
 
 ### Digest
 
-下面是 frontmatter 字段的 JSON。文件本身仍是 §3.4 的 Markdown。`counts` 只演示加总：0+1+0+0 = 1 = `total` = `input_ids` 的条数。不表示 `process_state` 与 `ready` / `incomplete` 的对应。
+下面是 frontmatter 字段的 JSON。文件本身仍是 §3.4 的 Markdown。`counts` 的键与 `process_state` 相同，另加 `total`。本条 0+1+0+0+0 = 1 = `total` = `input_ids` 的条数。
 
 `source_weeks` 样例写成「周 → 条数」。§3 没有规定这个结构。
 
@@ -535,10 +593,11 @@ X 和 Instagram 没有收藏时间时：`time_basis` 写 `first_seen`，`capture
     "2026-W42": 1
   },
   "counts": {
-    "ready": 0,
     "pending": 1,
+    "processing": 0,
+    "completed": 0,
     "failed": 0,
-    "incomplete": 0,
+    "retry_pending": 0,
     "total": 1
   },
   "late_or_cross_week": [],
