@@ -16,3 +16,5 @@ Inbox 原文不改。机器索引在 `📥 Inbox/_index/`，一行一条，只�
 当周 `📋 Digests/{YYYY-Wnn}/intake.md` 历史停用：不再追加，也不再作为讨论入口。
 
 不改 `📝 Journal/`。不写 `📖 Cognition/`。不写来源卡。
+
+入库 / Intake 记录不是 Evidence，不自动成为 Evidence。

@@ -11,7 +11,7 @@ description: "写周记、周记、weekly journal。用户说「写周记」「�
 
 说「写周记」「周记」或 `/journal` 之后，先在后台读最近 2–3 篇周记和未解问题（不输出）。然后**第一段输出必须列出周四汇总快照的全部条目**，在任何摘要、呼应或提问之前：
 
-- 打开 `📋 Digests/cycles/{cycle_id}/r{n}.md`。`cycle_id` 是本周周四（Asia/Shanghai）的 `cy-YYYYMMDD`。同一个 cycle 里取编号最大的 `r{n}.md`（n 按整数比）。
+- 打开 `📋 Digests/cycles/{cycle_id}/r{n}.md`。`cycle_id` 是本周周四（Asia/Hong_Kong）的 `cy-YYYYMMDD`。同一个 cycle 里取编号最大的 `r{n}.md`（n 按整数比）。
 - 按主题分组，一行一条。每条带文件里的 `D-` 编号（如 `D-cy-20261015-01`）和该行的状态，再加这一句话。条数和编号与这份快照里的条目一致，一条都不能少，也不能并成一段话。
 - 「待归类」里的条目照样列出，不能省略。主题小节和「待归类」里的每一个 `D-` 行都要出现；不要因为某条也写在快照后面的小节里就把它漏掉。
 - 这一段写完之前，不要摘要，不要提问，不要复述旧周记。旧周记里的状态不能当作本周事实说。
@@ -55,7 +55,7 @@ Vault 目录（按这个顺序认，认到就停）：
 
 ① 旧周记 2–3 篇。`📝 Journal/` 最近 2–3 篇（按文件名倒序）。学口气、未收的线、已经点名的老项目。不把正文写入 DigitalBrain memory。只打开那些周记里已经出现的 `🚀 Projects/` / `📖 Resources/` wikilink（老项目、很小的线）。不要扫整个项目目录来「补这周」。**旧周记里的状态不能当作本周事实说。** 未解问题是这些篇里还悬着的线。这一步在后台读，第一段不输出。
 
-② 周四汇总快照 `📋 Digests/cycles/{cycle_id}/r{n}.md`。**自己认周。** `cycle_id` 是本周周四（Asia/Shanghai）的 `cy-YYYYMMDD`。不要问他是哪一周。同一个 cycle 里取编号最大的 `r{n}.md`（n 按整数比）。不回落到另一周：这个 cycle 没有快照，就说「本周没有周四汇总快照」。不要改开别的 `cycle_id`，不要改开 `📋 Digests/daily/`，不要改开旧的 `📋 Digests/{YYYY-Wnn}/digest.md` 或 `📋 Digests/weekly-briefs/`，也不要按周去读 intake。不要自己编条目。写周记时不要生成这份快照，也不要手写占位。
+② 周四汇总快照 `📋 Digests/cycles/{cycle_id}/r{n}.md`。**自己认周。** `cycle_id` 是本周周四（Asia/Hong_Kong）的 `cy-YYYYMMDD`。不要问他是哪一周。同一个 cycle 里取编号最大的 `r{n}.md`（n 按整数比）。不回落到另一周：这个 cycle 没有快照，就说「本周没有周四汇总快照」。不要改开别的 `cycle_id`，不要改开 `📋 Digests/daily/`，不要改开旧的 `📋 Digests/{YYYY-Wnn}/digest.md` 或 `📋 Digests/weekly-briefs/`，也不要按周去读 intake。不要自己编条目。写周记时不要生成这份快照，也不要手写占位。
 
 ③ 未消化想法。再跑 `capture_thought.py list-open`。它返回的是全部未消化想法，不限本周。未消化 = `📝 Journal/想法/` 里的想法文件，减去任何消化清单里出现过的 id。清单里标成「看过未展开」的不再出现。想法文件和消化清单都不是周记条目。想法是燃料，不整段贴进周记，也不改原话。
 

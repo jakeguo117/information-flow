@@ -5,13 +5,15 @@ from __future__ import annotations
 
 import hashlib
 import io
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
-import sync_digitalbrain_skills as sync
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import sync_digitalbrain_skills as sync  # noqa: E402
 
 
 LEGACY_AGENTS = """# 🧠 AGENTS.md — DigitalBrain 全局指令
@@ -212,15 +214,18 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
 
 
 class SkillFlowContractTests(unittest.TestCase):
-    def test_digest_discusses_yesterdays_takeaway(self) -> None:
+    def test_digest_reads_thursday_cycle_snapshot(self) -> None:
         text = (sync.SKILLS_DIR / "digest" / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("name: digest", text)
-        self.assertIn("最多两个概念", text)
-        self.assertIn("Asia/Shanghai", text)
+        self.assertIn("📋 Digests/cycles/", text)
+        self.assertIn("cy-", text)
+        self.assertIn("周四快照", text)
         self.assertIn("📋 Digests/daily/", text)
-        self.assertIn("接受之前不写", text)
+        self.assertIn("Jake 接受之前", text)
         self.assertIn("不是 Evidence", text)
         self.assertNotIn("intake.md", text)
+        self.assertNotIn("最多两个概念", text)
+        self.assertNotIn("Asia/Shanghai", text)
         route = (sync.SKILLS_DIR / "digitalbrain-agents-route.md").read_text(encoding="utf-8")
         self.assertIn("/digest", route)
         self.assertIn("📋 Digests/daily/", route)
