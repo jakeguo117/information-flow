@@ -63,7 +63,7 @@ PM 10-20 定：开工包文件本身不在 Drive 上。23:57 是它在 box 上�
 
 ### 去重
 
-照 §3：先找来源（平台 ID → 规范化 URL）；再找输入（`external_item_id` → 指纹）。同一事件重复同步：返回已有的 `input_id`，不新增（AC01）。同一来源有新划线或新备注：新建 Input，复用 Source（AC02）。只是看起来像：记 `suspected_duplicate_of`，不删除。
+照 §3：先找来源（平台 ID → 规范化 URL）；再找输入（`external_item_id` → 指纹（即 event_key；疑似重复用 content_fingerprint））。同一事件重复同步：返回已有的 `input_id`，不新增（AC01）。同一来源有新划线或新备注：新建 Input，复用 Source（AC02）。只是看起来像：记 `suspected_duplicate_of`，不删除。
 
 有 `external_item_id` 时，`event_key` 等于它。没有事件 ID 时，`event_key` 按「指纹」一节的拼接串计算，不等于 `content_fingerprint`。
 
@@ -137,9 +137,9 @@ X 和 Instagram 没有收藏时间时：`time_basis` 写 `first_seen`，`capture
 
 ### 指纹
 
-规范化：取正文。`manual` / `thought` 就是用户写的那段文字。依次：a. Unicode NFC；b. 去首尾空白；c. 用 Python `re.sub(r'\s+', ' ', s)` 把连续空白（含换行、制表、全角空格）合并成一个半角空格。不转小写，不删标点。
+PM 10-20 定：规范化：取正文。`manual` / `thought` 就是用户写的那段文字。依次：a. Unicode NFC；b. 去首尾空白；c. 用 Python `re.sub(r'\s+', ' ', s)` 把连续空白（含换行、制表、全角空格）合并成一个半角空格。不转小写，不删标点。
 
-PM 10-20 定：`event_key` 和 `content_fingerprint` 分开算。有事件 ID 时，`event_key` 等于 `external_item_id`。只有没有事件 ID 时，`event_key` 才是拼接串的 sha256。拼接串是下面三截，中间是换行符 U+000A：
+`event_key` 和 `content_fingerprint` 分开算。有事件 ID 时，`event_key` 等于 `external_item_id`。只有没有事件 ID 时，`event_key` 才是拼接串的 sha256。拼接串是下面三截，中间是换行符 U+000A：
 
 ```text
 {platform}
