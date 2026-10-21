@@ -174,11 +174,16 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           cycle_dir="📋 Digests/cycles/${CYCLE_ID}"
           index_dir="📥 Inbox/_index"
-          if [ ! -d "$cycle_dir" ] || [ ! -d "$index_dir" ]; then
-            echo "missing ${cycle_dir} or ${index_dir}" >&2
+          if [ ! -d "$cycle_dir" ]; then
+            echo "missing ${cycle_dir}" >&2
             exit 1
           fi
-          git add -- "$cycle_dir" "$index_dir"
+          git add -- "$cycle_dir"
+          if [ -d "$index_dir" ]; then
+            git add -- "$index_dir"
+          else
+            echo "no ${index_dir}; committing cycle outputs only"
+          fi
           CYCLE_DIR="$cycle_dir" INDEX_DIR="$index_dir" python3 -c '
           import os, sys
           cycle = os.environ["CYCLE_DIR"] + "/"
