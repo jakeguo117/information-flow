@@ -7,6 +7,7 @@ name: weekly-digest
 #   stage: process | digest
 #   cycle_id: cy-YYYYMMDD for a Thursday in Asia/Hong_Kong. Any other value fails the job.
 # A schedule run uses that Thursday's date in Asia/Hong_Kong. A start that is not Thursday there fails closed.
+# A missing index directory, or a missing/empty inputs.jsonl, logs 索引未建，跳过 and skips setup, the scripts, and commit. The job stays green.
 
 permissions:
   contents: read
@@ -49,11 +50,27 @@ jobs:
           token: ${{ secrets.DIGITALBRAIN_TOKEN }}
           path: digitalbrain
 
+      - name: Check inbox index
+        id: index
+        run: |
+          set -euo pipefail
+          index="digitalbrain/📥 Inbox/_index"
+          inputs="${index}/inputs.jsonl"
+          if [ ! -d "$index" ] || [ ! -s "$inputs" ]; then
+            echo "索引未建，跳过"
+            echo "$index"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-python@v5
+        if: steps.index.outputs.ready == 'true'
         with:
           python-version: "3.12"
 
       - name: Resolve stage and cycle id
+        if: steps.index.outputs.ready == 'true'
         id: resolve
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -123,6 +140,7 @@ jobs:
           PY
 
       - name: Run cycle stage
+        if: steps.index.outputs.ready == 'true'
         env:
           STAGE: ${{ steps.resolve.outputs.stage }}
           CYCLE_ID: ${{ steps.resolve.outputs.cycle_id }}
@@ -150,6 +168,7 @@ jobs:
           fi
 
       - name: Commit cycle outputs
+        if: steps.index.outputs.ready == 'true'
         working-directory: digitalbrain
         env:
           STAGE: ${{ steps.resolve.outputs.stage }}
