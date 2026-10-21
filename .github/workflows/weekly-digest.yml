@@ -1,5 +1,13 @@
 name: weekly-digest
 
+# Thursday Asia/Hong_Kong (J03=A). One job; the cron hour or workflow_dispatch picks the stage.
+#   08:00 process_batch.py    UTC cron 0 0 * * 4
+#   20:00 build_digest_v2.py  UTC cron 0 12 * * 4
+# workflow_dispatch inputs:
+#   stage: process | digest
+#   cycle_id: cy-YYYYMMDD for a Thursday in Asia/Hong_Kong. Any other value fails the job.
+# A schedule run uses that Thursday's date in Asia/Hong_Kong. A start that is not Thursday there fails closed.
+
 permissions:
   contents: read
 
@@ -8,22 +16,28 @@ concurrency:
   cancel-in-progress: false
 
 on:
+  schedule:
+    - cron: "0 0 * * 4"
+    - cron: "0 12 * * 4"
   workflow_dispatch:
     inputs:
-      week:
-        description: ISO week YYYY-Wnn (Asia/Shanghai)
+      stage:
+        description: "process = Thursday 08:00 HK process_batch.py; digest = Thursday 20:00 HK build_digest_v2.py"
+        required: true
+        type: choice
+        options:
+          - process
+          - digest
+      cycle_id:
+        description: "Thursday cycle id cy-YYYYMMDD in Asia/Hong_Kong (example cy-20261022). Invalid, non-Thursday, or empty ids fail the job."
         required: true
         type: string
-  push:
-    branches: [main]
-    paths:
-      - ".github/weekly-digest-request"
 
 jobs:
-  digest:
+  cycle:
     runs-on: ubuntu-latest
     env:
-      TZ: Asia/Shanghai
+      TZ: Asia/Hong_Kong
     steps:
       - name: Checkout information-flow
         uses: actions/checkout@v4
@@ -39,51 +53,150 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Resolve week
-        id: week
+      - name: Resolve stage and cycle id
+        id: resolve
         env:
           EVENT_NAME: ${{ github.event_name }}
-          INPUT_WEEK: ${{ inputs.week }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          INPUT_STAGE: ${{ inputs.stage }}
+          INPUT_CYCLE_ID: ${{ inputs.cycle_id }}
         run: |
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            WEEK="$INPUT_WEEK"
-          else
-            WEEK="$(head -n 1 .github/weekly-digest-request | tr -d '[:space:]')"
-          fi
-          if ! printf '%s\n' "$WEEK" | grep -Eq '^[0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$'; then
-            echo "invalid ISO week: '$WEEK' (expected YYYY-Www)"
-            exit 1
-          fi
-          echo "week=$WEEK" >> "$GITHUB_OUTPUT"
+          python3 - <<'PY'
+          import os
+          import re
+          import sys
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
 
-      - name: Build weekly digest
+          event = os.environ.get("EVENT_NAME", "")
+          schedule = os.environ.get("EVENT_SCHEDULE", "")
+          stage_in = os.environ.get("INPUT_STAGE", "")
+          cycle_in = os.environ.get("INPUT_CYCLE_ID", "").strip()
+
+          if event == "workflow_dispatch":
+              stage = stage_in.strip()
+          elif event == "schedule":
+              if schedule == "0 0 * * 4":
+                  stage = "process"
+              elif schedule == "0 12 * * 4":
+                  stage = "digest"
+              else:
+                  print(f"unexpected schedule: {schedule!r}", file=sys.stderr)
+                  sys.exit(1)
+          else:
+              print(f"unexpected event: {event!r}", file=sys.stderr)
+              sys.exit(1)
+
+          if stage not in ("process", "digest"):
+              print(f"invalid stage: {stage!r} (expected process or digest)", file=sys.stderr)
+              sys.exit(1)
+          print(f"stage={stage}", file=sys.stderr)
+
+          if event == "schedule":
+              now = datetime.now(ZoneInfo("Asia/Hong_Kong"))
+              if now.weekday() != 3:
+                  print(
+                      f"schedule run is not Thursday in Asia/Hong_Kong: {now.isoformat()}",
+                      file=sys.stderr,
+                  )
+                  sys.exit(1)
+              cycle_id = "cy-" + now.strftime("%Y%m%d")
+          else:
+              cycle_id = cycle_in
+
+          if re.fullmatch(r"cy-[0-9]{8}", cycle_id) is None:
+              print(f"invalid cycle id: {cycle_id!r} (expected cy-YYYYMMDD)", file=sys.stderr)
+              sys.exit(1)
+          try:
+              day = datetime(int(cycle_id[3:7]), int(cycle_id[7:9]), int(cycle_id[9:11]))
+          except ValueError:
+              print(f"invalid cycle id date: {cycle_id}", file=sys.stderr)
+              sys.exit(1)
+          if day.weekday() != 3:
+              print(f"cycle id must be a Thursday: {cycle_id}", file=sys.stderr)
+              sys.exit(1)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"stage={stage}\n")
+              handle.write(f"cycle_id={cycle_id}\n")
+          print(f"stage={stage} cycle_id={cycle_id}")
+          PY
+
+      - name: Run cycle stage
         env:
-          WEEK: ${{ steps.week.outputs.week }}
+          STAGE: ${{ steps.resolve.outputs.stage }}
+          CYCLE_ID: ${{ steps.resolve.outputs.cycle_id }}
         run: |
-          set +e
-          python3 scripts/build_weekly_digest.py --vault digitalbrain --week "$WEEK"
-          status=$?
-          set -e
-          if [ "$status" -eq 2 ] || [ "$status" -eq 3 ]; then
-            echo "weekly digest left unchanged ($status)"
-          elif [ "$status" -ne 0 ]; then
-            echo "weekly digest failed: $status"
-            exit "$status"
+          set -euo pipefail
+          case "$STAGE" in
+            process|digest) ;;
+            *)
+              echo "invalid stage: ${STAGE}" >&2
+              exit 1
+              ;;
+          esac
+          case "$CYCLE_ID" in
+            cy-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]) ;;
+            *)
+              echo "invalid cycle id: ${CYCLE_ID}" >&2
+              exit 1
+              ;;
+          esac
+          index="digitalbrain/📥 Inbox/_index"
+          if [ "$STAGE" = "process" ]; then
+            python3 scripts/process_batch.py --vault digitalbrain --index "$index" --cycle-id "$CYCLE_ID"
+          else
+            python3 scripts/build_digest_v2.py --vault digitalbrain --index "$index" --cycle-id "$CYCLE_ID"
           fi
 
-      - name: Commit weekly digest
+      - name: Commit cycle outputs
         working-directory: digitalbrain
         env:
-          WEEK: ${{ steps.week.outputs.week }}
+          STAGE: ${{ steps.resolve.outputs.stage }}
+          CYCLE_ID: ${{ steps.resolve.outputs.cycle_id }}
         run: |
+          set -euo pipefail
+          case "$STAGE" in
+            process|digest) ;;
+            *)
+              echo "refusing commit for stage: ${STAGE}" >&2
+              exit 1
+              ;;
+          esac
+          case "$CYCLE_ID" in
+            cy-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]) ;;
+            *)
+              echo "refusing commit for cycle id: ${CYCLE_ID}" >&2
+              exit 1
+              ;;
+          esac
           git config user.name "information-flow"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ -f "📋 Digests/${WEEK}/digest.md" ]; then
-            git add -- "📋 Digests/${WEEK}/digest.md"
+          cycle_dir="📋 Digests/cycles/${CYCLE_ID}"
+          index_dir="📥 Inbox/_index"
+          if [ ! -d "$cycle_dir" ] || [ ! -d "$index_dir" ]; then
+            echo "missing ${cycle_dir} or ${index_dir}" >&2
+            exit 1
           fi
+          git add -- "$cycle_dir" "$index_dir"
+          CYCLE_DIR="$cycle_dir" INDEX_DIR="$index_dir" python3 -c '
+          import os, sys
+          cycle = os.environ["CYCLE_DIR"] + "/"
+          index = os.environ["INDEX_DIR"] + "/"
+          raw = sys.stdin.buffer.read().split(b"\0")
+          for item in raw:
+              if not item:
+                  continue
+              path = item.decode()
+              if path.startswith(cycle) or path.startswith(index):
+                  continue
+              sys.stderr.write("refusing staged path outside cycle and index: " + path + "\n")
+              sys.exit(1)
+          ' < <(git diff --cached --name-only -z)
           if git diff --cached --quiet; then
-            echo "no weekly digest changes"
+            echo "no cycle changes"
           else
-            git commit -m "digest: week ${WEEK}"
+            git diff --cached --name-only
+            git commit -m "cycle: ${CYCLE_ID} ${STAGE}"
             git push
           fi
