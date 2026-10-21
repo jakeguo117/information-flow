@@ -2,6 +2,7 @@ name: daily-intake
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: digitalbrain-digests
@@ -9,14 +10,14 @@ concurrency:
 
 on:
   schedule:
-    - cron: "0 0 * * *"    # 08:00 上海
+    - cron: "30 23 * * *" # 07:30 Asia/Hong_Kong
   workflow_dispatch:
 
 jobs:
   intake:
     runs-on: ubuntu-latest
     env:
-      TZ: Asia/Shanghai
+      TZ: Asia/Hong_Kong
     steps:
       - name: Checkout information-flow
         uses: actions/checkout@v4
@@ -45,37 +46,54 @@ jobs:
           printf '%s' "$YOUTUBE_CLIENT" > "$HOME/.secrets/google_client.json"
           chmod 600 "$HOME/.secrets/youtube_token.json" "$HOME/.secrets/google_client.json"
 
-      - name: Run intake
+      - name: Resolve since date
+        id: since
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          since=""
+          if created="$(gh run list --workflow daily-intake.yml --status success --limit 1 --json createdAt --jq '.[0].createdAt' 2>/tmp/since-err)"; then
+            if [ -n "$created" ] && [ "$created" != "null" ]; then
+              if hk="$(TZ=Asia/Hong_Kong date -d "$created" +%F 2>>/tmp/since-err)"; then
+                since="$hk"
+                echo "last successful daily-intake createdAt=$created Asia/Hong_Kong date=$since"
+              fi
+            else
+              echo "no successful daily-intake run found"
+            fi
+          else
+            echo "daily-intake success query failed"
+            if [ -s /tmp/since-err ]; then
+              cat /tmp/since-err
+            fi
+          fi
+          if [ -z "$since" ]; then
+            since="$(TZ=Asia/Hong_Kong date -d 'yesterday' +%F)"
+            echo "since-date fallback: yesterday Asia/Hong_Kong = $since"
+          fi
+          echo "chosen since date: $since"
+          echo "since=$since" >> "$GITHUB_OUTPUT"
+
+      - name: Run YouTube likes
         env:
           YOUTUBE_TOKEN_FILE: ${{ env.HOME }}/.secrets/youtube_token.json
           YOUTUBE_CLIENT_FILE: ${{ env.HOME }}/.secrets/google_client.json
+          SINCE: ${{ steps.since.outputs.since }}
         run: |
           export YOUTUBE_TOKEN_FILE="$HOME/.secrets/youtube_token.json"
           export YOUTUBE_CLIENT_FILE="$HOME/.secrets/google_client.json"
-          python3 scripts/youtube_likes.py --vault digitalbrain
-          python3 scripts/daily_takeaway.py --vault digitalbrain
-          set +e
-          python3 scripts/build_weekly_digest.py --vault digitalbrain --also-previous
-          status=$?
-          set -e
-          if [ "$status" -eq 2 ]; then
-            echo "weekly digest: no real content, file not written"
-          elif [ "$status" -eq 3 ]; then
-            echo "weekly digest: already exists, not overwritten"
-          elif [ "$status" -ne 0 ]; then
-            echo "weekly digest failed: $status"
-            exit "$status"
-          fi
+          python3 scripts/youtube_likes.py --vault digitalbrain --since "$SINCE"
 
-      - name: Commit Digests
+      - name: Commit YouTube-Likes
         working-directory: digitalbrain
         run: |
           git config user.name "information-flow"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ -d "📋 Digests" ]; then git add "📋 Digests"; fi
-          if [ -d "📥 Inbox/YouTube-Likes" ]; then git add "📥 Inbox/YouTube-Likes"; fi
+          if [ -d "📥 Inbox/YouTube-Likes" ]; then
+            git add -- "📥 Inbox/YouTube-Likes"
+          fi
           if git diff --cached --quiet; then
-            echo "no digest changes"
+            echo "no YouTube-Likes changes"
           else
             git commit -m "intake: daily $(date +%F)"
             git push
