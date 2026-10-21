@@ -1,46 +1,41 @@
 ---
 name: digest
-description: 讨论昨天的 Inbox 摘要。Jake 说「今天 Digest」「讨论昨天」「跑 Digest」或 /digest 时用。先提出最多两个概念，他接受之前不写 Resource。不写周记。
+description: 看本周汇总。Jake 说「看本周汇总」「本周汇总」「本周 digest」或 /digest 时用。读最新一份周四快照，按主题列全量，带 process_state，保留 D-{cycle}-{nn}。接受之后才写他点名的来源卡。不写周记，不写 Cognition。
 ---
 
 # digest
 
-每天讨论前一个上海日的 Inbox。五个入口都在 `📥 Inbox/`：Snipd、WeRead、YouTube-Likes、Instagram-Saves、X-Bookmarks。Agent Handoffs 不进讨论。按周累积的旧入口只是历史，不要打开它当今天的材料，也不要往里追加。
+看本周汇总。打开最新一份周四快照，把里面的条目按主题列全。不把 Inbox 当讨论材料。
 
-DigitalBrain `.cursor/skills/` 里的副本由 information-flow Actions 覆盖。改行为只改这个仓库。云端只读已经在 `main` 上的摘要，不跑 YouTube 脚本，不写 token。
+DigitalBrain `.cursor/skills/` 里的副本由 information-flow Actions 覆盖。改行为只改这个仓库。云端只读 main 上已有快照，不生成快照，不写 token。
+
+## 什么时候用
+
+Jake 说「看本周汇总」「本周汇总」「本周 digest」或 `/digest`，以及同类说法，用本技能。
 
 ## 读什么
 
-用 Asia/Shanghai 的昨天。打开 `📋 Digests/daily/YYYY-MM-DD.md`。
+读最新一份周四快照 `📋 Digests/cycles/{cycle_id}/r{n}.md`。同一个 cycle 取最大的 n。
 
-这份文件不在 `main` 上：停下来，说明当天摘要还没有。不要自己编条目，不要改去读按周累积的旧入口。
+怎么找最新：在 vault 下看 `📋 Digests/cycles/`。目录名是 `cycle_id`，形式 `cy-YYYYMMDD`，这一天必须是周四。在符合的目录里取日期最新的一个，再取里面编号最大的 `r{n}.md`（n 按整数比）。
 
-## 周 digest
+没有这份快照：说明还没有。不要编条目。不要回落到 `📋 Digests/daily/`，不要回落到旧的 `📋 Digests/{YYYY-Wnn}/digest.md`，也不要按周去读 intake。
 
-日摘要写完之后，固定再跑：
+## 怎么列
 
-```bash
-python3 scripts/build_weekly_digest.py --vault "$VAULT"
-```
+列全量。按 `topics` 分主题。没有主题的放在「待归类」。每条带 `process_state`。编号保留快照里的 `D-{cycle}-{nn}`，不要重编。可以按快照正文简述每条摘要和来源链接。
 
-它按 Asia/Shanghai 的 ISO 周，把 `📋 Digests/daily/YYYY-MM-DD.md` 和 `📋 Digests/YYYY-MM-DD-Digest.md` 收成唯一正式路径 `📋 Digests/{YYYY-Wnn}/digest.md`。日摘要按来源写成初始 `group:`：Snipd / WeRead 先放可以引用的，YouTube 先放值得讨论的，X / Instagram 先放可以借用的。讨论时可以按用途改组，编号不变。这一周没有任何日摘要文件时，脚本改用该周已经收好的周入口，仍然只写出上面的正式路径。没有真实条目就不写文件，退出码 2。文件末尾有生成标记、正文哈希还对得上、并且「我的看法：」仍是空的，才可以重写；手改过或看法已经写了就留着，退出码 3。只给 vault、不给周时，同时建本周和上一周。不要写占位。这张周摘要给周记用。本技能讨论的仍是昨天的日摘要，不要改去打开周 digest 代替昨天。
+## 落盘
 
-## 讨论
+Jake 接受之前，落盘只允许写来源卡（`📖 Resources/` 已有领域目录里的 concept 页）。不写周记，不写 Cognition，不新开分类。接受之后才写他点名的来源卡。
 
-从这份摘要提出最多两个概念。一个概念可以挂上多条原文。先说概念和它对应的原文，不要先写文件。
-
-Jake 接受之前不写 `📖 Resources/`。没接受的概念不落盘。他说接受哪一个，才写哪一个。
-
-## 接受之后
-
-写到 `📖 Resources/` 已有的领域目录里，不要新开一套分类。
+来源卡写在 `📖 Resources/` 已有的领域目录里：
 
 - frontmatter 用 `type: concept`，`sources` 指回 Inbox 原文，并写 `created` / `updated`
 - 正文至少两个 wikilink
 - 把新页加进 `index.md`，并在 `log.md` 追加一行
 - 不改已有页的类型
-- 保存时走仓库当前规则：精确路径，禁止 `git add -A`。只新增文件的提交（想法文件、消化清单）可以直接推 main；任何修改或删除都不直推 main，不强推。Resource 页是修改，不直推 main。
 
-不改 `📝 Journal/`。不写 `📖 Cognition/`。不把 Resource 页改类型当成 Cognition。
+保存时走仓库当前规则：精确路径，禁止 `git add -A`。只新增文件的提交（想法文件、消化清单）可以直接推 main；任何修改或删除都不直推 main，不强推。Resource 页是修改，不直推 main。
 
-Resource 页不是 Evidence。
+不改 `📝 Journal/`。Resource 页不是 Evidence。
