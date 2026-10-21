@@ -10,6 +10,7 @@ collectors, reminders, or network services.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 from pathlib import Path
@@ -24,6 +25,10 @@ DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 EVENT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$")
 DIGEST_MARKER_PATTERN = r"(?:\r?\n)?<!-- information-flow-weekly-digest generator=(\S+) sha256=([0-9a-f]{64}) -->\s*\Z"
 DIGEST_MARKER_RE = re.compile(DIGEST_MARKER_PATTERN)
+DIGEST_ID_RE = re.compile(r"dg-cy-\d{8}")
+SNAPSHOT_SPEC_RE = re.compile(r"^(dg-(cy-\d{8}))@r([1-9][0-9]*)$")
+SHA256_RE = re.compile(r"[0-9a-f]{64}")
+SNAPSHOT_KEYS = ("digest_id", "snapshot_revision", "input_ids_sha256")
 
 
 def fingerprint(text: str) -> str:
@@ -104,7 +109,36 @@ def event_id_of(text: str) -> str | None:
     return _frontmatter_value(text, "event_id")
 
 
-def render_journal(approval: dict[str, Any], digest_text: str | None = None) -> str:
+def input_ids_sha256(input_ids: list[str]) -> str:
+    """sha256 hex of input_ids joined by a newline, with no trailing newline."""
+    if not isinstance(input_ids, list) or any(not isinstance(item, str) or item == "" for item in input_ids):
+        raise ValueError("input_ids must be a list of non-empty strings")
+    if any("\n" in item or "\r" in item for item in input_ids):
+        raise ValueError("input_ids entries must be single-line strings")
+    return fingerprint("\n".join(input_ids))
+
+
+def normalized_snapshot_fields(approval: dict[str, Any]) -> dict[str, Any] | None:
+    """Return digest snapshot frontmatter fields, or None when the approval has none."""
+    digest_id = approval.get("digest_id")
+    revision = approval.get("snapshot_revision")
+    sha = approval.get("input_ids_sha256")
+    if digest_id in (None, "") and revision in (None, "") and sha in (None, ""):
+        return None
+    if not isinstance(digest_id, str) or DIGEST_ID_RE.fullmatch(digest_id) is None:
+        raise ValueError("digest_id must look like dg-cy-YYYYMMDD")
+    if isinstance(revision, bool) or not isinstance(revision, int) or revision < 1:
+        raise ValueError("snapshot_revision must be a positive integer")
+    if not isinstance(sha, str) or SHA256_RE.fullmatch(sha) is None:
+        raise ValueError("input_ids_sha256 must be a sha256 hex digest")
+    return {
+        "digest_id": digest_id,
+        "snapshot_revision": revision,
+        "input_ids_sha256": sha,
+    }
+
+
+def render_journal(approval: dict[str, Any]) -> str:
     date = str(approval.get("date") or "")
     if not DATE_RE.match(date):
         raise ValueError("date must be YYYY-MM-DD")
@@ -138,16 +172,23 @@ def render_journal(approval: dict[str, Any], digest_text: str | None = None) -> 
         "  - journal",
         f'title: "{heading}"',
         f"event_id: {event_id}",
-        "---",
-        "",
-        f"# {heading}",
-        "",
-        body.rstrip(),
-        "",
-        "---",
-        "## Connections / 关联",
-        "**Topics / 主题:**",
     ]
+    fields = normalized_snapshot_fields(approval)
+    if fields is not None:
+        lines.extend(f"{key}: {fields[key]}" for key in SNAPSHOT_KEYS)
+    lines.extend(
+        [
+            "---",
+            "",
+            f"# {heading}",
+            "",
+            body.rstrip(),
+            "",
+            "---",
+            "## Connections / 关联",
+            "**Topics / 主题:**",
+        ]
+    )
     if topics:
         for topic in topics:
             lines.append(topic if topic.startswith("[[") else f"[[{topic}]]")
@@ -157,8 +198,6 @@ def render_journal(approval: dict[str, Any], digest_text: str | None = None) -> 
     prev = f"[[{previous}]]" if previous else "（无）"
     lines.append(f"**Previous / 上一篇:** {prev}")
     lines.append("")
-    if digest_text is not None:
-        lines.extend(render_digest_section(approval, digest_text))
     return "\n".join(lines)
 
 
@@ -167,22 +206,105 @@ def strip_generator_marker(text: str) -> str:
     return DIGEST_MARKER_RE.sub("", text)
 
 
-def strip_frontmatter(text: str) -> str:
-    if text.startswith("---\n"):
-        end = text.find("\n---", 4)
-        if end >= 0:
-            text = text[end + 4 :]
-    return text.strip("\n")
+def parse_digest_snapshot_spec(spec: str) -> tuple[str, str, int]:
+    """Parse ``dg-cy-YYYYMMDD@rN`` into digest_id, cycle_id, and revision."""
+    match = SNAPSHOT_SPEC_RE.fullmatch(spec)
+    if not match:
+        raise ValueError("digest snapshot must look like dg-cy-YYYYMMDD@rN")
+    return match.group(1), match.group(2), int(match.group(3))
 
 
-def render_digest_section(approval: dict[str, Any], digest_text: str) -> list[str]:
-    """Weekly digest copied in full as one separate section at the journal end."""
-    body = strip_frontmatter(digest_text)
-    if not body.strip():
-        raise ValueError("digest file is empty")
-    week = str(approval.get("digest_week") or "")
-    label = f"（{week}）" if week else ""
-    return ["---", f"## 本周 digest{label}", "", body.rstrip(), ""]
+def _yaml_scalar(raw: str) -> str:
+    value = raw.strip()
+    if not value:
+        raise ValueError("snapshot scalar is empty")
+    if value.startswith('"'):
+        try:
+            loaded = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise ValueError("snapshot scalar is not valid JSON") from exc
+        if not isinstance(loaded, str):
+            raise ValueError("snapshot scalar must be a string")
+        return loaded
+    if value.startswith("'") and value.endswith("'") and len(value) >= 2:
+        return value[1:-1]
+    return value
+
+
+def parse_snapshot_frontmatter(text: str) -> dict[str, Any]:
+    """Read digest_id, snapshot_revision, and input_ids from a snapshot file."""
+    if not text.startswith("---\n"):
+        raise ValueError("snapshot is missing frontmatter")
+    end = text.find("\n---", 4)
+    if end < 0:
+        raise ValueError("snapshot frontmatter is not closed")
+    digest_id = None
+    revision = None
+    input_ids = None
+    lines = text[4:end].splitlines()
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        if line.startswith("digest_id:"):
+            digest_id = _yaml_scalar(line.split(":", 1)[1])
+        elif line.startswith("snapshot_revision:"):
+            raw = line.split(":", 1)[1].strip().strip('"').strip("'")
+            if not re.fullmatch(r"[0-9]+", raw):
+                raise ValueError("snapshot_revision must be an integer")
+            revision = int(raw)
+        elif line == "input_ids: []":
+            input_ids = []
+        elif line == "input_ids:":
+            items: list[str] = []
+            index += 1
+            while index < len(lines):
+                item = re.fullmatch(r"  - (.+)", lines[index])
+                if not item:
+                    break
+                items.append(_yaml_scalar(item.group(1)))
+                index += 1
+            input_ids = items
+            continue
+        index += 1
+    if not isinstance(digest_id, str) or DIGEST_ID_RE.fullmatch(digest_id) is None:
+        raise ValueError("snapshot digest_id is missing")
+    if revision is None:
+        raise ValueError("snapshot_revision is missing")
+    if revision < 1:
+        raise ValueError("snapshot_revision must be a positive integer")
+    if input_ids is None:
+        raise ValueError("snapshot input_ids must be a list")
+    return {"digest_id": digest_id, "snapshot_revision": revision, "input_ids": input_ids}
+
+
+def _reject_digest_symlinks(vault: Path, rel: Path) -> None:
+    if rel.is_absolute() or any(part in {"", ".", ".."} for part in rel.parts):
+        raise OSError("digest path escapes the vault")
+    current = vault
+    for part in rel.parts:
+        current = current / part
+        if current.is_symlink():
+            raise OSError("refusing to read digest through a symlink")
+
+
+def resolve_digest_snapshot(vault: Path, spec: str) -> dict[str, Any]:
+    """Load snapshot identity fields from ``📋 Digests/cycles/{cycle_id}/r{n}.md``."""
+    digest_id, cycle_id, revision = parse_digest_snapshot_spec(spec)
+    rel = Path("📋 Digests") / "cycles" / cycle_id / f"r{revision}.md"
+    _reject_digest_symlinks(vault, rel)
+    path = vault / rel
+    if not path.is_file():
+        raise OSError("digest snapshot file is missing")
+    parsed = parse_snapshot_frontmatter(read_digest(vault, rel))
+    if parsed["digest_id"] != digest_id:
+        raise ValueError("snapshot digest_id does not match --digest-snapshot")
+    if parsed["snapshot_revision"] != revision:
+        raise ValueError("snapshot_revision does not match --digest-snapshot")
+    return {
+        "digest_id": digest_id,
+        "snapshot_revision": revision,
+        "input_ids_sha256": input_ids_sha256(parsed["input_ids"]),
+    }
 
 
 def read_digest(vault: Path, digest_path: Path) -> str:
@@ -271,7 +393,11 @@ def confirmation_granted(approval: dict[str, Any]) -> bool:
 
 
 def perform(
-    vault: Path, action: str, approval: dict[str, Any], digest_text: str | None = None
+    vault: Path,
+    action: str,
+    approval: dict[str, Any],
+    *,
+    snapshot: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any], bool]:
     event_id = str(approval.get("event_id") or "")
     if action not in {"save", "retry"}:
@@ -295,7 +421,13 @@ def perform(
         }, False
 
     try:
-        rendered = render_journal(approval, digest_text)
+        approved_snapshot = normalized_snapshot_fields(approval)
+        if snapshot is not None:
+            if approved_snapshot != snapshot:
+                raise ValueError("approval snapshot fields do not match --digest-snapshot")
+        elif approved_snapshot is not None:
+            raise ValueError("snapshot fields require --digest-snapshot")
+        rendered = render_journal(approval)
     except ValueError as exc:
         return {
             "status": "validation_error",
