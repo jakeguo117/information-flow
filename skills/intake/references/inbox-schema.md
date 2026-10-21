@@ -4,11 +4,11 @@ schema_version = inbox-0.1
 
 PM 10-20 定：开工包文件本身不在 Drive 上。23:57 是它在 box 上的修改时间（2026-10-17 23:57:09 香港时间）。§3 的上游是 Drive 上的「02_数据规则与开发验收_V2.0_Draft」，文件 id `11gFwzKUxHsQ5_KSk3NFXcM_5vaB-QbJwrq5hk71XBIQ`，Drive 修改时间 2026-10-17 22:57:58 香港时间。
 
-除文中另标「PM 10-20 定」的 14 处以外，字段的名字、必填、含义、取值规则照开工包 §3 转录。这 14 处里，11 处是字段：`input_id` 的 `event_key`、`like_at`、`event_type`、`captured_at`、`time_basis`、`received_at`、`origin`、`suspected_duplicate_of`、`cutoff_at`、`counts`、指纹。另外 3 处是版本依据、`state` 事件由 T11 补、空值写 `null`。§3 没有单列类型。类型列只复述说明里已经写明的形态；没有写明的标「未规定」。
+除文中另标「PM 10-20 定」的 14 处以外，字段的名字、必填、含义、取值规则照开工包 §3 转录。这 14 处里，11 处是字段：`input_id` 的 `event_key`、`like_at`、`event_type`、`captured_at`、`time_basis`、`received_at`、`origin`、`suspected_duplicate_of`、`cutoff_at`、`counts`、指纹。另外 3 处是版本依据、`state` 事件由索引追加（`record_type=state`）、空值写 `null`。§3 没有单列类型。类型列只复述说明里已经写明的形态；没有写明的标「未规定」。
 
 ## 存放与时间
 
-不改各插件写出来的 Inbox 笔记（Snipd 和 WeRead 插件会覆盖它们）。另建机器索引，放在 DigitalBrain：`📥 Inbox/_index/sources.jsonl`、`📥 Inbox/_index/inputs.jsonl`，一行一条，只追加。状态变化另写一行 `state` 事件，读取时取最新那行。PM 10-20 定：`state` 事件的字段表由 T11 补，本文件不写。私人内容不进 information-flow 仓（AC14）。
+不改各插件写出来的 Inbox 笔记（Snipd 和 WeRead 插件会覆盖它们）。另建机器索引，放在 DigitalBrain：`📥 Inbox/_index/sources.jsonl`、`📥 Inbox/_index/inputs.jsonl`，一行一条，只追加。状态变化另写一行 `state` 事件（`record_type` = `state`），由 `inbox_index.append_state` 追加，读取时取该 `input_id` 最新那行。私人内容不进 information-flow 仓（AC14）。
 
 时区：显示和分周统一用 Asia/Hong_Kong。存储一律用带时区偏移的 ISO 8601。
 
