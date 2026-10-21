@@ -16,4 +16,4 @@ The cloud plugin is an uploaded ZIP, not a repo install. Build it from this repo
 python3 scripts/package_journal_pack.py --chatgpt-plugin
 ```
 
-Output is `dist/information-flow-plugin.zip`. Every entry is timestamped 1980-01-01. The archive has `plugin.json` at the root and `.codex-plugin/plugin.json`. Both versions come from `.codex-plugin/plugin.json` in this repo. `packaging/chatgpt-upload/*.json` keeps the uploaded layout and is not itself packed. `dist/` is not committed.
+Output is `dist/information-flow-plugin.zip`. Every entry is timestamped 1980-01-01. The archive has `plugin.json` at the root and `.codex-plugin/plugin.json`. Their contents come from `packaging/chatgpt-upload/root-plugin.json` and `packaging/chatgpt-upload/codex-plugin.json`; only the `version` field is taken from this repo's `.codex-plugin/plugin.json`. Edit descriptions for the cloud plugin in `packaging/chatgpt-upload/`, not in `.codex-plugin/plugin.json`. `packaging/chatgpt-upload/*.json` is not packed under its own path. `dist/` is not committed.
