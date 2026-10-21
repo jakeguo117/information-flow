@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from journal_lib import perform, read_digest
+from journal_lib import perform, resolve_digest_snapshot
 
 
 def emit(payload: dict[str, Any], ok: bool) -> int:
@@ -30,7 +30,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--append-digest",
         metavar="PATH",
-        help="weekly digest under 📋 Digests/; its full text is saved as a separate section at the journal end",
+        help="unavailable; use --digest-snapshot to record a Thursday snapshot id",
+    )
+    parser.add_argument(
+        "--digest-snapshot",
+        metavar="DIGEST_ID@rN",
+        help="record digest_id, snapshot_revision, and input_ids_sha256 from 📋 Digests/cycles/{cycle}/rN.md",
     )
     args = parser.parse_args(argv)
 
@@ -53,16 +58,44 @@ def main(argv: list[str] | None = None) -> int:
             {"status": "unauthorized", "message": "approval must be a JSON object", "files_written": 0},
             False,
         )
-    digest_text = None
     if args.append_digest:
+        return emit(
+            {
+                "status": "unavailable",
+                "message": (
+                    "--append-digest is unavailable; use --digest-snapshot "
+                    "dg-cy-YYYYMMDD@rN to record the snapshot id without copying the digest"
+                ),
+                "event_id": str(approval.get("event_id") or ""),
+                "files_written": 0,
+            },
+            False,
+        )
+    snapshot = None
+    if args.digest_snapshot:
         try:
-            digest_text = read_digest(vault, Path(args.append_digest).expanduser())
-        except (OSError, UnicodeError) as exc:
+            snapshot = resolve_digest_snapshot(vault, args.digest_snapshot)
+        except ValueError as exc:
             return emit(
-                {"status": "unavailable", "message": f"digest unreadable: {exc}", "files_written": 0},
+                {
+                    "status": "validation_error",
+                    "message": str(exc),
+                    "event_id": str(approval.get("event_id") or ""),
+                    "files_written": 0,
+                },
                 False,
             )
-    result, ok = perform(vault, args.action, approval, digest_text)
+        except (OSError, UnicodeError) as exc:
+            return emit(
+                {
+                    "status": "unavailable",
+                    "message": f"digest snapshot unreadable: {exc}",
+                    "event_id": str(approval.get("event_id") or ""),
+                    "files_written": 0,
+                },
+                False,
+            )
+    result, ok = perform(vault, args.action, approval, snapshot=snapshot)
     return emit(result, ok)
 
 
