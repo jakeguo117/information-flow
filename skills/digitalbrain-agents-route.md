@@ -1,20 +1,21 @@
 <!-- information-flow:digest-route:start -->
-## 今天 Digest / 周记（硬路由）
+## V2.0 硬路由
 
-规则源在 `information-flow`。DigitalBrain 这份是同步副本。改行为去那边，不要只改 vault。
+规则源在 `information-flow`。DigitalBrain 这份是同步副本。改行为去那边，不要只改 vault。时区用 Asia/Hong_Kong。
 
-用户说「今天 Digest」「今日digest」「讨论 Digest」「今天摄入」「跑 Digest」或 `/digest`：
+用户说「看本周汇总」「本周汇总」「本周 digest」或 `/digest`：
 
-1. 用 Asia/Shanghai 的昨天，打开 `📋 Digests/daily/YYYY-MM-DD.md`。文件不在 `main` 上就停，说明当天摘要还没有。不要自己编条目，不要改去打开按周累积的旧入口。
-2. 从这份摘要提出最多两个概念。一个概念可以挂上多条原文。Jake 接受之前不写 Resource。
-3. 接受之后写成 `📖 Resources/` 已有领域目录下的一页。`sources` 指回 Inbox 原文，更新 `index.md` 和 `log.md`，每页至少两个链接。不改类型。
-4. 不改 `📝 Journal/`。这条不写 Cognition。Agent 发起的受管文件变更遵循当前 Global Governance / project policy：精确路径暂存，禁止 `git add -A`。只新增文件的提交（想法文件、消化清单）可以直接推 main；任何修改或删除都不直推 main，不强推。会修改已有文件的变更走 task branch 和 PR。PR 与 merge 服从当前授权和治理 gate。
+1. 读最新一份周四快照 `📋 Digests/cycles/{cycle_id}/r{n}.md`。`cycle_id` 形如 `cy-YYYYMMDD`，这一天是周四（Asia/Hong_Kong）。在 `📋 Digests/cycles/` 里取日期最新的周四 cycle，再取编号最大的 `r{n}.md`（n 按整数比）。按主题列全量，带状态，保留快照里的 `D-` 编号。不要讨论昨天的日摘要。
+2. 没有这份快照就说明还没有。不要编条目。不要回落到 `📋 Digests/daily/`，不要回落到旧的 `📋 Digests/{YYYY-Wnn}/digest.md`，也不要打开 weekly-briefs。
+3. Jake 接受之前不写来源卡以外的东西。接受之后写成 `📖 Resources/` 已有领域目录下的 concept 页。`sources` 指回 Inbox 原文，更新 `index.md` 和 `log.md`，每页至少两个链接。不改类型。
+4. 不写 `📝 Journal/`。不写 Cognition。Agent 发起的受管文件变更遵循当前 Global Governance / project policy：精确路径暂存，禁止 `git add -A`。只新增文件的提交（想法文件、消化清单）可以直接推 main；任何修改或删除都不直推 main，不强推。会修改已有文件的变更走 task branch 和 PR。PR 与 merge 服从当前授权和治理 gate。
 
 用户说「写周记」「周记」或 `/journal`：
 
-- 一开始自动打开当周 `📋 Digests/{YYYY-Wnn}/digest.md`（唯一正式路径）。第一段逐条列出编号（每条一行，和文件一致）。来源分组只是初始建议；讨论时 Jake 可以按用途把任何一条改到另一组，编号不变。「待分组」不是空的才单列。空组是「本周无」，不补条目。这个文件不在时，再查 `📋 Digests/weekly-briefs/{YYYY-Wnn}.md` 和 `📋 Digests/weekly-briefs/{YYYY-Wnn}/digest.md`，并说明实际打开的路径。两处都没有就说「本周 digest 还没有」，不编，也不当成缺文件跳过。保存时 `--append-digest` 用实际打开的那条路径，把 digest 全文一次附在周记末尾。
-- 自己认周，先用旧周记和已经挂上的老项目找呼应，再对已勾选 intake。未勾选即使相关也不进入周记材料。
-- 客户说「可以写 / 写吧 / OK 写」之前，不要写 `📝 Journal/`。持久写入只走 `.cursor/skills/journal/tools/write_journal.py`。不写 Cognition。Journal 仍不自动 push。
+- 后台先读最近 2–3 篇旧周记和未解问题（不输出）。旧周记里的状态不能当作本周事实说。
+- 然后第一段列出本周周四快照 `📋 Digests/cycles/{cycle_id}/r{n}.md` 的全部 `D-` 条目，含待归类。一行一条，带编号和该行状态。`cycle_id` 是本周周四（Asia/Hong_Kong）的 `cy-YYYYMMDD`，取编号最大的修订。没有快照就说「本周没有周四汇总快照」，不要凭记忆编，不要回落到 `📋 Digests/daily/`、旧的 `📋 Digests/{YYYY-Wnn}/digest.md` 或 weekly-briefs。
+- 不把整份汇总贴进周记。自己认周。
+- 客户说「可以写 / 写吧 / OK 写」之前，不要写 `📝 Journal/`。持久写入只走 `.cursor/skills/journal/tools/write_journal.py`。本周快照实际打开时，保存用 `--digest-snapshot <digest_id>@r<n>`，不要 `--append-digest`。不写 Cognition。Journal 仍不自动 push。
 
 用户说「记一下：」「想法：」或 `/thought`：
 
@@ -27,12 +28,20 @@
 - 推送或 publish 失败时，告诉 Jake「没存上」，说明原因，并把他的原话原样念回去。不要说已经存上，也不要说「记了」。
 - 周记正文仍不自动 push。消化清单是另一份新文件，只在 `write_journal.py` 成功之后写，并用同一条单文件规则推送。每条是「展开」或「看过未展开」。看过未展开的以后不再捞。未消化 = 全部想法文件减去任何清单里出现过的 id。
 
-详见 `.cursor/skills/digest/SKILL.md` 与 `.cursor/skills/journal/SKILL.md`。云端不要跑 YouTube / Digest 脚本，也不要把 token 写进 vault。
-
 用户说「相关认知」「看看之前相关认知」「我们之前有没有相关判断？」「记成 belief / principle / evidence」，或要做有后果的项目 / 策略决定：
 
 1. 先用 `.cursor/skills/cognition/` 做 retrieve。结果只有 found / no_match / partial / unavailable。partial / unavailable 不许说成「没有相关认知」。
 2. 不要每句闲聊都检索。小事、改字、低后果操作不走 Cognition。
 3. 写 Cognition 只用 cognition tools；Journal / intake 不直接落盘。没 Accept、没有对应该变更的授权之前不写。
 4. 详见 `.cursor/skills/cognition/SKILL.md`。私人 Cognition 只留在 DigitalBrain，不写进 information-flow。
+
+用户说「提炼想法」：
+
+- 走 ideas / 提炼想法入口。仓库尚无 `ideas/SKILL.md`。规则源在 information-flow。这里不规定文件布局、字段或落盘步骤。
+
+用户说「记成事实」：
+
+- 走 facts 入口。仓库尚无 `facts/SKILL.md`。规则源在 information-flow 的 `skills/facts/`。这里不规定字段或落盘步骤。
+
+详见 `.cursor/skills/digest/SKILL.md` 与 `.cursor/skills/journal/SKILL.md`。云端不要跑 YouTube / Digest 脚本，也不要把 token 写进 vault。
 <!-- information-flow:digest-route:end -->

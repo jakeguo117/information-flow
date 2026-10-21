@@ -85,7 +85,7 @@ python3 skills/journal/tools/write_journal.py save --vault "$VAULT" --approval F
 python3 skills/journal/tools/write_journal.py retry --vault "$VAULT" --approval FILE --digest-snapshot <digest_id>@r<n>
 ```
 
-本周周四快照实际打开时，`save` / `retry` 一律带 `--digest-snapshot <digest_id>@r<n>`。`digest_id` 用该快照 frontmatter 的 `digest_id`（`dg-{cycle_id}`），`r<n>` 用实际打开的修订，例如 `dg-cy-20261015@r2`。没有这份快照时不带这个参数。不要再传 `--append-digest`，也不要附旧的周 digest 路径。工具还不接受 `--digest-snapshot` 时，告诉 Jake 没写上，不要改回旧参数，也不要手写文件绕过确认。
+本周周四快照实际打开时，`save` / `retry` 一律带 `--digest-snapshot <digest_id>@r<n>`。`digest_id` 用该快照 frontmatter 的 `digest_id`（`dg-{cycle_id}`），`r<n>` 用实际打开的修订，例如 `dg-cy-20261015@r2`。没有这份快照时不带这个参数。不要再传 `--append-digest`，也不要附旧的周 digest 路径。
 
 `FILE` 是这一次的 JSON。`confirmed` 必须是 true，并且 `phrase` 必须正好是 `可以写`、`写吧` 或 `OK 写`。「写周记」只是开始讨论，不是这句短语。不符合时工具返回 `refused`，写入数为 0，不创建 `📝 Journal/`。同一 `event_id` 重复送达只保留 1 份；内容不一致则 `conflict`，不覆盖。`retry` 在磁盘已有相同内容时直接读回，不另写一篇。工具不写 `📖 Cognition/`，不 `git commit` / `git push`。周记文件本身仍不自动 push。
 
@@ -112,6 +112,9 @@ tags:
   - journal
 title: "周记 {N} — {Jake 口气的一句}"
 event_id: {这一次保存的事件 id}
+digest_id: {dg-cy-YYYYMMDD；有快照时由工具写入}
+snapshot_revision: {正整数；有快照时由工具写入}
+input_ids_sha256: {sha256 hex；有快照时由工具写入}
 ---
 
 # 周记 {N} — {同上}
@@ -126,7 +129,7 @@ event_id: {这一次保存的事件 id}
 **Previous / 上一篇:** [[{上一篇文件名不含 .md}]]
 ```
 
-正文由上面的 `write_journal.py` 落盘，不要另用文件工具绕过它。不要把周记正文 `git commit` / `git push`，除非 Jake 这轮明确说 push。想法文件和消化清单只走 `capture_thought.py publish`。不要把周记正文写入 DigitalBrain memory。模板里的 `event_id` 由工具写入 frontmatter，用来识别同一次保存。
+正文由上面的 `write_journal.py` 落盘，不要另用文件工具绕过它。不要把周记正文 `git commit` / `git push`，除非 Jake 这轮明确说 push。想法文件和消化清单只走 `capture_thought.py publish`。不要把周记正文写入 DigitalBrain memory。模板里的 `event_id` 由工具写入 frontmatter，用来识别同一次保存。有快照时，工具同时写入 `digest_id`、`snapshot_revision`、`input_ids_sha256`；没有快照时这三行不带。
 
 ### 4. 给他看
 
