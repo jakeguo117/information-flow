@@ -18,7 +18,7 @@ import urllib.request
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-SHANGHAI = ZoneInfo("Asia/Shanghai")
+HK_TZ = ZoneInfo("Asia/Hong_Kong")
 DEFAULT_VAULT = (
     Path.home()
     / "Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain"
@@ -46,7 +46,7 @@ def which(name: str) -> str | None:
 
 
 def shanghai_date(iso_z: str) -> dt.date:
-    stamp = dt.datetime.fromisoformat(iso_z.replace("Z", "+00:00")).astimezone(SHANGHAI)
+    stamp = dt.datetime.fromisoformat(iso_z.replace("Z", "+00:00")).astimezone(HK_TZ)
     return stamp.date()
 
 
@@ -363,14 +363,14 @@ def process_item(vault: Path, item: dict, force: bool) -> dict:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Sync YouTube likes into vault sources")
-    parser.add_argument("--date", help="YYYY-MM-DD (default: today Asia/Shanghai)")
+    parser.add_argument("--date", help="YYYY-MM-DD (default: today Asia/Hong_Kong)")
     parser.add_argument("--since", help="Include likes from this date through --date/today")
     parser.add_argument("--vault")
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args(argv)
 
     vault = vault_path(args.vault)
-    today = dt.datetime.now(SHANGHAI).date()
+    today = dt.datetime.now(HK_TZ).date()
     end = dt.date.fromisoformat(args.date) if args.date else today
     start = dt.date.fromisoformat(args.since) if args.since else end
     client = load_client()
@@ -383,7 +383,7 @@ def main(argv: list[str] | None = None) -> int:
 
     STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
     log = {
-        "ran_at": dt.datetime.now(SHANGHAI).isoformat(),
+        "ran_at": dt.datetime.now(HK_TZ).isoformat(),
         "start": start.isoformat(),
         "end": end.isoformat(),
         "liked": len(liked),
