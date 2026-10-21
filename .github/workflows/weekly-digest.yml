@@ -48,18 +48,7 @@ jobs:
         with:
           repository: jakeguo117/obsidian-digitalbrain
           token: ${{ secrets.DIGITALBRAIN_TOKEN }}
-          ref: t22-ci-test
           path: digitalbrain
-
-      - name: TEMP T22 seed synthetic index (remove before merge)
-        run: |
-          set -euo pipefail
-          index="digitalbrain/📥 Inbox/_index"
-          inputs="${index}/inputs.jsonl"
-          if [ ! -f "$inputs" ]; then
-            mkdir -p "$index"
-            printf '%s\n' '{"schema_version": "inbox-0.1", "input_id": "in-manual-52ba1e7b4260", "source_id": "src-manual-ubd92d3572cbf", "external_item_id": null, "event_type": "note", "captured_at": "2026-10-21T10:00:00+08:00", "time_basis": "platform", "received_at": "2026-10-21T10:00:00+08:00", "source_published_at": null, "source_week": "2026-W43", "origin": "collected", "content_fingerprint": "32c1bb34ce2b2b581ff4711623ef34cec257bc336bdd0e7347fd22f9751477cc", "completeness": "full", "missing_reason": null, "process_state": "pending", "last_error": null, "last_cycle_id": null, "topics": ["合成"], "summary_ref": "T22 synthetic pending input", "process_version": null, "suspected_duplicate_of": null, "inbox_ref": "📥 Inbox/manual/t22-synth-20261021.md#note"}' > "$inputs"
-          fi
 
       - name: Check inbox index
         id: index
