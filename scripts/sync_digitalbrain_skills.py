@@ -54,6 +54,10 @@ SKILL_RELATIVE_PATHS = (
     "content/SKILL.md",
     "content/references/content-record.md",
     "content/tools/trace_content.py",
+    "content-core/SKILL.md",
+    "content-x/SKILL.md",
+    "content-xhs/SKILL.md",
+    "content-wechat/SKILL.md",
 )
 
 MARK_START = "<!-- information-flow:digest-route:start -->"
