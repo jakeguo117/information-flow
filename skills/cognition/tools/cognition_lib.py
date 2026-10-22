@@ -14,7 +14,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = "1.1"
+SCHEMA_VERSION = "1.2"
+SUPPORTED_SCHEMA_VERSIONS = ("1.1", "1.2")
 COGNITION_ROOT = "📖 Cognition"
 TYPE_DIRS = {
     "evidence": "Evidence",
@@ -22,7 +23,15 @@ TYPE_DIRS = {
     "principle": "Principles",
 }
 TYPES = ("evidence", "belief", "principle")
-ORIGIN_TYPES = ("journal", "direct_reflection", "project_outcome", "external_source")
+ORIGIN_TYPES = (
+    "journal",
+    "direct_reflection",
+    "project_outcome",
+    "external_source",
+    "value_choice",
+)
+FACT_ID_RE = re.compile(r"^fact-[0-9a-f]{12}$")
+FACT_CONTRADICTION_STATES = ("disputed", "corrected")
 EVIDENCE_STATUS = ("active", "retired")
 BELIEF_PRINCIPLE_STATUS = ("active", "contested", "retired")
 VALIDATION_STATES = ("unverified", "checked", "corroborated")
@@ -87,7 +96,7 @@ ALLOWED_KEYS = (
     | set(EVIDENCE_REQUIRED)
     | set(BELIEF_REQUIRED)
     | set(PRINCIPLE_REQUIRED)
-    | {"related_to", "supersedes", "source_journals"}
+    | {"related_to", "supersedes", "source_journals", "fact_ref"}
 )
 ID_RE = re.compile(r"^(evidence|belief|principle)-(\d{8})-([a-z0-9]+(?:-[a-z0-9]+)*)$")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -302,7 +311,7 @@ def parse_markdown(text: str, path: Path | None = None) -> CognitionDoc:
 def dump_scalar(value: Any) -> str:
     text = str(value)
     if DATE_RE.match(text) or re.fullmatch(r"[A-Za-z0-9._/-]+", text):
-        if text == SCHEMA_VERSION:
+        if text in SUPPORTED_SCHEMA_VERSIONS:
             return json.dumps(text)
         return text
     return json.dumps(text, ensure_ascii=False)
@@ -339,6 +348,7 @@ def render_markdown(meta: dict[str, Any], body: str) -> str:
         "reliability",
         "scope",
         "limitations",
+        "fact_ref",
         "statement",
         "confidence",
         "supporting_evidence",
@@ -394,6 +404,7 @@ MATERIAL_HISTORY_KEYS = (
     "reliability",
     "source",
     "source_type",
+    "fact_ref",
 )
 
 
@@ -574,9 +585,10 @@ def _check_id(doc: CognitionDoc, errors: list[str]) -> None:
 
 def _check_common(doc: CognitionDoc, errors: list[str]) -> None:
     version = _require_str(doc, "schema_version", errors)
-    if version and version != SCHEMA_VERSION:
+    if version and version not in SUPPORTED_SCHEMA_VERSIONS:
+        supported = ", ".join(SUPPORTED_SCHEMA_VERSIONS)
         errors.append(
-            f"{doc.path}: unsupported schema_version {version!r} (supported: {SCHEMA_VERSION})"
+            f"{doc.path}: unsupported schema_version {version!r} (supported: {supported})"
         )
     typ = _require_str(doc, "type", errors)
     if typ and typ not in TYPES:
@@ -602,6 +614,15 @@ def _check_common(doc: CognitionDoc, errors: list[str]) -> None:
     origin_type = _require_str(doc, "origin_type", errors)
     if origin_type and origin_type not in ORIGIN_TYPES:
         errors.append(f"{doc.path}: illegal origin_type {origin_type!r}")
+    if origin_type == "value_choice":
+        if version != "1.2":
+            errors.append(
+                f'{doc.path}: origin_type value_choice requires schema_version "1.2"'
+            )
+        if typ != "principle":
+            errors.append(f"{doc.path}: origin_type value_choice is only valid on principle")
+    if "fact_ref" in doc.meta and typ != "evidence":
+        errors.append(f"{doc.path}: fact_ref is only valid on evidence")
     origin_ref = str(doc.meta.get("origin_ref") or "").strip()
     origin_summary = str(doc.meta.get("origin_summary") or "").strip()
     if not origin_ref and not origin_summary:
@@ -626,6 +647,20 @@ def _check_evidence(doc: CognitionDoc, errors: list[str]) -> None:
         errors.append(f"{doc.path}: illegal reliability {reliability!r}")
     if "supersedes" in doc.meta and as_list(doc.meta.get("supersedes")):
         errors.append(f"{doc.path}: evidence cannot persist supersedes")
+    if "fact_ref" in doc.meta:
+        version = str(doc.meta.get("schema_version") or "")
+        if version != "1.2":
+            errors.append(f'{doc.path}: fact_ref requires schema_version "1.2"')
+        value = doc.meta.get("fact_ref")
+        if isinstance(value, list) or value is None:
+            errors.append(f"{doc.path}: fact_ref must be a Fact id string")
+        else:
+            text = str(value).strip()
+            if not FACT_ID_RE.fullmatch(text):
+                errors.append(
+                    f"{doc.path}: fact_ref must be a Fact id "
+                    "(fact- + 12 lowercase hex digits), not a copied statement"
+                )
 
 
 def _check_belief(doc: CognitionDoc, errors: list[str]) -> None:
@@ -940,7 +975,7 @@ def doc_payload(doc: CognitionDoc, superseded: set[str], stale: bool = False) ->
         "stale_dependency": stale,
         "summary": summarize(doc),
         "path": str(doc.path),
-        # schema 1.1 provenance / identity (Evidence.source; absent on Belief/Principle)
+        # provenance / identity (Evidence.source and fact_ref; absent on Belief/Principle)
         "source": doc.meta.get("source"),
         "domains": as_list(doc.meta.get("domains")),
         "related_projects": as_list(doc.meta.get("related_projects")),
@@ -950,7 +985,62 @@ def doc_payload(doc: CognitionDoc, superseded: set[str], stale: bool = False) ->
         "supersedes": as_list(doc.meta.get("supersedes")),
         "validation": doc.meta.get("validation"),
         "confidence": doc.meta.get("confidence"),
+        "fact_ref": doc.meta.get("fact_ref"),
     }
+
+
+def current_fact_records(facts: list[dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
+    """Last record for each fact_id wins. Does not read a facts file."""
+    current: dict[str, dict[str, Any]] = {}
+    for record in facts or []:
+        if not isinstance(record, dict):
+            continue
+        fact_id = str(record.get("fact_id") or "").strip()
+        if not FACT_ID_RE.fullmatch(fact_id):
+            continue
+        current[fact_id] = record
+    return current
+
+
+def supporting_fact_conflicts(
+    beliefs: list[CognitionDoc],
+    by_id: dict[str, CognitionDoc],
+    facts: list[dict[str, Any]] | None,
+) -> list[dict[str, str]]:
+    """AC11: a current disputed/corrected Fact contradicts supporting Evidence.
+
+    The hint names ids only. It does not copy the Fact statement or edit the Belief.
+    """
+    current = current_fact_records(facts)
+    hints: list[dict[str, str]] = []
+    for belief in beliefs:
+        for evidence_id in as_list(belief.meta.get("supporting_evidence")):
+            evidence = by_id.get(evidence_id)
+            if evidence is None:
+                continue
+            fact_ref = str(evidence.meta.get("fact_ref") or "").strip()
+            if not FACT_ID_RE.fullmatch(fact_ref):
+                continue
+            record = current.get(fact_ref)
+            if record is None:
+                continue
+            state = str(record.get("validation_state") or "").strip()
+            if state not in FACT_CONTRADICTION_STATES:
+                continue
+            hints.append(
+                {
+                    "belief_id": belief.id,
+                    "evidence_id": evidence.id,
+                    "fact_ref": fact_ref,
+                    "fact_validation_state": state,
+                    "hint": (
+                        "fact contradicts supporting evidence; "
+                        "changing the belief requires separate authorization; "
+                        "revision history is append-only"
+                    ),
+                }
+            )
+    return hints
 
 
 def retrieve(
@@ -962,6 +1052,7 @@ def retrieve(
     principle_budget: int = 3,
     belief_budget: int = 3,
     evidence_budget: int = 5,
+    facts: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     store = load_store(vault)
     result: dict[str, Any] = {
@@ -978,6 +1069,7 @@ def retrieve(
         "supersession": [],
         "contested": [],
         "dropped_supporting_evidence": [],
+        "conflicts": [],
     }
     if not store.available:
         result["errors"].append("cognition store unavailable")
@@ -998,7 +1090,7 @@ def retrieve(
         unsupported = (
             not doc.parse_error
             and bool(doc.id)
-            and version != SCHEMA_VERSION
+            and version not in SUPPORTED_SCHEMA_VERSIONS
         )
         if doc.parse_error or unsupported:
             reason = doc.parse_error or f"unsupported schema_version {version!r}"
@@ -1201,6 +1293,13 @@ def retrieve(
     result["stale_dependencies"] = stale_ids
     result["contested"] = [doc.id for doc in contested_docs]
     result["supersession"] = sorted(superseded)
+    result["conflicts"] = supporting_fact_conflicts(current_beliefs, by_id, facts)
+    for item in result["conflicts"]:
+        result["warnings"].append(
+            "conflict: {belief_id} supporting evidence {evidence_id} "
+            "contradicted by fact {fact_ref} ({fact_validation_state}); "
+            "changing the belief requires separate authorization".format(**item)
+        )
     matched = [doc.id for doc in current_principles + current_beliefs + evidence]
     result["matched_ids"] = list(dict.fromkeys(matched))
 

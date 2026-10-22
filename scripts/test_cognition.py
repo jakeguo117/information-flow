@@ -345,6 +345,140 @@ class ValidatorTests(unittest.TestCase):
             self.assertNotEqual(rc, 0)
             self.assertIn("same type", err)
 
+    def test_fact_ref_is_fact_id_not_statement(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            seed_core(vault)
+            text = replace_field(fixture("evidence-widget-lag.md"), "schema_version", '"1.2"')
+            text = text.replace(
+                'limitations: "toy fixture; not real user research"\n',
+                'limitations: "toy fixture; not real user research"\n'
+                "fact_ref: fact-0123456789ab\n",
+            )
+            write(vault / COG / "Evidence" / "evidence-20260920-widget-lag.md", text)
+            rc, err = call_validate(vault)
+            self.assertEqual(rc, 0, err)
+            parsed = lib.parse_markdown(text)
+            self.assertEqual(parsed.meta.get("fact_ref"), "fact-0123456789ab")
+            self.assertNotIn("statement", parsed.meta)
+
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            seed_core(vault)
+            text = replace_field(fixture("evidence-widget-lag.md"), "schema_version", '"1.2"')
+            text = text.replace(
+                'limitations: "toy fixture; not real user research"\n',
+                'limitations: "toy fixture; not real user research"\n'
+                'fact_ref: "8 of 10 synthetic users reported widget lag."\n',
+            )
+            write(vault / COG / "Evidence" / "evidence-20260920-widget-lag.md", text)
+            rc, err = call_validate(vault)
+            self.assertNotEqual(rc, 0)
+            self.assertIn("not a copied statement", err)
+
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            seed_core(vault)
+            text = fixture("evidence-widget-lag.md").replace(
+                'limitations: "toy fixture; not real user research"\n',
+                'limitations: "toy fixture; not real user research"\n'
+                "fact_ref: fact-0123456789ab\n",
+            )
+            write(vault / COG / "Evidence" / "evidence-20260920-widget-lag.md", text)
+            rc, err = call_validate(vault)
+            self.assertNotEqual(rc, 0)
+            self.assertIn('fact_ref requires schema_version "1.2"', err)
+
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            seed_core(vault)
+            text = replace_field(fixture("belief-widgets-need-retrieval.md"), "schema_version", '"1.2"')
+            text = text.replace(
+                'origin_ref: "[[journal-synthetic-widget-1]]"\n',
+                'origin_ref: "[[journal-synthetic-widget-1]]"\nfact_ref: fact-0123456789ab\n',
+            )
+            write(vault / COG / "Beliefs" / "belief-20260920-widgets-need-retrieval.md", text)
+            rc, err = call_validate(vault)
+            self.assertNotEqual(rc, 0)
+            self.assertIn("fact_ref is only valid on evidence", err)
+
+    def test_value_choice_allows_empty_based_on(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            seed_core(vault)
+            payload = lib.render_markdown(
+                {
+                    "schema_version": "1.2",
+                    "id": "principle-20261022-synthetic-value",
+                    "type": "principle",
+                    "status": "active",
+                    "domains": ["synthetic-widgets"],
+                    "related_projects": [],
+                    "created": "2026-10-22",
+                    "updated": "2026-10-22",
+                    "origin_type": "value_choice",
+                    "origin_summary": "Synthetic value choice with no belief source.",
+                    "trigger": "When a synthetic widget choice is only a value preference",
+                    "preferred_action": "Record the preference without inventing a belief.",
+                    "rationale": "A value choice need not be derived from a belief.",
+                    "based_on": [],
+                    "scope": "synthetic fixtures only",
+                    "exceptions": [],
+                },
+                "# principle-20261022-synthetic-value\n\n"
+                "## Revision History\n- 2026-10-22: created as value_choice\n",
+            )
+            rc, data = call_write(vault, "create", payload, approval("create", payload))
+            self.assertEqual(data["status"], "success", data)
+            rc, err = call_validate(vault)
+            self.assertEqual(rc, 0, err)
+            disk = Path(data["path"]).read_text(encoding="utf-8")
+            self.assertIn("origin_type: value_choice", disk)
+            self.assertIn("based_on: []", disk)
+            self.assertIn('schema_version: "1.1"', (vault / COG / "Evidence" / "evidence-20260920-widget-lag.md").read_text(encoding="utf-8"))
+
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            seed_core(vault)
+            legacy = lib.render_markdown(
+                {
+                    "schema_version": "1.1",
+                    "id": "principle-20261022-synthetic-empty-basis",
+                    "type": "principle",
+                    "status": "active",
+                    "domains": ["synthetic-widgets"],
+                    "related_projects": [],
+                    "created": "2026-10-22",
+                    "updated": "2026-10-22",
+                    "origin_type": "direct_reflection",
+                    "origin_summary": "Synthetic 1.1 principle with no belief source.",
+                    "trigger": "When a synthetic fixture has no prior belief",
+                    "preferred_action": "Keep the empty based_on list valid.",
+                    "rationale": "Schema 1.1 files must still validate.",
+                    "based_on": [],
+                    "scope": "synthetic fixtures only",
+                    "exceptions": [],
+                },
+                "# principle-20261022-synthetic-empty-basis\n\n"
+                "## Revision History\n- 2026-10-22: created\n",
+            )
+            write(vault / COG / "Principles" / "principle-20261022-synthetic-empty-basis.md", legacy)
+            rc, err = call_validate(vault)
+            self.assertEqual(rc, 0, err)
+
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            seed_core(vault)
+            text = replace_field(
+                fixture("principle-retrieve-before-widget.md"),
+                "origin_type",
+                "value_choice",
+            )
+            write(vault / COG / "Principles" / "principle-20260920-retrieve-before-widget.md", text)
+            rc, err = call_validate(vault)
+            self.assertNotEqual(rc, 0)
+            self.assertIn('origin_type value_choice requires schema_version "1.2"', err)
+
 
 class RetrievalTests(unittest.TestCase):
     def test_found(self) -> None:
@@ -581,6 +715,139 @@ class RetrievalTests(unittest.TestCase):
             self.assertNotIn("evidence-20260920-widget-lag", evidence_ids)
             self.assertIn("evidence-20260920-widget-lag", historical_ids)
             self.assertIn("evidence-20260920-widget-no-lag", evidence_ids)
+
+    def test_ac11_fact_contradiction_does_not_revise_belief(self) -> None:
+        fact_id = "fact-0123456789ab"
+        original_statement = "8 of 10 synthetic users reported widget lag."
+        corrected_statement = "0 of 10 synthetic users reported widget lag."
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            seed_core(vault)
+            evidence_path = vault / COG / "Evidence" / "evidence-20260920-widget-lag.md"
+            evidence = replace_field(evidence_path.read_text(encoding="utf-8"), "schema_version", '"1.2"')
+            evidence = evidence.replace(
+                'limitations: "toy fixture; not real user research"\n',
+                'limitations: "toy fixture; not real user research"\n'
+                f"fact_ref: {fact_id}\n",
+            )
+            write(evidence_path, evidence)
+            belief_path = vault / COG / "Beliefs" / "belief-20260920-widgets-need-retrieval.md"
+            before = belief_path.read_text(encoding="utf-8")
+            rc, err = call_validate(vault)
+            self.assertEqual(rc, 0, err)
+
+            rc, cli = call_retrieve(vault, ["--query", "synthetic widget"])
+            self.assertEqual(rc, 0)
+            self.assertEqual(cli["status"], "found")
+            self.assertEqual(cli["conflicts"], [])
+
+            verified = lib.retrieve(
+                vault,
+                query="synthetic widget",
+                facts=[
+                    {
+                        "fact_id": fact_id,
+                        "statement": original_statement,
+                        "validation_state": "verified",
+                    }
+                ],
+            )
+            self.assertEqual(verified["conflicts"], [])
+
+            hinted = lib.retrieve(
+                vault,
+                query="synthetic widget",
+                facts=[
+                    {
+                        "fact_id": fact_id,
+                        "statement": original_statement,
+                        "validation_state": "verified",
+                    },
+                    {
+                        "fact_id": "fact-ffffffffffff",
+                        "statement": corrected_statement,
+                        "validation_state": "corrected",
+                    },
+                    {
+                        "fact_id": fact_id,
+                        "statement": corrected_statement,
+                        "validation_state": "corrected",
+                    },
+                ],
+            )
+            self.assertEqual(hinted["status"], "found")
+            self.assertEqual(len(hinted["conflicts"]), 1)
+            conflict = hinted["conflicts"][0]
+            self.assertEqual(conflict["belief_id"], "belief-20260920-widgets-need-retrieval")
+            self.assertEqual(conflict["evidence_id"], "evidence-20260920-widget-lag")
+            self.assertEqual(conflict["fact_ref"], fact_id)
+            self.assertEqual(conflict["fact_validation_state"], "corrected")
+            self.assertIn("separate authorization", conflict["hint"])
+            self.assertIn("append-only", conflict["hint"])
+            blob = json.dumps(hinted["conflicts"], ensure_ascii=False)
+            self.assertNotIn(corrected_statement, blob)
+            self.assertNotIn("statement", conflict)
+            self.assertEqual(belief_path.read_text(encoding="utf-8"), before)
+            self.assertNotIn(corrected_statement, before)
+
+            changed = before.replace(
+                'statement: "Synthetic widgets need retrieval more than capture."',
+                'statement: "Synthetic widgets no longer need retrieval."',
+            ).replace(
+                "## Revision History\n- 2026-09-20: created; reason: fixture seed",
+                "## Revision History\n- 2026-09-20: created; reason: fixture seed\n"
+                "- 2026-10-22: statement revised after fact conflict\n",
+            )
+            rc, data = call_write(vault, "create", changed, approval("create", changed))
+            self.assertEqual(data["status"], "needs_update_authorization", data)
+            self.assertEqual(belief_path.read_text(encoding="utf-8"), before)
+
+            fp = lib.fingerprint(before if before.endswith("\n") else before + "\n")
+            rewritten = replace_field(before, "confidence", "high").replace(
+                "## Revision History\n- 2026-09-20: created; reason: fixture seed",
+                "## Revision History\n- 2026-10-22: history replaced",
+            )
+            rc, data = call_write(
+                vault,
+                "update",
+                rewritten,
+                {
+                    "kind": "update",
+                    "id": "belief-20260920-widgets-need-retrieval",
+                    "type": "belief",
+                    "target_fingerprint": fp,
+                },
+            )
+            self.assertNotEqual(rc, 0)
+            self.assertEqual(data["status"], "validation_error", data)
+            self.assertTrue(any("append-only" in item for item in data["errors"]))
+            self.assertEqual(belief_path.read_text(encoding="utf-8"), before)
+
+            appended = replace_field(before, "confidence", "high").replace(
+                "## Revision History\n- 2026-09-20: created; reason: fixture seed",
+                "## Revision History\n- 2026-09-20: created; reason: fixture seed\n"
+                "- 2026-10-22: confidence medium → high; reason: separate authorization\n",
+            )
+            rc, data = call_write(
+                vault,
+                "update",
+                appended,
+                {
+                    "kind": "update",
+                    "id": "belief-20260920-widgets-need-retrieval",
+                    "type": "belief",
+                    "target_fingerprint": fp,
+                },
+            )
+            self.assertEqual(data["status"], "success", data)
+            disk = belief_path.read_text(encoding="utf-8")
+            self.assertIn("- 2026-09-20: created; reason: fixture seed", disk)
+            self.assertIn("- 2026-10-22: confidence medium → high; reason: separate authorization", disk)
+            self.assertLess(
+                disk.index("- 2026-09-20: created; reason: fixture seed"),
+                disk.index("- 2026-10-22: confidence medium → high"),
+            )
+            self.assertNotIn(corrected_statement, disk)
 
 
 class ParseRoundTripTests(unittest.TestCase):
@@ -926,7 +1193,11 @@ class PrivacyAndContractTests(unittest.TestCase):
         schema = (ROOT / "skills" / "cognition" / "references" / "schema.md").read_text(encoding="utf-8")
         self.assertIn('schema_version', schema)
         self.assertIn("1.1", schema)
-        self.assertEqual(lib.SCHEMA_VERSION, "1.1")
+        self.assertIn("1.2", schema)
+        self.assertIn("fact_ref", schema)
+        self.assertIn("value_choice", schema)
+        self.assertEqual(lib.SCHEMA_VERSION, "1.2")
+        self.assertEqual(lib.SUPPORTED_SCHEMA_VERSIONS, ("1.1", "1.2"))
 
 
 if __name__ == "__main__":
