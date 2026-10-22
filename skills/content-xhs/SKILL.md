@@ -1,11 +1,13 @@
 ---
 name: content-xhs
-description: "写小红书。必须先加载 content-core。出图前加载 canvas-design。短 caption 加 3:4 纸纹衬线页码卡片。文案是同一条逻辑链的压缩版。不代发。"
+description: "内容写手写小红书。必须先加载 content-core。出图前加载 canvas-design。不写 X 长文，不加载 content-x。短 caption 加 3:4 纸纹衬线页码卡片。文案是同一条逻辑链的压缩版。不代发。"
 ---
 
 # content-xhs
 
 写小红书。这里只写卡片和短文案。敏感、逻辑链、禁 Journal 原话、图源、一次交齐、不代发，都在 content-core。
+
+谁加载：内容写手。先 content-core，再本技能。不写 X 长文，不加载 content-x。
 
 只写 X、X Article、X 长文或 X 短帖的那一轮不加载本技能。
 

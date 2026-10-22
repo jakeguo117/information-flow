@@ -1,11 +1,13 @@
 ---
 name: content-wechat
-description: "写公众号。必须先加载 content-core。出图前加载 canvas-design。同一逻辑链可加厚。标题、摘要、21:9 封面、小标题、正文图、文末出处齐全。不另加未确认观点。不代发。"
+description: "内容写手写公众号。必须先加载 content-core。出图前加载 canvas-design。不写 X 长文，不加载 content-x。同一逻辑链可加厚。标题、摘要、21:9 封面、小标题、正文图、文末出处齐全。不另加未确认观点。不代发。"
 ---
 
 # content-wechat
 
 写公众号。这里只写长文版式和可选加厚。敏感、逻辑链、禁 Journal 原话、图源、一次交齐、不代发，都在 content-core。
+
+谁加载：内容写手。先 content-core，再本技能。不写 X 长文，不加载 content-x。
 
 只写 X、X Article、X 长文或 X 短帖的那一轮不加载本技能。
 
