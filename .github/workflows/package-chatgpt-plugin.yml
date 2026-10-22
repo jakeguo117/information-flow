@@ -74,6 +74,10 @@ jobs:
               run_file "$file" python
             elif grep -Eq '^def test_|^import pytest|^from pytest( |$)' "$file"; then
               run_file "$file" pytest
+            elif grep -Eq 'unittest\.TestCase|^[[:space:]]*def test_|^[[:space:]]*class Test' "$file"; then
+              # Tests with no runner would exit 0 having run nothing.
+              echo "FAILED: ${file} has tests but neither unittest.main() nor a pytest marker"
+              failed=1
             else
               run_file "$file" python
             fi

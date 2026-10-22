@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import re
 import sys
 import tempfile
 import unittest
@@ -438,6 +439,24 @@ class SkillContractTests(unittest.TestCase):
         self.assertNotIn("pull_request:", manual)
         self.assertNotIn("--force", manual)
         self.assertIn("${{ secrets.DIGITALBRAIN_TOKEN }}", manual)
+        # Thursday snapshot schedule: HKT 08:00 process, HKT 20:00 digest.
+        crons = re.findall(r'^\s*- cron: "([^"]+)"', manual, re.MULTILINE)
+        self.assertEqual(sorted(crons), ["0 0 * * 4", "0 12 * * 4"])
+        hkt = set()
+        for cron in crons:
+            minute, hour, dom, month, dow = cron.split()
+            self.assertEqual((minute, dom, month, dow), ("0", "*", "*", "4"))
+            self.assertLess(int(hour) + 8, 24)  # same Thursday in Asia/Hong_Kong
+            hkt.add(int(hour) + 8)
+        self.assertEqual(hkt, {8, 20})
+        resolve = manual.split("- name: Resolve stage and cycle id", 1)[1].split("- name:", 1)[0]
+        self.assertRegex(resolve, r'schedule == "0 0 \* \* 4":\s*\n\s*stage = "process"')
+        self.assertRegex(resolve, r'schedule == "0 12 \* \* 4":\s*\n\s*stage = "digest"')
+        self.assertIn("now.weekday() != 3", resolve)
+        self.assertIn("TZ: Asia/Hong_Kong", manual)
+        self.assertIn('cycle_dir="📋 Digests/cycles/${CYCLE_ID}"', manual)
+        self.assertIn('git add -- "$cycle_dir"', manual)
+        self.assertNotIn("weekly-briefs", manual)
         request = (ROOT / ".github" / "weekly-digest-request").read_text(encoding="utf-8")
         self.assertEqual(request, "2026-W42\n")
 
