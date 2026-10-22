@@ -439,10 +439,12 @@ class SkillFlowContractTests(unittest.TestCase):
         drive_home = "Google Drive「内容/草稿/{周}/」"
         local_disk = "不把发布包写到这台机器的本地磁盘"
         images = "实际的卡片图和封面图"
+        image_rebind = "换图也要把 revision 加一"
         for doc in (text, record):
             self.assertIn(drive_home, doc)
             self.assertIn(local_disk, doc)
             self.assertIn(images, doc)
+            self.assertIn(image_rebind, doc)
             self.assertNotIn("发布包停在对话里", doc)
             self.assertNotIn("发布包留在对话里", doc)
             self.assertNotIn("还停在对话里", doc)
