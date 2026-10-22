@@ -180,6 +180,9 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 ".cursor/skills/content-x/SKILL.md",
                 ".cursor/skills/content-xhs/SKILL.md",
                 ".cursor/skills/content-wechat/SKILL.md",
+                ".cursor/skills/canvas-design/SKILL.md",
+                ".cursor/skills/canvas-design/LICENSE.txt",
+                ".cursor/skills/canvas-design/SOURCE.md",
                 "AGENTS.md",
             ],
         )
@@ -191,6 +194,9 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
         self.assertIn("content-x/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("content-xhs/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("content-wechat/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("canvas-design/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("canvas-design/LICENSE.txt", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("canvas-design/SOURCE.md", sync.SKILL_RELATIVE_PATHS)
         self.assertNotIn(
             ".cursor/skills/facts/SKILL.md",
             sync.commit_paths(Path("/tmp/unused")),
@@ -248,6 +254,31 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 "content/SKILL.md",
                 "content/references/content-record.md",
                 "content/tools/trace_content.py",
+            },
+        )
+        self.assertEqual(files, listed)
+
+    def test_every_canvas_design_file_is_allowlisted(self) -> None:
+        """Files under skills/canvas-design must be copied. Sync does not glob.
+
+        Fonts are not vendored. The three shipped files are the whole tree.
+        """
+        files = {
+            str(path.relative_to(sync.SKILLS_DIR))
+            for path in (sync.SKILLS_DIR / "canvas-design").rglob("*")
+            if path.is_file()
+        }
+        listed = {
+            relative
+            for relative in sync.SKILL_RELATIVE_PATHS
+            if relative.startswith("canvas-design/")
+        }
+        self.assertEqual(
+            files,
+            {
+                "canvas-design/SKILL.md",
+                "canvas-design/LICENSE.txt",
+                "canvas-design/SOURCE.md",
             },
         )
         self.assertEqual(files, listed)
