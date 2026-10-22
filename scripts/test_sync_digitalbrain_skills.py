@@ -178,8 +178,10 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 ".cursor/skills/content/tools/trace_content.py",
                 ".cursor/skills/content-core/SKILL.md",
                 ".cursor/skills/content-x/SKILL.md",
+                ".cursor/skills/content-x-ops/SKILL.md",
                 ".cursor/skills/content-xhs/SKILL.md",
                 ".cursor/skills/content-wechat/SKILL.md",
+                ".cursor/skills/content-visual/SKILL.md",
                 ".cursor/skills/canvas-design/SKILL.md",
                 ".cursor/skills/canvas-design/LICENSE.txt",
                 ".cursor/skills/canvas-design/SOURCE.md",
@@ -201,6 +203,8 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
         self.assertIn("content/references/content-record.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("content-core/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("content-x/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("content-x-ops/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("content-visual/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("content-xhs/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("content-wechat/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("canvas-design/SKILL.md", sync.SKILL_RELATIVE_PATHS)
@@ -539,6 +543,65 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertIn("1–3", x_skill)
         self.assertIn("短帖可以没有配图", x_skill)
         self.assertIn("不要求小红书式多图卡片", x_skill)
+        self.assertIn("X Article", x_skill)
+        self.assertIn("X 长文", x_skill)
+        self.assertIn("X 短帖", x_skill)
+        self.assertIn(
+            "禁止在这一轮、这一写作上下文里 Skill load `content-xhs` 或 `content-wechat`",
+            x_skill,
+        )
+        self.assertNotIn("Creator Academy 写法稍后追加", x_skill)
+        self.assertIn("标题：具体 + 勾好奇 + 承诺价值", x_skill)
+        self.assertIn("首句钩住读者", x_skill)
+        self.assertIn("一段最多 2–4 行", x_skill)
+        self.assertIn("每 3–5 段一个小标题", x_skill)
+        self.assertIn("一段一事，并用「你」口语", x_skill)
+        self.assertIn("每个论点后面马上跟证据", x_skill)
+        self.assertIn("可嵌本人已发帖当证据", x_skill)
+        self.assertIn("用可核验文件/数据做分析", x_skill)
+        self.assertIn("列表/编号优先于大段文字", x_skill)
+        self.assertIn("几乎每节加粗关键洞察", x_skill)
+        self.assertIn("结尾给 takeaway + 一两句收束", x_skill)
+        self.assertIn("去填充、大声读", x_skill)
+        self.assertIn("不定死砍 20–30%", x_skill)
+        self.assertIn("结尾提问求回复", x_skill)
+        self.assertIn("结尾求转发/分享", x_skill)
+        self.assertIn("标题百分比式钩子", x_skill)
+        self.assertIn("本轮只要 X：只交 X", x_skill)
+        ops = (sync.SKILLS_DIR / "content-x-ops" / "SKILL.md").read_text(encoding="utf-8")
+        visual = (sync.SKILLS_DIR / "content-visual" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("发前预告", ops)
+        self.assertIn("新文置顶 24–72 小时", ops)
+        self.assertIn("回链全文", ops)
+        self.assertIn("早回复首波读者", ops)
+        self.assertIn("Exclusive Threads", ops)
+        self.assertIn("## OCR 资格与禁止求互动", ops)
+        self.assertIn("待 Jake 定", ops)
+        self.assertIn("五层 prompt", visual)
+        self.assertIn("Think Harder", visual)
+        self.assertIn("先重跑，再一次只改一处", visual)
+        self.assertIn("参考图锁风格", visual)
+        self.assertIn("只写动作", visual)
+        self.assertIn("16:9，再裁成 5:2", visual)
+        self.assertIn("预留标题叠字安全区", visual)
+        self.assertIn("短视频可以进 X 长文", visual)
+        self.assertIn("默认无人像", visual)
+        self.assertIn("不用现成风格模板", visual)
+        self.assertIn(
+            "禁止在这一轮、这一写作上下文里 Skill load `content-xhs` 或 `content-wechat`",
+            core,
+        )
+        self.assertIn("一次交齐三版只在两种任务里适用", core)
+        self.assertIn("只要写 X、X Article、X 长文或 X 短帖", core)
+        self.assertNotIn("然后加载三个平台技能，一次交齐三版。", core)
+        self.assertIn(
+            "禁止同一写作上下文 Skill load content-xhs 或 content-wechat",
+            stub,
+        )
+        x_only_note = "只写 X、X Article、X 长文或 X 短帖的那一轮不加载本技能。"
+        self.assertIn(x_only_note, xhs_skill)
+        self.assertIn(x_only_note, wechat_skill)
+        self.assertIn("不要为了填这两栏去 Skill load", record)
         self.assertIn("纸纹底", xhs_skill)
         self.assertIn("同一条逻辑链", xhs_skill)
         self.assertIn("title", wechat_skill)
