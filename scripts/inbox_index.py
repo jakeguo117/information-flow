@@ -12,6 +12,13 @@ original input line. The schema still says the state-event table is filled
 by T11; this module owns the lines it appends.
 
 ``--dry-run`` plans the same lines and writes nothing.
+
+A file that is not a note, and a note that fails to parse, is skipped.
+The jsonl record fields do not change. Success JSON adds ``skipped``
+(objects ``{"path", "reason"}``, paths relative to ``--inbox``) and
+``skipped_count``. Discovery uses ``reason`` ``not_a_note``; a parse
+failure uses the parser message. See ``discover_notes``. ``IndexConflict``,
+a bad received-at map, and IO errors still fail the run.
 """
 
 from __future__ import annotations
@@ -33,6 +40,8 @@ STATE_RECORD = "state"
 PROCESS_STATES = ("pending", "processing", "completed", "failed", "retry_pending")
 # Kickoff §4: the 2021–2022 Instagram batch is a historical import.
 HISTORICAL_THROUGH_YEAR = 2022
+# Discovery skip. Parse failures use the parser message instead.
+NOT_A_NOTE = "not_a_note"
 
 _PLATFORM_DIRS = (
     ("youtube", "📥 Inbox/YouTube-Likes"),
@@ -69,6 +78,20 @@ class InboxNote:
 
 
 @dataclass(frozen=True)
+class Discovery:
+    """Platform notes plus files skipped before parse.
+
+    ``skipped`` items are ``{"path", "reason"}``. ``reason`` is
+    ``not_a_note`` for the narrow rule in ``_non_note_reason``.
+    ``_index``, ``processed``, and dot-directories are not listed: they
+    are index machinery, not candidate notes.
+    """
+
+    notes: list[InboxNote]
+    skipped: list[dict[str, str]]
+
+
+@dataclass(frozen=True)
 class FieldDiff:
     record_id: str
     field: str
@@ -98,6 +121,7 @@ class IndexResult:
     existing_input_ids: list[str]
     planned_sources: list[dict]
     planned_inputs: list[dict]
+    skipped: list[dict[str, str]]
 
 
 def inputs_for_week(inputs: list[dict], week: str) -> list[dict]:
@@ -106,12 +130,18 @@ def inputs_for_week(inputs: list[dict], week: str) -> list[dict]:
     return [item for item in inputs if item.get("source_week") == week]
 
 
-def discover_notes(root: Path) -> list[InboxNote]:
-    """Read platform note trees under a vault root or an Inbox directory."""
+def discover_notes(root: Path) -> Discovery:
+    """Read platform note trees under a vault root or an Inbox directory.
+
+    Non-notes are omitted from ``notes`` and listed in ``skipped`` with
+    ``reason`` ``not_a_note``. The rule is ``_non_note_reason`` only.
+    Parse failures are decided later, one note at a time.
+    """
 
     if not root.is_dir():
         raise ValueError(f"inbox path is not a directory: {root}")
     notes: list[InboxNote] = []
+    skipped: list[dict[str, str]] = []
     seen: set[Path] = set()
     for platform, rel in _PLATFORM_DIRS:
         base = _platform_dir(root, rel)
@@ -124,12 +154,13 @@ def discover_notes(root: Path) -> list[InboxNote]:
             if resolved in seen:
                 continue
             seen.add(resolved)
-            if path.is_relative_to(root):
-                note_path = path.relative_to(root).as_posix()
-            else:
-                note_path = path.as_posix()
+            note_path = _note_ref(path, root)
+            reason = _non_note_reason(path, base)
+            if reason is not None:
+                skipped.append({"path": note_path, "reason": reason})
+                continue
             notes.append(InboxNote(note_path, path.read_text(encoding="utf-8"), platform))
-    return notes
+    return Discovery(notes, skipped)
 
 
 def index_notes(
@@ -140,7 +171,12 @@ def index_notes(
     received_at_lookup: Callable[[str], str | None] | None = None,
     dry_run: bool = False,
 ) -> IndexResult:
-    """Parse notes and append new Source / Input lines. Same event returns the old id."""
+    """Parse notes and append new Source / Input lines. Same event returns the old id.
+
+    ``NoteParseError`` skips that note. Other notes are still indexed.
+    ``skipped`` lists those parse failures and does not include discovery
+    skips. Record fields are unchanged.
+    """
 
     clock = _clock(now)
     sources_path = index_dir / SOURCES_NAME
@@ -159,11 +195,16 @@ def index_notes(
     created_input_ids: list[str] = []
     existing_input_ids: list[str] = []
     diffs: list[FieldDiff] = []
+    skipped: list[dict[str, str]] = []
 
     for note in notes:
-        parsed, existing_source = _parse_with_index(
-            note, working_sources, working_inputs, clock, received_at_lookup
-        )
+        try:
+            parsed, existing_source = _parse_with_index(
+                note, working_sources, working_inputs, clock, received_at_lookup
+            )
+        except inbox_lib.NoteParseError as exc:
+            skipped.append({"path": note.path, "reason": str(exc)})
+            continue
         source = parsed["source"]
         if existing_source is None:
             planned_sources.append(source)
@@ -220,6 +261,7 @@ def index_notes(
         existing_input_ids=existing_input_ids,
         planned_sources=planned_sources,
         planned_inputs=planned_inputs,
+        skipped=skipped,
     )
 
 
@@ -511,8 +553,39 @@ def _platform_dir(root: Path, rel: str) -> Path | None:
 
 
 def _skipped(path: Path, base: Path) -> bool:
+    """Index machinery. These paths are not listed in ``skipped``."""
+
     parts = path.relative_to(base).parts
     return any(part in {"_index", "processed"} or part.startswith(".") for part in parts)
+
+
+def _non_note_reason(path: Path, base: Path) -> str | None:
+    """Return ``not_a_note`` for files that live in a platform tree but are not notes.
+
+    The rule is narrow and explicit:
+
+    - The filename is ``README.md``, compared case-insensitively. Plugin
+      folders keep a guide under that name (``📥 Inbox/Snipd/README.md``).
+    - A directory component relative to the platform root is exactly
+      ``digests``. Generated digests under ``📝 Journal/想法/digests/``
+      are not thought notes.
+
+    Anything else is a candidate note. A thought missing 「原话」, or a
+    Snipd file other than ``README.md`` with no ``episode_url``, is parsed
+    and then skipped with the parser message.
+    """
+
+    if path.name.casefold() == "readme.md":
+        return NOT_A_NOTE
+    if "digests" in path.relative_to(base).parts[:-1]:
+        return NOT_A_NOTE
+    return None
+
+
+def _note_ref(path: Path, root: Path) -> str:
+    if path.is_relative_to(root):
+        return path.relative_to(root).as_posix()
+    return path.as_posix()
 
 
 def _load_received_at_map(path: Path) -> Callable[[str], str | None]:
@@ -555,9 +628,9 @@ def main(argv: list[str] | None = None) -> int:
     now = args.now or inbox_lib.format_hk(datetime.now(inbox_lib.HK))
     try:
         lookup = _load_received_at_map(Path(args.received_at_map)) if args.received_at_map else None
-        notes = discover_notes(Path(args.inbox))
+        found = discover_notes(Path(args.inbox))
         result = index_notes(
-            notes,
+            found.notes,
             Path(args.index),
             now=now,
             received_at_lookup=lookup,
@@ -584,6 +657,7 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         _emit({"ok": False, "error": str(exc)})
         return 1
+    skipped = [*found.skipped, *result.skipped]
     _emit(
         {
             "ok": True,
@@ -593,6 +667,8 @@ def main(argv: list[str] | None = None) -> int:
             "existing_input_ids": result.existing_input_ids,
             "source_count": len(result.sources),
             "input_count": len(result.inputs),
+            "skipped": skipped,
+            "skipped_count": len(skipped),
         }
     )
     return 0

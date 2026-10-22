@@ -27,6 +27,9 @@ first-seen time. ``origin=historical_import`` with no capture time uses
 摘句 and WeRead 📌 lines follow ``daily_digest`` and also keep each WeRead
 highlight as its own Input. Those retired scripts stay in the tree until a
 later deletion task.
+
+Parsers raise ``NoteParseError`` when the text is not a usable note.
+Context and clock errors stay ``ValueError``.
 """
 
 from __future__ import annotations
@@ -223,6 +226,15 @@ def source_week_for(captured_at: str | None, time_basis: str) -> str | None:
     return f"{iso.year}-W{iso.week:02d}"
 
 
+class NoteParseError(ValueError):
+    """This text is not a usable note.
+
+    ``inbox_index`` skips that file and continues. A bad ``ParseContext``
+    or a bad received-at timestamp stays a plain ``ValueError`` and still
+    aborts the run.
+    """
+
+
 def parse_note(text: str, platform: str, ctx: ParseContext) -> dict:
     """Parse one note into ``{"source": ..., "inputs": [...]}``."""
     if platform not in PLATFORMS:
@@ -243,11 +255,11 @@ def parse_youtube(text: str, ctx: ParseContext) -> dict:
     meta = parse_frontmatter(text)
     source_url = ctx.canonical_url or meta.get("source_url") or _first_http(text)
     if not source_url:
-        raise ValueError("youtube note has no source_url")
+        raise NoteParseError("youtube note has no source_url")
     canonical = canonicalize_url(source_url)
     video_id = _blank_none(meta.get("video_id")) or _query_value(canonical, "v")
     if not video_id:
-        raise ValueError("youtube note has no video_id")
+        raise NoteParseError("youtube note has no video_id")
     like = parse_time(meta.get("like_at"))
     if like is not None:
         captured: str | None = format_hk(like)
@@ -297,14 +309,14 @@ def parse_snipd(text: str, ctx: ParseContext) -> dict:
     meta = parse_frontmatter(text)
     episode_url = ctx.canonical_url or meta.get("episode_url") or meta.get("url") or ""
     if not episode_url:
-        raise ValueError("snipd note has no episode_url")
+        raise NoteParseError("snipd note has no episode_url")
     canonical = canonicalize_url(episode_url)
     episode_id = _blank_none(meta.get("episode_id") or meta.get("episode_uuid"))
     if episode_id is None:
         found = _UUID_RE.findall(canonical)
         episode_id = found[-1] if found else None
     if not episode_id:
-        raise ValueError("snipd note has no episode uuid")
+        raise NoteParseError("snipd note has no episode uuid")
     published = parse_time(meta.get("episode_publish_date") or meta.get("published_at"))
     source = _source(
         ctx,
@@ -354,7 +366,7 @@ def parse_weread(text: str, ctx: ParseContext) -> dict:
     meta = parse_frontmatter(text)
     book_id = _blank_none(meta.get("bookId") or meta.get("book_id"))
     if not book_id:
-        raise ValueError("weread note has no bookId")
+        raise NoteParseError("weread note has no bookId")
     raw_url = ctx.canonical_url or meta.get("source_url") or meta.get("url") or meta.get("book_url")
     if not raw_url:
         raw_url = f"https://weread.qq.com/web/reader/{book_id}"
@@ -415,9 +427,9 @@ def parse_thought(text: str, ctx: ParseContext) -> dict:
     meta = parse_frontmatter(text)
     thought_id = _blank_none(meta.get("id"))
     if not thought_id:
-        raise ValueError("thought note has no id")
+        raise NoteParseError("thought note has no id")
     if _VERBATIM_MARK not in text:
-        raise ValueError("thought file has no 原话 marker")
+        raise NoteParseError("thought file has no 原话 marker")
     verbatim = text.split(_VERBATIM_MARK, 1)[1]
     raw_url = ctx.canonical_url or meta.get("canonical_url") or meta.get("url")
     if not raw_url:
@@ -469,14 +481,14 @@ def _parse_social(text: str, ctx: ParseContext, *, platform: str, event_type: st
         content_id = _status_id(fields.get("原文链接", ""), ctx.path)
         raw_url = ctx.canonical_url or fields.get("原文链接")
         if not content_id:
-            raise ValueError("x note has no status id")
+            raise NoteParseError("x note has no status id")
         if not raw_url:
             raw_url = f"https://x.com/i/status/{content_id}"
     else:
         raw_url = ctx.canonical_url or fields.get("原文链接")
         content_id = _ig_shortcode(raw_url or "", ctx.path)
         if not content_id:
-            raise ValueError("instagram note has no shortcode")
+            raise NoteParseError("instagram note has no shortcode")
         if not raw_url:
             raw_url = f"https://www.instagram.com/p/{content_id}"
     canonical = canonicalize_url(raw_url)
