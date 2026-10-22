@@ -7,6 +7,8 @@ description: "写公众号。必须先加载 content-core。出图前加载 canv
 
 写公众号。这里只写长文版式和可选加厚。敏感、逻辑链、禁 Journal 原话、图源、一次交齐、不代发，都在 content-core。
 
+只写 X、X Article、X 长文或 X 短帖的那一轮不加载本技能。
+
 ## 第一步
 
 必须先加载 `skills/content-core/SKILL.md`。未加载 core，不得写，不得交卡。

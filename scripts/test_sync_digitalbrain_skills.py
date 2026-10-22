@@ -539,6 +539,30 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertIn("1–3", x_skill)
         self.assertIn("短帖可以没有配图", x_skill)
         self.assertIn("不要求小红书式多图卡片", x_skill)
+        self.assertIn("X Article", x_skill)
+        self.assertIn("X 长文", x_skill)
+        self.assertIn("X 短帖", x_skill)
+        self.assertIn(
+            "禁止在这一轮、这一写作上下文里 Skill load `content-xhs` 或 `content-wechat`",
+            x_skill,
+        )
+        self.assertIn("Creator Academy 写法稍后追加到本技能", x_skill)
+        self.assertIn("本轮只要 X：只交 X", x_skill)
+        self.assertIn(
+            "禁止在这一轮、这一写作上下文里 Skill load `content-xhs` 或 `content-wechat`",
+            core,
+        )
+        self.assertIn("一次交齐三版只在两种任务里适用", core)
+        self.assertIn("只要写 X、X Article、X 长文或 X 短帖", core)
+        self.assertNotIn("然后加载三个平台技能，一次交齐三版。", core)
+        self.assertIn(
+            "禁止同一写作上下文 Skill load content-xhs 或 content-wechat",
+            stub,
+        )
+        x_only_note = "只写 X、X Article、X 长文或 X 短帖的那一轮不加载本技能。"
+        self.assertIn(x_only_note, xhs_skill)
+        self.assertIn(x_only_note, wechat_skill)
+        self.assertIn("不要为了填这两栏去 Skill load", record)
         self.assertIn("纸纹底", xhs_skill)
         self.assertIn("同一条逻辑链", xhs_skill)
         self.assertIn("title", wechat_skill)

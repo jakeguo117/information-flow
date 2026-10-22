@@ -33,7 +33,7 @@ schema_version = content-0.1
 | `experience_quotes` | 必填，字符串列表，允许 `[]` | 改写后的经历叙述，来自 Idea 或讨论确认，不是 Journal 连续原句。讲观念至少一项 |
 | `form` | 选题确定后必填 | `news_comment`｜`concept_story` |
 | `brief` | 策划起必填 | 结构、引用、案例、写法、排期。一段文字 |
-| `channels` | 草稿起必填 | 见「渠道」。三版都要有 |
+| `channels` | 草稿起必填 | 见「渠道」。整周包或三版交齐时三版都要有。只要 X 时只要求 `x` 正文 |
 | `body_sha256` | 草稿起必填 | 见「正文指纹」。小写十六进制，64 位 |
 | `sensitivity` | 必填，字符串列表，允许 `[]` | 见「三层过滤」 |
 | `layer2` | 必填 | `pending`｜`allowed`｜`refused` |
@@ -56,7 +56,7 @@ schema_version = content-0.1
 | `candidate` | 候选 | 受众问题、角度、至少一条来源 |
 | `selected` | 已选题 | `expression_by` 为 `jake`，并且 `form` 已定 |
 | `brief` | 已策划 | `brief` strip 之后非空 |
-| `draft` | 草稿 | 三版渠道都已写上，`body_sha256` 是这一版的 |
+| `draft` | 草稿 | 本轮要交的渠道已写上。整周包或三版交齐时三版都已写上。只要 X 时 X 正文已写上。`body_sha256` 是这一版的 |
 | `approved` | 已批准 | `approval` 对得上当前 revision 和 `body_sha256` |
 | `published` | 他已确认发出 | `publish_result.state` 为 `published`，且 `by` 为 `jake` |
 | `reviewed` | 已复盘 | `review.notes` strip 之后非空 |
@@ -89,7 +89,9 @@ sha1 按 UTF-8 字节、十六进制小写，取前 12 位。`source_refs` 为�
 
 ## 渠道
 
-`channels` 是一个对象，三个键都要在。草稿起，三个正文 strip 之后都非空。
+`channels` 是一个对象。整周多渠道发布包或明确三版交齐时，三个键都要在，三个正文 strip 之后都非空。
+
+任务只要写 X、X Article、X 长文或 X 短帖：草稿只要求 `channels.x.body` 非空。小红书和公众号字段按正文指纹留空字符串，不删键。不要为了填这两栏去 Skill load `content-xhs` 或 `content-wechat`。
 
 | 键 | 里面有什么 |
 |---|---|
@@ -103,7 +105,7 @@ sha1 按 UTF-8 字节、十六进制小写，取前 12 位。`source_refs` 为�
 
 `body_sha256` 是下面这个 JSON 对象的 UTF-8 sha256，小写十六进制。`json` 使用 `sort_keys`，分隔符是逗号和冒号，不把中文转成 `\u` 转义。`revision` 是 JSON 数字。十一个键都要在；没有内容的字符串写成 `""`，不删键。
 
-键：`schema_version`、`content_id`、`revision`、`x_body`、`xhs_caption`、`xhs_cards`、`wechat_title`、`wechat_summary`、`wechat_cover_note`、`wechat_body`、`wechat_sources`。
+键：`schema_version`、`content_id`、`revision`、`x_body`、`xhs_caption`、`xhs_cards`、`wechat_title`、`wechat_summary`、`wechat_cover_note`、`wechat_body`、`wechat_sources`。只要 X 时，小红书和公众号这些字符串写成 `""`，十一个键仍都在。
 
 `xhs_cards` 是 `channels.xiaohongshu.cards` 用 `\n` 按页序接成的一个字符串。没有卡片时是 `""`。
 
@@ -160,7 +162,7 @@ sha1 按 UTF-8 字节、十六进制小写，取前 12 位。`source_refs` 为�
 
 ## 发布包
 
-审批卡就是这一份发布包。一张卡一条内容，三版都在卡上。周日 20:00 前交出时自检已经全部通过。周一 10:00 把同一份交给他，等「批 / 改 / 不要」。
+审批卡就是这一份发布包。一张卡一条内容。整周多渠道包或明确三版交齐时，三版都在卡上。只要写 X、X Article、X 长文或 X 短帖时，卡上只交 X，不为凑三版去加载 content-xhs 或 content-wechat。周日 20:00 前交出时自检已经全部通过。周一 10:00 把同一份交给他，等「批 / 改 / 不要」。
 
 不落盘是指不把发布包写到这台机器的本地磁盘，也不在本机新建内容目录。发布包的正式副本在 Google Drive「内容/草稿/{周}/」。对话里交的是同一份。内容写手交文案，并交出实际的卡片图和封面图，不只写配图说明。渠道字段里的文案、封面说明和正文里的图片说明仍是文字，图片字节不写进 `body_sha256`，所以换图也要把 revision 加一，旧的 `approval` 随之不再覆盖。
 

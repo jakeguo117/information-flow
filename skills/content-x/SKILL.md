@@ -1,19 +1,25 @@
 ---
 name: content-x
-description: "写 X。必须先加载 content-core。出图前加载 canvas-design。中文长文 800–1500 字，口语，交 X Articles 阅读页：5:2 封面，正文 1–3 张全宽真图。短帖可以不配图。不代发。"
+description: "写 X、X Article、X 长文或 X 短帖。必须先加载 content-core。出图前加载 canvas-design。同一写作上下文只再加载本技能，禁止 Skill load content-xhs 或 content-wechat。中文长文 800–1500 字，口语，交 X Articles 阅读页：5:2 封面，正文 1–3 张全宽真图。短帖可以不配图。不代发。"
 ---
 
 # content-x
 
-写 X。这里只写平台版式和写法。敏感、逻辑链、禁 Journal 原话、图源、一次交齐、不代发，都在 content-core，不在这里复述。
+写 X、X Article、X 长文或 X 短帖。这里只写平台版式和写法。敏感、逻辑链、禁 Journal 原话、图源、不代发，都在 content-core，不在这里复述。一次交齐三版的适用范围在 content-core：只要 X 时不适用。
 
 ## 第一步
+
+任务是写 X、X Article、X 长文或 X 短帖时，加载顺序只有：`skills/content-core/SKILL.md` →（要出封面或配图才加载 `skills/canvas-design/SKILL.md`）→ 本技能。禁止在这一轮、这一写作上下文里 Skill load `content-xhs` 或 `content-wechat`。
+
+<!-- 占位：Creator Academy 写法稍后追加到本技能。不要在这里编写 Academy 条文。 -->
 
 必须先加载 `skills/content-core/SKILL.md`。未加载 core，不得写，不得交卡。
 
 出封面或配图之前，再加载并遵守 `skills/canvas-design/SKILL.md`。未加载不得出图。本技能只补 5:2、中文字体和安全区，不另写审美，也不另写一套正文骨架。
 
-X 样例只按本技能写。不用小红书或公众号稿改写成 X 样例。
+X 样例只按本技能写。不用小红书或公众号稿改写成 X 样例。X 样例同样禁止加载 content-xhs 或 content-wechat。
+
+整周多渠道发布包，或他明确要三版交齐：那不是上面这条只要 X 的加载。那种任务按 content-core 同时加载三个平台技能。本技能仍只负责 X 版式。
 
 ## 参考
 
@@ -66,4 +72,8 @@ canvas-design 没有 5:2，也没有中文字体。本仓库不附带 `canvas-fo
 
 ## 放进哪一栏
 
-本版写入同一张发布包的 X 段（`channels.x.body`）。小红书版和公众号版未齐，不得交卡。
+本版写入同一张发布包的 X 段（`channels.x.body`）。
+
+本轮只要 X：只交 X。小红书版或公众号版未写，不得因此拦住这张卡，也不得为了补那两版去加载 `content-xhs` 或 `content-wechat`。
+
+整周多渠道包或明确三版交齐：小红书版和公众号版未齐，不得交卡。
