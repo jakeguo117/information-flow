@@ -782,3 +782,48 @@ def test_digests_rule_only_hits_thought_digest_folder(tmp_path: Path) -> None:
     assert skipped == {DIGEST_PATH: inbox_index.NOT_A_NOTE}
     assert notes[x_in_digests] == "x"
     assert notes[nested_thought] == "thought"
+
+
+X_REPEAT_W43_PATH = "📥 Inbox/X-Bookmarks/2026-10-22-example-user.md"
+
+
+def test_ac03_cross_week_repeat_via_cli_with_skips(tmp_path: Path) -> None:
+    """AC03 through the CLI: W42 post shows up again in W43 next to a skipped file."""
+    vault = tmp_path / "vault"
+    index = tmp_path / "_index"
+    write_tree(vault, {X_PATH: X_NOTE, README_PATH: README_TEXT})
+    first = run_index(vault, index, "--now", W42)
+    assert first.returncode == 0, first.stdout
+    one = json.loads(first.stdout)
+    assert len(one["created_input_ids"]) == 1
+    input_id = one["created_input_ids"][0]
+    before = snapshot(index)
+
+    write_tree(vault, {X_REPEAT_W43_PATH: X_NOTE})
+    second = run_index(vault, index, "--now", W43)
+    assert second.returncode == 0, second.stdout
+    two = json.loads(second.stdout)
+    assert two["created_input_ids"] == []
+    assert two["created_source_ids"] == []
+    assert input_id in two["existing_input_ids"]
+    assert [item["path"] for item in two["skipped"]] == [README_PATH]
+    assert snapshot(index) == before
+    stored = lines(index / inbox_index.INPUTS_NAME)
+    assert len(stored) == 1
+    assert stored[0]["source_week"] == "2026-W42"
+    assert inbox_index.inputs_for_week(stored, "2026-W43") == []
+
+
+def test_ac03_same_run_cross_week_repeat(tmp_path: Path) -> None:
+    """AC03 on a first build: the W42 file and its W43 repeat are indexed in one run."""
+    index = tmp_path / "_index"
+    result = inbox_index.index_notes(
+        [note(X_PATH, X_NOTE, "x"), note(X_REPEAT_W43_PATH, X_NOTE, "x")],
+        index,
+        now=W43,
+    )
+    assert len(result.created_input_ids) == 1
+    assert result.existing_input_ids == result.created_input_ids
+    stored = lines(index / inbox_index.INPUTS_NAME)
+    assert len(stored) == 1
+    assert stored[0]["inbox_ref"].startswith(X_PATH)
