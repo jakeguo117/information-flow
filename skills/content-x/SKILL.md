@@ -28,7 +28,7 @@ X 样例只按本技能写。不用小红书或公众号稿改写成 X 样例。
 
 ## 怎么写
 
-长文用口语，像真人在说话：少正式，禁止 formative 腔、论文腔和模板腔。逻辑链仍按 content-core，这里不复述。
+长文用口语，像真人在说话：少正式，禁止 formative 腔、论文腔和模板腔。逻辑链仍按 content-core，这里不复述。行文的 anti-AI-slop 和 deeper thought 按 content-core「foundation 硬规则」。
 
 事实放在前面。每个事实有来源链接和日期，规则见 content-core。不发明事实，不把模型补的判断写成他的口气。
 
