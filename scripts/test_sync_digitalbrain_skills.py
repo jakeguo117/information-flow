@@ -175,6 +175,8 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 ".cursor/skills/ideas/SKILL.md",
                 ".cursor/skills/content/SKILL.md",
                 ".cursor/skills/content/references/content-record.md",
+                ".cursor/skills/content/tools/trace_content.py",
+                ".cursor/skills/content/tools/test_content_trace.py",
                 "AGENTS.md",
             ],
         )
@@ -233,7 +235,12 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
         }
         self.assertEqual(
             files,
-            {"content/SKILL.md", "content/references/content-record.md"},
+            {
+                "content/SKILL.md",
+                "content/references/content-record.md",
+                "content/tools/trace_content.py",
+                "content/tools/test_content_trace.py",
+            },
         )
         self.assertEqual(files, listed)
 
