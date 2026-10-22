@@ -15,6 +15,75 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Run in-repo unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet --disable-pip-version-check 'pytest==9.1.1'
+          # Leave bytecode writable. content trace then skill sync is the order
+          # that wrote __pycache__ and turned the sync suite red (22/23).
+          unset PYTHONDONTWRITEBYTECODE
+          # vault recovery refuses an isolated temp dir unless /private/tmp is a
+          # real directory (macOS layout). ubuntu-latest does not have it.
+          if [ ! -d /private/tmp ] || [ -L /private/tmp ]; then
+            sudo -n mkdir -p /private/tmp
+            sudo -n chmod 1777 /private/tmp
+          fi
+          if [ -L /private/tmp ] || [ ! -d /private/tmp ]; then
+            echo "FAILED: /private/tmp must be a real directory"
+            exit 1
+          fi
+
+          failed=0
+          run_file() {
+            local file="$1"
+            local mode="$2"
+            echo "=== ${mode}: ${file} ==="
+            if [ "$mode" = pytest ]; then
+              if ! python3 -m pytest -q -p no:cacheprovider --tb=short "$file"; then
+                echo "FAILED: ${file}"
+                failed=1
+              fi
+            else
+              if ! python3 "$file"; then
+                echo "FAILED: ${file}"
+                failed=1
+              fi
+            fi
+          }
+
+          echo "=== order-dependency: content trace before skill sync (pycache allowed) ==="
+          run_file skills/content/tools/test_content_trace.py python
+          run_file scripts/test_sync_digitalbrain_skills.py python
+
+          mapfile -t files < <(
+            find . -type f \( -name 'test_*.py' -o -name '*_test.py' \) \
+              -not -path './.venv/*' \
+              -not -path '*/.venv/*' \
+              -not -path '*/site-packages/*' \
+              -not -path '*/__pycache__/*' \
+              -print | sed 's|^\./||' | LC_ALL=C sort
+          )
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "FAILED: no in-repo test files discovered"
+            exit 1
+          fi
+          echo "discovered ${#files[@]} test files"
+          for file in "${files[@]}"; do
+            if grep -q 'unittest\.main' "$file"; then
+              run_file "$file" python
+            elif grep -Eq '^def test_|^import pytest|^from pytest( |$)' "$file"; then
+              run_file "$file" pytest
+            else
+              run_file "$file" python
+            fi
+          done
+          if [ "$failed" -ne 0 ]; then
+            echo "in-repo tests failed"
+            exit 1
+          fi
+          echo "in-repo tests passed"
+
       - name: Build ChatGPT plugin ZIP
         run: python3 scripts/package_journal_pack.py --chatgpt-plugin
 
