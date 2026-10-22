@@ -42,6 +42,8 @@ PROCESS_STATES = ("pending", "processing", "completed", "failed", "retry_pending
 HISTORICAL_THROUGH_YEAR = 2022
 # Discovery skip. Parse failures use the parser message instead.
 NOT_A_NOTE = "not_a_note"
+# skills/journal/references/thoughts.md: 📝 Journal/想法/digests/digest-{journal_event_id}.md
+THOUGHT_DIGESTS_DIR = "digests"
 
 _PLATFORM_DIRS = (
     ("youtube", "📥 Inbox/YouTube-Likes"),
@@ -155,7 +157,7 @@ def discover_notes(root: Path) -> Discovery:
                 continue
             seen.add(resolved)
             note_path = _note_ref(path, root)
-            reason = _non_note_reason(path, base)
+            reason = _non_note_reason(path, base, platform)
             if reason is not None:
                 skipped.append({"path": note_path, "reason": reason})
                 continue
@@ -559,16 +561,16 @@ def _skipped(path: Path, base: Path) -> bool:
     return any(part in {"_index", "processed"} or part.startswith(".") for part in parts)
 
 
-def _non_note_reason(path: Path, base: Path) -> str | None:
+def _non_note_reason(path: Path, base: Path, platform: str) -> str | None:
     """Return ``not_a_note`` for files that live in a platform tree but are not notes.
 
     The rule is narrow and explicit:
 
     - The filename is ``README.md``, compared case-insensitively. Plugin
       folders keep a guide under that name (``📥 Inbox/Snipd/README.md``).
-    - A directory component relative to the platform root is exactly
-      ``digests``. Generated digests under ``📝 Journal/想法/digests/``
-      are not thought notes.
+    - The file sits directly in ``📝 Journal/想法/digests/`` (the
+      消化清单 folder written by ``capture_thought.py record-digest``).
+      A ``digests`` folder anywhere else is a normal note folder.
 
     Anything else is a candidate note. A thought missing 「原话」, or a
     Snipd file other than ``README.md`` with no ``episode_url``, is parsed
@@ -577,7 +579,8 @@ def _non_note_reason(path: Path, base: Path) -> str | None:
 
     if path.name.casefold() == "readme.md":
         return NOT_A_NOTE
-    if "digests" in path.relative_to(base).parts[:-1]:
+    parts = path.relative_to(base).parts
+    if platform == "thought" and len(parts) == 2 and parts[0] == THOUGHT_DIGESTS_DIR:
         return NOT_A_NOTE
     return None
 

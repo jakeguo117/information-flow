@@ -761,3 +761,24 @@ def test_bad_received_at_value_still_aborts(tmp_path: Path) -> None:
     proc = run_index(vault, tmp_path / "_index", "--received-at-map", str(bad), "--dry-run")
     assert proc.returncode == 1, proc.stdout
     assert json.loads(proc.stdout)["ok"] is False
+
+
+def test_digests_rule_only_hits_thought_digest_folder(tmp_path: Path) -> None:
+    """Only 📝 Journal/想法/digests/<file> is not_a_note. Other digests folders are notes."""
+    vault = tmp_path / "vault"
+    x_in_digests = "📥 Inbox/X-Bookmarks/digests/2026-10-20-example-user.md"
+    nested_thought = "📝 Journal/想法/2026-W43/digests/thought-20261020-0900.md"
+    write_tree(
+        vault,
+        {
+            DIGEST_PATH: DIGEST_TEXT,
+            x_in_digests: X_NOTE,
+            nested_thought: VALID_THOUGHT.replace("thought-20261014-1800", "thought-20261020-0900"),
+        },
+    )
+    found = inbox_index.discover_notes(vault)
+    notes = {item.path: item.platform for item in found.notes}
+    skipped = {item["path"]: item["reason"] for item in found.skipped}
+    assert skipped == {DIGEST_PATH: inbox_index.NOT_A_NOTE}
+    assert notes[x_in_digests] == "x"
+    assert notes[nested_thought] == "thought"
