@@ -85,6 +85,11 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 (vault / ".cursor" / "skills" / "cognition" / "SKILL.md").read_text(encoding="utf-8"),
                 (sync.SKILLS_DIR / "cognition" / "SKILL.md").read_text(encoding="utf-8"),
             )
+            self.assertEqual(
+                (vault / ".cursor" / "skills" / "ideas" / "SKILL.md").read_text(encoding="utf-8"),
+                (sync.SKILLS_DIR / "ideas" / "SKILL.md").read_text(encoding="utf-8"),
+            )
+            self.assertFalse((vault / ".cursor" / "skills" / "facts" / "SKILL.md").exists())
             self.assertTrue(
                 (vault / ".cursor" / "skills" / "cognition" / "references" / "schema.md").is_file()
             )
@@ -153,8 +158,16 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 ".cursor/skills/cognition/tools/validate_cognition.py",
                 ".cursor/skills/cognition/tools/retrieve_cognition.py",
                 ".cursor/skills/cognition/tools/write_cognition.py",
+                ".cursor/skills/ideas/SKILL.md",
                 "AGENTS.md",
             ],
+        )
+        self.assertIn("ideas/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("facts/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertNotIn("content/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertNotIn(
+            ".cursor/skills/facts/SKILL.md",
+            sync.commit_paths(Path("/tmp/unused")),
         )
 
     def test_every_journal_tool_and_reference_is_allowlisted(self) -> None:
@@ -188,6 +201,70 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
         self.assertIn("capture_thought.py", listed_tools)
         self.assertIn("thought_lib.py", listed_tools)
         self.assertIn("thoughts.md", listed_references)
+
+    def test_allowlist_adds_ideas_and_facts_without_deleting_vault_copies(self) -> None:
+        """ideas/SKILL.md is copied; facts/SKILL.md stays allowlisted until its source exists.
+
+        An allowlisted path with no source file is skipped. Copies already in
+        the vault, including facts and unlisted sibling files, are not deleted.
+        """
+        ideas_only = {
+            relative
+            for relative in sync.SKILL_RELATIVE_PATHS
+            if relative.startswith("ideas/")
+        }
+        facts_only = {
+            relative
+            for relative in sync.SKILL_RELATIVE_PATHS
+            if relative.startswith("facts/")
+        }
+        self.assertEqual(ideas_only, {"ideas/SKILL.md"})
+        self.assertEqual(facts_only, {"facts/SKILL.md"})
+        self.assertTrue((sync.SKILLS_DIR / "ideas" / "SKILL.md").is_file())
+        self.assertFalse((sync.SKILLS_DIR / "facts" / "SKILL.md").is_file())
+        self.assertIn("ideas/SKILL.md", sync.present_skill_relative_paths())
+        self.assertNotIn("facts/SKILL.md", sync.present_skill_relative_paths())
+
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            write(vault / "AGENTS.md", LEGACY_AGENTS)
+            write(vault / "📝 Journal" / "keep.md", "old line\n")
+            facts = vault / ".cursor" / "skills" / "facts" / "SKILL.md"
+            facts_extra = vault / ".cursor" / "skills" / "facts" / "references" / "schema.md"
+            ideas_extra = vault / ".cursor" / "skills" / "ideas" / "references" / "schema.md"
+            sentinel = b"VAULT FACTS SENTINEL\n"
+            write(facts, sentinel.decode("utf-8"))
+            write(facts_extra, "VAULT FACTS EXTRA\n")
+            write(ideas_extra, "VAULT IDEAS EXTRA\n")
+            before_facts = _file_snapshot(vault / ".cursor" / "skills" / "facts")
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                rc = sync.main(["--vault", str(vault), "--print-paths"])
+            listed = buf.getvalue()
+            self.assertEqual(rc, 0)
+            self.assertIn(".cursor/skills/ideas/SKILL.md", listed)
+            self.assertNotIn(".cursor/skills/facts/", listed)
+            self.assertEqual(facts.read_bytes(), sentinel)
+            self.assertEqual(facts_extra.read_text(encoding="utf-8"), "VAULT FACTS EXTRA\n")
+            self.assertEqual(ideas_extra.read_text(encoding="utf-8"), "VAULT IDEAS EXTRA\n")
+            self.assertEqual(before_facts, _file_snapshot(vault / ".cursor" / "skills" / "facts"))
+            ideas = vault / ".cursor" / "skills" / "ideas" / "SKILL.md"
+            self.assertEqual(
+                ideas.read_bytes(),
+                (sync.SKILLS_DIR / "ideas" / "SKILL.md").read_bytes(),
+            )
+
+            before = _tree_fingerprint(vault)
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                rc = sync.main(["--check", "--vault", str(vault)])
+            out = buf.getvalue()
+            self.assertEqual(rc, 0)
+            self.assertIn("drift clean", out)
+            self.assertIn(".cursor/skills/ideas/SKILL.md match", out)
+            self.assertNotIn("facts", out)
+            self.assertEqual(before, _tree_fingerprint(vault))
+            self.assertEqual(facts.read_bytes(), sentinel)
 
     def test_missing_vault_fails(self) -> None:
         rc = sync.main(["--vault", "/tmp/information-flow-missing-vault"])
@@ -333,7 +410,13 @@ class DriftCheckTests(unittest.TestCase):
             self.assertIn("drift clean", out)
             self.assertIn("agents_block match", out)
             for relative in sync.SKILL_RELATIVE_PATHS:
-                self.assertIn(f".cursor/skills/{relative} match", out)
+                reported = f".cursor/skills/{relative}"
+                if (sync.SKILLS_DIR / relative).is_file():
+                    self.assertIn(f"{reported} match", out)
+                else:
+                    self.assertNotIn(reported, out)
+            self.assertIn(".cursor/skills/ideas/SKILL.md match", out)
+            self.assertNotIn(".cursor/skills/facts/SKILL.md", out)
 
     def test_stale_copy(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
