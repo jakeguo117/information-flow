@@ -705,3 +705,59 @@ def test_bad_received_at_map_still_aborts(tmp_path: Path) -> None:
     assert shaped.returncode == 1
     assert json.loads(shaped.stdout) == {"ok": False, "error": "received-at map must be a JSON object"}
     assert not index.exists()
+
+
+YT_BAD_DATE_PATH = "📥 Inbox/YouTube-Likes/2026-10-20-badclock01.md"
+YT_BAD_DATE = """---
+video_id: badclock01
+title: 虚构标题：日期写坏了
+like_at: 2026-13-45T09:30:00+08:00
+source_url: https://example.com/watch?v=badclock01
+---
+"""
+WEREAD_BAD_CLOCK_PATH = "📥 Inbox/WeRead/synthbook002.md"
+WEREAD_BAD_CLOCK = (
+    WEREAD_FRONT.replace("synthbook001", "synthbook002")
+    + """> 📌 [合成划线：时间戳写坏了。](weread://highlight)
+> ⏱ 2026-02-30 21:05:00
+^synthbook002-1-10-20
+"""
+)
+
+
+def test_bad_date_inside_one_note_is_a_parse_skip(tmp_path: Path) -> None:
+    """T44a: a bad clock written in one note skips that note, not the run."""
+    vault = tmp_path / "vault"
+    write_tree(
+        vault,
+        {
+            YT_BAD_DATE_PATH: YT_BAD_DATE,
+            WEREAD_BAD_CLOCK_PATH: WEREAD_BAD_CLOCK,
+            YT_PATH: YT,
+            SNIPD_PATH: SNIPD,
+        },
+    )
+    index = tmp_path / "_index"
+    proc = run_index(vault, index)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is True
+    reasons = {item["path"]: item["reason"] for item in payload["skipped"]}
+    assert set(reasons) == {YT_BAD_DATE_PATH, WEREAD_BAD_CLOCK_PATH}
+    assert all(reason.startswith("bad date in note") for reason in reasons.values())
+    assert payload["skipped_count"] == 2
+    assert len(payload["created_input_ids"]) == 2
+    blob = (index / inbox_index.INPUTS_NAME).read_text(encoding="utf-8")
+    assert YT_PATH in blob and SNIPD_PATH in blob
+    assert YT_BAD_DATE_PATH not in blob and WEREAD_BAD_CLOCK_PATH not in blob
+
+
+def test_bad_received_at_value_still_aborts(tmp_path: Path) -> None:
+    """Context clocks are not note content: a malformed map timestamp still fails the run."""
+    vault = tmp_path / "vault"
+    write_tree(vault, {SNIPD_PATH: SNIPD, YT_PATH: YT})
+    bad = tmp_path / "bad-clock.json"
+    bad.write_text(json.dumps({SNIP: "2026-13-45T09:00:00+08:00"}), encoding="utf-8")
+    proc = run_index(vault, tmp_path / "_index", "--received-at-map", str(bad), "--dry-run")
+    assert proc.returncode == 1, proc.stdout
+    assert json.loads(proc.stdout)["ok"] is False
