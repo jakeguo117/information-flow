@@ -827,3 +827,294 @@ def test_ac03_same_run_cross_week_repeat(tmp_path: Path) -> None:
     stored = lines(index / inbox_index.INPUTS_NAME)
     assert len(stored) == 1
     assert stored[0]["inbox_ref"].startswith(X_PATH)
+
+
+# T44b. Invented episode and snip ids only. Same episode_url, renamed title.
+T44B_EPISODE = "c44b1001-1111-4111-8111-111111111101"
+T44B_SNIP_KEPT = "c44b1002-2222-4222-8222-222222222202"
+T44B_SNIP_NEW = "c44b1003-3333-4333-8333-333333333303"
+T44B_SNIP_SKIPPED = "c44b1004-4444-4444-8444-444444444404"
+T44B_TITLE_KEPT = "虚构标题：先登记的一集"
+T44B_TITLE_SEEN = "虚构标题：播客后来改的名字"
+T44B_PUBLISHED = "2026-09-01T08:00:00+08:00"
+T44B_PUBLISHED_OTHER = "2026-10-02T08:00:00+08:00"
+T44B_PATH_FIRST = "📥 Inbox/Snipd/example-show/a-first.md"
+T44B_PATH_SECOND = "📥 Inbox/Snipd/example-show/b-renamed.md"
+
+
+def t44b_snipd(title: str, snips: list[tuple[str, str]], published: str = T44B_PUBLISHED) -> str:
+    sections = []
+    for snip_id, quote in snips:
+        sections.append(
+            f"### [00:12:03] 虚构片段\n"
+            f"[🎧 Play snip](https://share.snipd.com/snip/{snip_id})\n"
+            f"\n"
+            f"> {quote}\n"
+        )
+    return (
+        "---\n"
+        f"episode_title: {title}\n"
+        "show_author: Example Host\n"
+        f"episode_publish_date: {published}\n"
+        f"episode_url: https://example.com/snipd/episodes/{T44B_EPISODE}\n"
+        "---\n"
+        "\n"
+        "## Snips\n"
+        "\n" + "\n".join(sections)
+    )
+
+
+def test_t44b_keeps_existing_title_and_appends_new_snips(tmp_path: Path) -> None:
+    """Indexed Source keeps its title. A renamed export appends new snips and reports the conflict."""
+    vault = tmp_path / "vault"
+    index = tmp_path / "_index"
+    original = t44b_snipd(T44B_TITLE_KEPT, [(T44B_SNIP_KEPT, "合成摘录：原文件里的一句虚构原话。")])
+    renamed = t44b_snipd(
+        T44B_TITLE_SEEN,
+        [(T44B_SNIP_NEW, "合成摘录：改名文件里新出现的一句虚构原话。")],
+    )
+    write_tree(vault, {T44B_PATH_FIRST: original})
+    first = run_index(vault, index)
+    assert first.returncode == 0, first.stdout
+    sources_bytes = (index / inbox_index.SOURCES_NAME).read_bytes()
+    stored_source = lines(index / inbox_index.SOURCES_NAME)[0]
+    assert stored_source["title"] == T44B_TITLE_KEPT
+    assert stored_source["source_id"] == f"src-snipd-{T44B_EPISODE}"
+
+    write_tree(vault, {T44B_PATH_SECOND: renamed})
+    second = run_index(vault, index)
+    assert second.returncode == 0, second.stdout
+    payload = json.loads(second.stdout)
+    assert payload["ok"] is True
+    assert payload["skipped_count"] == 0
+    assert payload["conflict_count"] == 1
+    assert payload["conflicts"] == [
+        {
+            "path": T44B_PATH_SECOND,
+            "source_id": stored_source["source_id"],
+            "rule": "kept_existing_title",
+            "fields": [{"field": "title", "kept": T44B_TITLE_KEPT, "seen": T44B_TITLE_SEEN}],
+        }
+    ]
+    assert (index / inbox_index.SOURCES_NAME).read_bytes() == sources_bytes
+    stored_inputs = lines(index / inbox_index.INPUTS_NAME)
+    assert {item["external_item_id"] for item in stored_inputs} == {T44B_SNIP_KEPT, T44B_SNIP_NEW}
+    created = next(item for item in stored_inputs if item["external_item_id"] == T44B_SNIP_NEW)
+    assert created["input_id"] in payload["created_input_ids"]
+    before = snapshot(index)
+
+    again = run_index(vault, index)
+    assert again.returncode == 0, again.stdout
+    repeated = json.loads(again.stdout)
+    assert repeated["conflict_count"] == 1
+    assert repeated["conflicts"] == payload["conflicts"]
+    assert repeated["created_source_ids"] == []
+    assert repeated["created_input_ids"] == []
+    assert snapshot(index) == before
+
+
+def test_t44b_first_path_sorted_note_registers_source(tmp_path: Path) -> None:
+    """Empty index: the path-sorted first note owns the Source. The later title is a conflict."""
+    vault = tmp_path / "vault"
+    index = tmp_path / "_index"
+    first_body = t44b_snipd(T44B_TITLE_KEPT, [(T44B_SNIP_KEPT, "合成摘录：路径排序靠前的一句虚构原话。")])
+    second_body = t44b_snipd(T44B_TITLE_SEEN, [(T44B_SNIP_NEW, "合成摘录：路径排序靠后的一句虚构原话。")])
+    write_tree(vault, {T44B_PATH_SECOND: second_body, T44B_PATH_FIRST: first_body})
+    proc = run_index(vault, index)
+    assert proc.returncode == 0, proc.stdout
+    payload = json.loads(proc.stdout)
+    stored = lines(index / inbox_index.SOURCES_NAME)
+    assert len(stored) == 1
+    assert stored[0]["title"] == T44B_TITLE_KEPT
+    assert stored[0]["source_id"] == f"src-snipd-{T44B_EPISODE}"
+    assert payload["created_source_ids"] == [stored[0]["source_id"]]
+    assert payload["conflict_count"] == 1
+    assert payload["conflicts"] == [
+        {
+            "path": T44B_PATH_SECOND,
+            "source_id": stored[0]["source_id"],
+            "rule": "kept_existing_title",
+            "fields": [{"field": "title", "kept": T44B_TITLE_KEPT, "seen": T44B_TITLE_SEEN}],
+        }
+    ]
+    assert {item["external_item_id"] for item in lines(index / inbox_index.INPUTS_NAME)} == {
+        T44B_SNIP_KEPT,
+        T44B_SNIP_NEW,
+    }
+
+    control = tmp_path / "control"
+    alone = tmp_path / "alone"
+    write_tree(alone, {T44B_PATH_FIRST: first_body})
+    control_run = run_index(alone, control)
+    assert control_run.returncode == 0, control_run.stdout
+    assert lines(index / inbox_index.SOURCES_NAME)[0] == lines(control / inbox_index.SOURCES_NAME)[0]
+
+
+def test_t44b_hard_source_mismatch_skips_note(tmp_path: Path) -> None:
+    """Title plus published_at skips the note. None of its Inputs are written. Exit 0."""
+    vault = tmp_path / "vault"
+    index = tmp_path / "_index"
+    original = t44b_snipd(T44B_TITLE_KEPT, [(T44B_SNIP_KEPT, "合成摘录：已入库的一句虚构原话。")])
+    mismatch = t44b_snipd(
+        T44B_TITLE_SEEN,
+        [(T44B_SNIP_SKIPPED, "合成摘录：这条不该入库的虚构原话。")],
+        published=T44B_PUBLISHED_OTHER,
+    )
+    write_tree(vault, {T44B_PATH_FIRST: original})
+    first = run_index(vault, index)
+    assert first.returncode == 0, first.stdout
+    before = snapshot(index)
+    source_id = lines(index / inbox_index.SOURCES_NAME)[0]["source_id"]
+    kept_published = lines(index / inbox_index.SOURCES_NAME)[0]["published_at"]
+
+    write_tree(vault, {T44B_PATH_SECOND: mismatch})
+    proc = run_index(vault, index)
+    assert proc.returncode == 0, proc.stdout
+    payload = json.loads(proc.stdout)
+    assert payload["created_input_ids"] == []
+    assert payload["created_source_ids"] == []
+    assert payload["skipped_count"] == 0
+    assert payload["conflict_count"] == 1
+    conflict = payload["conflicts"][0]
+    assert conflict["path"] == T44B_PATH_SECOND
+    assert conflict["source_id"] == source_id
+    assert conflict["rule"] == "skipped_source_mismatch"
+    fields = {item["field"]: item for item in conflict["fields"]}
+    assert set(fields) == {"title", "published_at"}
+    assert fields["title"] == {"field": "title", "kept": T44B_TITLE_KEPT, "seen": T44B_TITLE_SEEN}
+    assert fields["published_at"]["kept"] == kept_published
+    assert fields["published_at"]["seen"] != kept_published
+    assert snapshot(index) == before
+    blob = (index / inbox_index.INPUTS_NAME).read_text(encoding="utf-8")
+    assert T44B_SNIP_SKIPPED not in blob
+    assert T44B_PATH_SECOND not in blob
+
+
+def test_t44b_dry_run_reports_conflicts_without_writing(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    index = tmp_path / "_index"
+    write_tree(
+        vault,
+        {
+            T44B_PATH_SECOND: t44b_snipd(
+                T44B_TITLE_SEEN,
+                [(T44B_SNIP_NEW, "合成摘录：试跑里后到的一句虚构原话。")],
+            ),
+            T44B_PATH_FIRST: t44b_snipd(
+                T44B_TITLE_KEPT,
+                [(T44B_SNIP_KEPT, "合成摘录：试跑里先到的一句虚构原话。")],
+            ),
+        },
+    )
+    proc = run_index(vault, index, "--dry-run")
+    assert proc.returncode == 0, proc.stdout
+    payload = json.loads(proc.stdout)
+    assert payload["ok"] is True
+    assert payload["dry_run"] is True
+    assert payload["conflict_count"] == 1
+    assert payload["conflicts"][0]["rule"] == "kept_existing_title"
+    assert payload["conflicts"][0]["path"] == T44B_PATH_SECOND
+    assert len(payload["conflicts"]) == payload["conflict_count"]
+    assert payload["skipped_count"] == 0
+    assert not index.exists()
+    written = sorted(path.relative_to(vault).as_posix() for path in vault.rglob("*") if path.is_file())
+    assert written == [T44B_PATH_FIRST, T44B_PATH_SECOND]
+
+
+def test_t44b_input_diff_and_bad_index_still_exit_1(tmp_path: Path) -> None:
+    """Input field changes, a bad received-at map, and bad jsonl still abort."""
+    vault = tmp_path / "content"
+    index = tmp_path / "content-index"
+    write_tree(vault, {YT_PATH: YT})
+    first = run_index(vault, index)
+    assert first.returncode == 0, first.stdout
+    before = snapshot(index)
+    changed = YT.replace("合成摘录：示例频道用虚构情节说明一个观点。", "合成摘录：另一句虚构句子。")
+    write_tree(vault, {YT_PATH: changed})
+    diffed = run_index(vault, index)
+    assert diffed.returncode == 1, diffed.stdout
+    body = json.loads(diffed.stdout)
+    assert body["ok"] is False
+    assert body["error"] == "diff"
+    assert any(item["field"] == "content_fingerprint" for item in body["diffs"])
+    assert snapshot(index) == before
+
+    map_vault = tmp_path / "map-vault"
+    write_tree(map_vault, {SNIPD_PATH: SNIPD})
+    bad_map = tmp_path / "bad-map.json"
+    bad_map.write_text(json.dumps({SNIP: 1}), encoding="utf-8")
+    mapped = run_index(map_vault, tmp_path / "map-index", "--received-at-map", str(bad_map))
+    assert mapped.returncode == 1, mapped.stdout
+    assert json.loads(mapped.stdout) == {"ok": False, "error": "received-at map values must be timestamps"}
+    assert not (tmp_path / "map-index").exists()
+
+    bare = tmp_path / "newline-vault"
+    newline_index = tmp_path / "newline-index"
+    write_tree(bare, {YT_PATH: YT})
+    built = run_index(bare, newline_index)
+    assert built.returncode == 0, built.stdout
+    sources_path = newline_index / inbox_index.SOURCES_NAME
+    sources_path.write_text(sources_path.read_text(encoding="utf-8").rstrip("\n"), encoding="utf-8")
+    inputs_before = (newline_index / inbox_index.INPUTS_NAME).read_bytes()
+    missing_nl = run_index(bare, newline_index)
+    assert missing_nl.returncode == 1, missing_nl.stdout
+    assert "newline" in json.loads(missing_nl.stdout)["error"]
+    assert (newline_index / inbox_index.INPUTS_NAME).read_bytes() == inputs_before
+
+    invalid_vault = tmp_path / "invalid-vault"
+    invalid_index = tmp_path / "invalid-index"
+    write_tree(invalid_vault, {YT_PATH: YT})
+    built = run_index(invalid_vault, invalid_index)
+    assert built.returncode == 0, built.stdout
+    sources_path = invalid_index / inbox_index.SOURCES_NAME
+    sources_path.write_text(sources_path.read_text(encoding="utf-8") + "{not json}\n", encoding="utf-8")
+    inputs_before = (invalid_index / inbox_index.INPUTS_NAME).read_bytes()
+    invalid = run_index(invalid_vault, invalid_index)
+    assert invalid.returncode == 1, invalid.stdout
+    assert "not json" in json.loads(invalid.stdout)["error"]
+    assert (invalid_index / inbox_index.INPUTS_NAME).read_bytes() == inputs_before
+
+
+def test_t44b_walk_order_does_not_pick_the_source(tmp_path: Path, monkeypatch) -> None:
+    """Empty index, 4 notes for one episode, 3 conflicts. Any filesystem walk order gives the same result."""
+    import random
+
+    vault = tmp_path / "vault"
+    third = "📥 Inbox/Snipd/example-show/c-third.md"
+    fourth = "📥 Inbox/Snipd/example-show/d-fourth.md"
+    snips = [f"c44b10{i:02d}-5555-4555-8555-5555555555{i:02d}" for i in range(10, 14)]
+    write_tree(
+        vault,
+        {
+            fourth: t44b_snipd("虚构标题：第四个", [(snips[3], "合成：四")], published=T44B_PUBLISHED_OTHER),
+            third: t44b_snipd("虚构标题：第三个", [(snips[2], "合成：三")]),
+            T44B_PATH_SECOND: t44b_snipd(T44B_TITLE_SEEN, [(snips[1], "合成：二")]),
+            T44B_PATH_FIRST: t44b_snipd(T44B_TITLE_KEPT, [(snips[0], "合成：一")]),
+        },
+    )
+    real_rglob = Path.rglob
+    outcomes = set()
+    for seed in ("reversed", 0, 1, 2, 3, 4, 5, 6, 7):
+
+        def walk(self, pattern, _seed=seed):
+            items = list(real_rglob(self, pattern))
+            if _seed == "reversed":
+                items.sort(reverse=True)
+            else:
+                random.Random(_seed).shuffle(items)
+            return iter(items)
+
+        monkeypatch.setattr(Path, "rglob", walk)
+        found = inbox_index.discover_notes(vault)
+        monkeypatch.setattr(Path, "rglob", real_rglob)
+        result = inbox_index.index_notes(found.notes, tmp_path / f"idx-{seed}", now=YT_NOW, dry_run=True)
+        assert [item.path for item in found.notes] == [T44B_PATH_FIRST, T44B_PATH_SECOND, third, fourth]
+        assert [source["title"] for source in result.planned_sources] == [T44B_TITLE_KEPT]
+        assert [(item["path"], item["rule"]) for item in result.conflicts] == [
+            (T44B_PATH_SECOND, "kept_existing_title"),
+            (third, "kept_existing_title"),
+            (fourth, "skipped_source_mismatch"),
+        ]
+        assert {item["external_item_id"] for item in result.planned_inputs} == set(snips[:3])
+        outcomes.add(json.dumps([result.created_input_ids, result.conflicts], ensure_ascii=False, sort_keys=True))
+    assert len(outcomes) == 1
