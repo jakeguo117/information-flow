@@ -113,6 +113,20 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
             self.assertTrue(
                 (vault / ".cursor" / "skills" / "cognition" / "tools" / "write_cognition.py").is_file()
             )
+            content_skill = vault / ".cursor" / "skills" / "content" / "SKILL.md"
+            content_record = (
+                vault / ".cursor" / "skills" / "content" / "references" / "content-record.md"
+            )
+            self.assertEqual(
+                content_skill.read_text(encoding="utf-8"),
+                (sync.SKILLS_DIR / "content" / "SKILL.md").read_text(encoding="utf-8"),
+            )
+            self.assertEqual(
+                content_record.read_text(encoding="utf-8"),
+                (sync.SKILLS_DIR / "content" / "references" / "content-record.md").read_text(
+                    encoding="utf-8"
+                ),
+            )
             self.assertIn("Jake", agents)
             self.assertIn("## Vault 结构", agents)
             self.assertIn(sync.MARK_START, agents)
@@ -159,12 +173,15 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 ".cursor/skills/cognition/tools/retrieve_cognition.py",
                 ".cursor/skills/cognition/tools/write_cognition.py",
                 ".cursor/skills/ideas/SKILL.md",
+                ".cursor/skills/content/SKILL.md",
+                ".cursor/skills/content/references/content-record.md",
                 "AGENTS.md",
             ],
         )
         self.assertIn("ideas/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("facts/SKILL.md", sync.SKILL_RELATIVE_PATHS)
-        self.assertNotIn("content/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("content/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("content/references/content-record.md", sync.SKILL_RELATIVE_PATHS)
         self.assertNotIn(
             ".cursor/skills/facts/SKILL.md",
             sync.commit_paths(Path("/tmp/unused")),
@@ -201,6 +218,24 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
         self.assertIn("capture_thought.py", listed_tools)
         self.assertIn("thought_lib.py", listed_tools)
         self.assertIn("thoughts.md", listed_references)
+
+    def test_every_content_file_is_allowlisted(self) -> None:
+        """Files under skills/content must be copied. Sync does not glob."""
+        files = {
+            str(path.relative_to(sync.SKILLS_DIR))
+            for path in (sync.SKILLS_DIR / "content").rglob("*")
+            if path.is_file()
+        }
+        listed = {
+            relative
+            for relative in sync.SKILL_RELATIVE_PATHS
+            if relative.startswith("content/")
+        }
+        self.assertEqual(
+            files,
+            {"content/SKILL.md", "content/references/content-record.md"},
+        )
+        self.assertEqual(files, listed)
 
     def test_allowlist_adds_ideas_and_facts_without_deleting_vault_copies(self) -> None:
         """ideas/SKILL.md is copied; facts/SKILL.md stays allowlisted until its source exists.
@@ -351,6 +386,53 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertIn("自己认周", text)
         self.assertIn("不写 `📖 Cognition/`", text)
         self.assertNotIn("W38 有什么", text)
+
+    def test_content_skill_contract(self) -> None:
+        text = (sync.SKILLS_DIR / "content" / "SKILL.md").read_text(encoding="utf-8")
+        record = (sync.SKILLS_DIR / "content" / "references" / "content-record.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("name: content", text)
+        for step in (
+            "1. 发现选题",
+            "2. 确定选题",
+            "3. 内容策划",
+            "4. 内容生产",
+            "5. 审核发布",
+            "6. 反馈复盘",
+        ):
+            self.assertIn(step, text)
+        self.assertIn("三层过滤", text)
+        self.assertIn("自检清单", text)
+        self.assertIn("发布授权绑定版本", text)
+        self.assertIn("body_sha256", text)
+        self.assertIn("不代发", text)
+        self.assertIn("private-jake", text)
+        self.assertIn("public-ok", text)
+        self.assertIn("800–1500", text)
+        self.assertIn("周日 20:00", text)
+        self.assertIn("周一 10:00", text)
+        self.assertIn("小红书", text)
+        self.assertIn("公众号", text)
+        self.assertIn("批 / 改 / 不要", text)
+        self.assertIn("家人、钱和持仓、健康、工作客户、具体人名", text)
+        self.assertNotIn("每日 digest", text)
+        self.assertNotIn("我的看法", text)
+        self.assertNotIn("thesis", text.lower())
+        self.assertNotIn("年-W周", text)
+        self.assertNotIn("digest.md", text)
+        self.assertIn("content-0.1", record)
+        self.assertIn("content_id", record)
+        self.assertIn("body_sha256", record)
+        self.assertIn("audience_problem", record)
+        self.assertIn("source_refs", record)
+        self.assertIn("wechat_mp", record)
+        self.assertIn("发布包", record)
+        self.assertIn("fdb72bfb9f4bd951a2680766aa646d7c1b30c18cec519efda4347804171d996c", record)
+        self.assertNotIn("每日 digest", record)
+        self.assertNotIn("我的看法", record)
+        self.assertNotIn("thesis", record.lower())
+        self.assertNotIn("年-W周", record)
 
 
 def _tree_fingerprint(root: Path) -> dict[str, str]:
