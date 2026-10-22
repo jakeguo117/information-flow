@@ -54,7 +54,6 @@ SKILL_RELATIVE_PATHS = (
     "content/SKILL.md",
     "content/references/content-record.md",
     "content/tools/trace_content.py",
-    "content/tools/test_content_trace.py",
 )
 
 MARK_START = "<!-- information-flow:digest-route:start -->"

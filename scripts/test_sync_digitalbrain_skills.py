@@ -176,7 +176,6 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 ".cursor/skills/content/SKILL.md",
                 ".cursor/skills/content/references/content-record.md",
                 ".cursor/skills/content/tools/trace_content.py",
-                ".cursor/skills/content/tools/test_content_trace.py",
                 "AGENTS.md",
             ],
         )
@@ -227,6 +226,8 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
             str(path.relative_to(sync.SKILLS_DIR))
             for path in (sync.SKILLS_DIR / "content").rglob("*")
             if path.is_file()
+            and "__pycache__" not in path.parts
+            and not path.name.startswith("test_")
         }
         listed = {
             relative
@@ -239,7 +240,6 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 "content/SKILL.md",
                 "content/references/content-record.md",
                 "content/tools/trace_content.py",
-                "content/tools/test_content_trace.py",
             },
         )
         self.assertEqual(files, listed)
