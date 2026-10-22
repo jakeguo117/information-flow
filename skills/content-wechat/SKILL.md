@@ -1,6 +1,6 @@
 ---
 name: content-wechat
-description: "写公众号。必须先加载 content-core。同一逻辑链可加厚。标题、摘要、封面、小标题、正文图、文末出处齐全。不另加未确认观点。不代发。"
+description: "写公众号。必须先加载 content-core。出图前加载 canvas-design。同一逻辑链可加厚。标题、摘要、21:9 封面、小标题、正文图、文末出处齐全。不另加未确认观点。不代发。"
 ---
 
 # content-wechat
@@ -11,9 +11,11 @@ description: "写公众号。必须先加载 content-core。同一逻辑链可�
 
 必须先加载 `skills/content-core/SKILL.md`。未加载 core，不得写，不得交卡。
 
+出封面或正文图之前，再加载并遵守 `skills/canvas-design/SKILL.md`。未加载不得出图。本技能只补 21:9、1:1、中文字体和安全区。canvas-design 不产公众号 HTML。
+
 公众号样例只按本技能写。不用 X 或小红书稿改写成公众号样例。
 
-开场按 content-core「foundation 硬规则」：第一段直接说事儿，禁止「清楚过几天就糊了」一类起势。
+开场按 content-core：第一段直接说事儿，说的是处境或判断；禁止「清楚过几天就糊了」一类起势。数据和论文不放在第一句。读者向骨架按「写手五条」。
 
 ## 参考
 
@@ -28,7 +30,7 @@ description: "写公众号。必须先加载 content-core。同一逻辑链可�
 5. 经历：改写后的经历（Idea 或讨论确认），不是 Journal 粘贴
 6. 收束：清晰结论句
 
-这六步是「五层加厚」的展开。不用加厚时，四段逻辑链就够。收束不用营销金句。硬金句禁止见 content-core。
+这六步是「五层加厚」的展开，用来内部对齐，不是读者目录，也不要写成 01、02、03。不用加厚时，按 content-core 的叙事链写就够。交卡仍交逻辑链四行。收束不用营销金句。硬金句禁止见 content-core。
 
 交稿前按 content-core 做 copy-edit。指引是 [autopunk copy-editor](https://github.com/ur-grue/autopunk-media-skills/blob/main/skills/editing/copy-editor/SKILL.md)（只作指引，不把外部仓库拷进本库）。公众号再单独看一遍标题、摘要和小标题：它们不得承诺正文没有的判断。
 
@@ -45,7 +47,22 @@ description: "写公众号。必须先加载 content-core。同一逻辑链可�
 
 小标题有信息量，规则见 content-core 的排版自检。出处用文末出处块，格式与 X 的链接加日期一致。
 
-封面和正文图的张数随逻辑链，可以多于 X 的 1–3 张。每张图服务案例、数据或机制中的一步。图源和「配图/示意」见 content-core。换图 revision 加一。
+封面和正文图的张数随论证，可以多于 X 的 1–3 张。每张图服务案例、数据或机制中的一步。图源和「配图/示意」见 content-core。换图 revision 加一。
+
+canvas-design 没有 21:9，也没有中文字体，也不产公众号 HTML。正文仍用本技能的标题、摘要、小标题和文末出处，不另做一套 HTML 组件。本仓库不附带 `canvas-fonts/`。
+
+- 画幅：信息流封面用 21:9。需要方图时用 1:1。正文图为全宽，跟正文栏走。
+- 中文：Noto Sans CJK、Source Han，或系统里已有的 CJK。要衬线时用 Noto Serif CJK 或 Source Han Serif。
+- 安全区：21:9 左右会被裁，标题和主体放在中间。1:1 同样把主体放在中心。正文图里的字离开四边。
+- 协调：画面、背景、字体是同一套；背景不必是蓝。三者不协调就重做。
+
+交图前勾选：
+
+- [ ] 已加载 canvas-design；封面是 21:9 或 1:1，正文图全宽
+- [ ] 中文用 Noto Sans CJK、Source Han 或系统 CJK，没有缺字
+- [ ] 标题和主体在安全区内，没有被左右裁掉
+- [ ] 画面、背景、字体协调，背景不必是蓝
+- [ ] 没有用 canvas-design 生成公众号 HTML
 
 ## 放进哪一栏
 
