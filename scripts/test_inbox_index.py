@@ -1073,3 +1073,48 @@ def test_t44b_input_diff_and_bad_index_still_exit_1(tmp_path: Path) -> None:
     assert invalid.returncode == 1, invalid.stdout
     assert "not json" in json.loads(invalid.stdout)["error"]
     assert (invalid_index / inbox_index.INPUTS_NAME).read_bytes() == inputs_before
+
+
+def test_t44b_walk_order_does_not_pick_the_source(tmp_path: Path, monkeypatch) -> None:
+    """Empty index, 4 notes for one episode, 3 conflicts. Any filesystem walk order gives the same result."""
+    import random
+
+    vault = tmp_path / "vault"
+    third = "📥 Inbox/Snipd/example-show/c-third.md"
+    fourth = "📥 Inbox/Snipd/example-show/d-fourth.md"
+    snips = [f"c44b10{i:02d}-5555-4555-8555-5555555555{i:02d}" for i in range(10, 14)]
+    write_tree(
+        vault,
+        {
+            fourth: t44b_snipd("虚构标题：第四个", [(snips[3], "合成：四")], published=T44B_PUBLISHED_OTHER),
+            third: t44b_snipd("虚构标题：第三个", [(snips[2], "合成：三")]),
+            T44B_PATH_SECOND: t44b_snipd(T44B_TITLE_SEEN, [(snips[1], "合成：二")]),
+            T44B_PATH_FIRST: t44b_snipd(T44B_TITLE_KEPT, [(snips[0], "合成：一")]),
+        },
+    )
+    real_rglob = Path.rglob
+    outcomes = set()
+    for seed in ("reversed", 0, 1, 2, 3, 4, 5, 6, 7):
+
+        def walk(self, pattern, _seed=seed):
+            items = list(real_rglob(self, pattern))
+            if _seed == "reversed":
+                items.sort(reverse=True)
+            else:
+                random.Random(_seed).shuffle(items)
+            return iter(items)
+
+        monkeypatch.setattr(Path, "rglob", walk)
+        found = inbox_index.discover_notes(vault)
+        monkeypatch.setattr(Path, "rglob", real_rglob)
+        result = inbox_index.index_notes(found.notes, tmp_path / f"idx-{seed}", now=YT_NOW, dry_run=True)
+        assert [item.path for item in found.notes] == [T44B_PATH_FIRST, T44B_PATH_SECOND, third, fourth]
+        assert [source["title"] for source in result.planned_sources] == [T44B_TITLE_KEPT]
+        assert [(item["path"], item["rule"]) for item in result.conflicts] == [
+            (T44B_PATH_SECOND, "kept_existing_title"),
+            (third, "kept_existing_title"),
+            (fourth, "skipped_source_mismatch"),
+        ]
+        assert {item["external_item_id"] for item in result.planned_inputs} == set(snips[:3])
+        outcomes.add(json.dumps([result.created_input_ids, result.conflicts], ensure_ascii=False, sort_keys=True))
+    assert len(outcomes) == 1
