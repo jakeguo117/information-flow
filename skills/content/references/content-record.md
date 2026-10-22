@@ -15,7 +15,7 @@ schema_version = content-0.1
 | `schema_version` | 必填 | 字面量 `"content-0.1"` |
 | `content_id` | 第一次记下时按下方公式确定 | 身份只存这一键。格式 `^content-[0-9a-f]{12}$` |
 | `type` | 必填 | 字面量 `"content"` |
-| `revision` | 必填 | 整数，从 1 起。核心表达、brief、任一渠道正文，或卡片图、封面图、正文里的图片有实质改动就加 1 |
+| `revision` | 必填 | 整数，从 1 起。核心表达、brief、任一渠道正文，或卡片图、封面图、X 配图、正文里的图片有实质改动就加 1 |
 | `created_at` | 第一次记下时必填，之后不变 | `YYYY-MM-DDTHH:MM:SS+08:00`，时区 Asia/Hong_Kong |
 | `updated_at` | 必填 | 同上。每次 revision 加 1 时改成当时 |
 | `origin` | 必填 | `jake`｜`ai_extension`。题目是他先提出的，用 `jake`。AI 提的候选即使用他的原话，也保持 `ai_extension` |
@@ -30,7 +30,7 @@ schema_version = content-0.1
 | `expression` | 选题确定后必填 | 他的核心表达。只能是他的原话，或他改过并确认的整句 |
 | `expression_by` | `expression` 非空时必填 | 只能是 `jake`。没有这键，`expression` 不算已确认 |
 | `source_refs` | 必填，字符串列表 | 见「来源」。候选至少一项 |
-| `experience_quotes` | 必填，字符串列表，允许 `[]` | 他的经历原话。讲观念至少一项 |
+| `experience_quotes` | 必填，字符串列表，允许 `[]` | 改写后的经历叙述，来自 Idea 或讨论确认，不是 Journal 连续原句。讲观念至少一项 |
 | `form` | 选题确定后必填 | `news_comment`｜`concept_story` |
 | `brief` | 策划起必填 | 结构、引用、案例、写法、排期。一段文字 |
 | `channels` | 草稿起必填 | 见「渠道」。三版都要有 |
@@ -70,7 +70,7 @@ schema_version = content-0.1
 |---|---|
 | `idea:` | 后面是 `idea-` 加 12 位十六进制 |
 | `fact:` | 后面是 `fact-` 加 12 位十六进制 |
-| `journal:` | 周记文件名，必要时加 `#` 和段落位置 |
+| `journal:` | 周记文件名，必要时加 `#` 和段落位置。只作出处指针，正文不得粘贴该段原话 |
 | `experience:jake` | 经历在 `experience_quotes` 里，不在别的节点上 |
 
 评新闻至少有一项 `fact:` 或一条带日期的链接。链接写成 `URL | YYYY-MM-DD | 用来做什么`。竖线两侧各一个空格。日期是事实的日期，不是写稿当天。
@@ -186,7 +186,7 @@ sha1 按 UTF-8 字节、十六进制小写，取前 12 位。`source_refs` 为�
 
 ## 自检
 
-按 skills/content/SKILL.md 的自检清单，每项写过或不过。
+按 skills/content-core/SKILL.md 的自检清单，每项写过或不过。旧 skills/content/SKILL.md 已停用。
 
 ## X
 
@@ -199,7 +199,7 @@ sha1 按 UTF-8 字节、十六进制小写，取前 12 位。`source_refs` 为�
 卡片：
 - {n/N} {这一页的文案}
 
-卡片图：实际的卡片图。评新闻用真实图表或截图，并写出处；讲观念可以用生成图，图里没有真人。不只写配图说明。
+卡片图：实际的卡片图。图源按 content-core：优先 Grok Bot 按论点生成的定制图；自家数据图或表可以，并写出处。未授权网图不得当作新闻现场照。生成图若像实拍新闻，文内标明「配图/示意」。讲观念可以用生成图，图里没有真人。不只写配图说明。
 
 ## 公众号
 

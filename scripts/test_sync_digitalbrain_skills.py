@@ -176,6 +176,10 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 ".cursor/skills/content/SKILL.md",
                 ".cursor/skills/content/references/content-record.md",
                 ".cursor/skills/content/tools/trace_content.py",
+                ".cursor/skills/content-core/SKILL.md",
+                ".cursor/skills/content-x/SKILL.md",
+                ".cursor/skills/content-xhs/SKILL.md",
+                ".cursor/skills/content-wechat/SKILL.md",
                 "AGENTS.md",
             ],
         )
@@ -183,6 +187,10 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
         self.assertIn("facts/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("content/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("content/references/content-record.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("content-core/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("content-x/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("content-xhs/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("content-wechat/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertNotIn(
             ".cursor/skills/facts/SKILL.md",
             sync.commit_paths(Path("/tmp/unused")),
@@ -395,11 +403,25 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertNotIn("W38 有什么", text)
 
     def test_content_skill_contract(self) -> None:
-        text = (sync.SKILLS_DIR / "content" / "SKILL.md").read_text(encoding="utf-8")
+        stub = (sync.SKILLS_DIR / "content" / "SKILL.md").read_text(encoding="utf-8")
+        core = (sync.SKILLS_DIR / "content-core" / "SKILL.md").read_text(encoding="utf-8")
+        x_skill = (sync.SKILLS_DIR / "content-x" / "SKILL.md").read_text(encoding="utf-8")
+        xhs_skill = (sync.SKILLS_DIR / "content-xhs" / "SKILL.md").read_text(encoding="utf-8")
+        wechat_skill = (sync.SKILLS_DIR / "content-wechat" / "SKILL.md").read_text(
+            encoding="utf-8"
+        )
         record = (sync.SKILLS_DIR / "content" / "references" / "content-record.md").read_text(
             encoding="utf-8"
         )
-        self.assertIn("name: content", text)
+        self.assertIn("name: content", stub)
+        self.assertIn("已停用", stub)
+        self.assertIn("skills/content-core/SKILL.md", stub)
+        self.assertIn("skills/content-x/SKILL.md", stub)
+        self.assertIn("skills/content-xhs/SKILL.md", stub)
+        self.assertIn("skills/content-wechat/SKILL.md", stub)
+        self.assertNotIn("1. 发现选题", stub)
+        self.assertNotIn("一条帖子出三版", stub)
+        self.assertNotIn("周记里已经写清的句子直接引用", stub)
         for step in (
             "1. 发现选题",
             "2. 确定选题",
@@ -408,26 +430,50 @@ class SkillFlowContractTests(unittest.TestCase):
             "5. 审核发布",
             "6. 反馈复盘",
         ):
-            self.assertIn(step, text)
-        self.assertIn("三层过滤", text)
-        self.assertIn("自检清单", text)
-        self.assertIn("发布授权绑定版本", text)
-        self.assertIn("body_sha256", text)
-        self.assertIn("不代发", text)
-        self.assertIn("private-jake", text)
-        self.assertIn("public-ok", text)
-        self.assertIn("800–1500", text)
-        self.assertIn("周日 20:00", text)
-        self.assertIn("周一 10:00", text)
-        self.assertIn("小红书", text)
-        self.assertIn("公众号", text)
-        self.assertIn("批 / 改 / 不要", text)
-        self.assertIn("家人、钱和持仓、健康、工作客户、具体人名", text)
-        self.assertNotIn("每日 digest", text)
-        self.assertNotIn("我的看法", text)
-        self.assertNotIn("thesis", text.lower())
-        self.assertNotIn("年-W周", text)
-        self.assertNotIn("digest.md", text)
+            self.assertIn(step, core)
+        self.assertIn("三层过滤", core)
+        self.assertIn("自检清单", core)
+        self.assertIn("发布授权绑定版本", core)
+        self.assertIn("body_sha256", core)
+        self.assertIn("不代发", core)
+        self.assertIn("private-jake", core)
+        self.assertIn("public-ok", core)
+        self.assertIn("800–1500", core)
+        self.assertIn("周日 20:00", core)
+        self.assertIn("周一 10:00", core)
+        self.assertIn("小红书", core)
+        self.assertIn("公众号", core)
+        self.assertIn("批 / 改 / 不要", core)
+        self.assertIn("家人、钱和持仓、健康、工作客户、具体人名", core)
+        self.assertIn("内容/草稿/{年-W周}/", core)
+        self.assertIn("连续 20 个字符", core)
+        self.assertIn("Grok Bot", core)
+        self.assertIn("配图/示意", core)
+        self.assertIn("「周记里已经写清的句子直接引用」已废止", core)
+        sensitive = "家人、钱和持仓、健康、工作客户、具体人名"
+        for platform, body in (
+            ("content-x", x_skill),
+            ("content-xhs", xhs_skill),
+            ("content-wechat", wechat_skill),
+        ):
+            self.assertIn("必须先加载", body, platform)
+            self.assertIn("skills/content-core/SKILL.md", body, platform)
+            self.assertNotIn(sensitive, body, platform)
+            self.assertNotIn("一条帖子出三版", body, platform)
+        self.assertIn("800–1500", x_skill)
+        self.assertIn("1–3", x_skill)
+        self.assertIn("短帖可以没有配图", x_skill)
+        self.assertIn("不要求小红书式多图卡片", x_skill)
+        self.assertIn("纸纹底", xhs_skill)
+        self.assertIn("同一条逻辑链", xhs_skill)
+        self.assertIn("title", wechat_skill)
+        self.assertIn("sources_note", wechat_skill)
+        self.assertIn("不另加他没确认的观点", wechat_skill)
+        for doc in (stub, core, x_skill, xhs_skill, wechat_skill):
+            self.assertNotIn("每日 digest", doc)
+            self.assertNotIn("我的看法", doc)
+            self.assertNotIn("thesis", doc.lower())
+            self.assertNotIn("digest.md", doc)
         self.assertIn("content-0.1", record)
         self.assertIn("content_id", record)
         self.assertIn("body_sha256", record)
@@ -436,15 +482,20 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertIn("wechat_mp", record)
         self.assertIn("发布包", record)
         self.assertIn("fdb72bfb9f4bd951a2680766aa646d7c1b30c18cec519efda4347804171d996c", record)
+        self.assertIn("skills/content-core/SKILL.md", record)
         drive_home = "Google Drive「内容/草稿/{周}/」"
         local_disk = "不把发布包写到这台机器的本地磁盘"
         images = "实际的卡片图和封面图"
         image_rebind = "换图也要把 revision 加一"
-        for doc in (text, record):
-            self.assertIn(drive_home, doc)
-            self.assertIn(local_disk, doc)
-            self.assertIn(images, doc)
-            self.assertIn(image_rebind, doc)
+        self.assertIn("内容/草稿/{年-W周}/", core)
+        self.assertIn(local_disk, core)
+        self.assertIn(images, core)
+        self.assertIn(image_rebind, core)
+        self.assertIn(drive_home, record)
+        self.assertIn(local_disk, record)
+        self.assertIn(images, record)
+        self.assertIn(image_rebind, record)
+        for doc in (core, record):
             self.assertNotIn("发布包停在对话里", doc)
             self.assertNotIn("发布包留在对话里", doc)
             self.assertNotIn("还停在对话里", doc)
