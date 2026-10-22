@@ -27,7 +27,7 @@ description: "写公众号。必须先加载 content-core。出图前加载 canv
 2. 数据：Fact 里可核验的数字，附链接和日期
 3. 机制：与 content-core 的主线对齐，不另起论点
 4. 框架：把机制收成读者能复用的结构，不塞进未确认的新判断
-5. 经历：改写后的经历（Idea 或讨论确认），不是 Journal 粘贴
+5. 经历：已确认之后的经历（Idea 里他确认的 `expression`，或讨论里他确认的整句），不是 Journal 粘贴。未确认的改写不能顶上，见 content-core
 6. 收束：清晰结论句
 
 这六步是「五层加厚」的展开，用来内部对齐，不是读者目录，也不要写成 01、02、03。不用加厚时，按 content-core 的主线写就够。交卡按 content-core 的逻辑链。收束不用营销金句。硬金句禁止见 content-core。

@@ -16,7 +16,7 @@ schema_version = ideas-0.1
 | `revision` | 必填 | 通用 `revision` | 整数，从 1 起。只有修订加 1 |
 | `created_at` | 第一次写入时必填，之后不变 | 通用 `created_at` | `YYYY-MM-DDTHH:MM:SS+08:00`，时区 Asia/Hong_Kong |
 | `updated_at` | 必填 | 通用 `updated_at` | 同上。每次追加 history 时改成该条的 `at` |
-| `expression` | 必填 | 核心表达 | 离开原周记也能读懂的那句。strip 之后为空则拒绝 |
+| `expression` | 必填 | 核心表达 | 离开原周记也能读懂的那句。strip 之后为空则拒绝。相对来源原话，不得新增步骤名或机制名，不得替换因果或目标。只动表面的改写见 `fidelity.md`。`suggested_expression` 不是本表的键 |
 | `source_refs` | 必填，字符串列表，允许 `[]` | 来源/上下文；通用 `source_refs` | 每一项是整段引用：周记、input、fact、URL 加段落或时间戳。不拆成对象 |
 | `context` | 可选 | 来源/上下文 | 引用之外的情境。省略表示没有额外情境 |
 | `topics` | 必填，字符串列表，允许 `[]` | 主题 | 主题词。不按发布/自用分成互斥类 |
@@ -32,7 +32,7 @@ schema_version = ideas-0.1
 | `status` | 有默认值 | 通用 `status` | 省略时写 `"active"`。只能是 `active`｜`archived`。职责见下，不承接确认或验证 |
 | `history` | 必填，列表 | 使用反馈与历史 | 同一 `idea_id` 的显式快照列表，只追加。最后一条等于当前字段 |
 
-`visibility` 的 `public-ok` 就是要保留的 public_ok（与 facts-0.1 一样用连字符）。枚举里保留这三项，不改名，不删 `public-ok`。
+`visibility` 的 `public-ok` 就是要保留的 public_ok（与 facts-0.1 一样用连字符）。枚举里保留这三项，不改名，不删 `public-ok`。`public-ok` 只表示可见范围，不表示当前 `expression` 已确认，也不能单独把 `ai_extension` 交给 content。
 
 ## 确认状态
 
@@ -54,6 +54,12 @@ Jake 确认记录是 `history` 里的一条，同时满足：`by` 为 `jake`，`
 同一条写入可以把 Jake 确认记录放进 `history` 再把当前状态写成 `confirmed`。`origin` 仍是 `ai_extension`，不改成 `jake`。AI 延伸在确认前的状态是 `candidate`。
 
 `rejected` 与 `deferred` 同样要有对应的 Jake history 条目。延伸不能替他写成已舍弃或暂存。
+
+### AC-Fidelity
+
+未经他确认的 `expression`，若相对来源原话新增了步骤名或机制名，或因果、目标被替换，则不得写入。这一条否决的是模型改写。他亲自改过并确认的整句以那句为准。模型多出来的增量只允许出现在确认前候选里的 `suggested_expression`。`suggested_expression` 不是 ideas-0.1 的节点字段，不进 frontmatter，也不进 `history`。短清单 `public-ok` 不能单独把 `ai_extension` 的改写句写成 `confirmed`，也不能单独把它交给 content。
+
+这一条在落盘前拦住。节点字段里没有来源原话，不能靠枚举代替这次自检。不合格的句子不得放进提交的 `expression`。选取、表面改写和自检见 `fidelity.md`。
 
 ## 验证状态
 
@@ -176,7 +182,7 @@ history 每一条是写入之后的快照，创建那一次也在里面。最后
 
 ## 将来写入时应拒绝
 
-T35 实现。本包没有 `write_idea.py`。拒绝时退出码非 0，目标文件一个字节不动：
+T35 实现。本包没有 `write_idea.py`。拒绝时退出码非 0，目标文件一个字节不动。AC-Fidelity 不在下面这份枚举里：来源原话不在节点上，组 payload 时就要拦住，见上文 AC-Fidelity。下面这些仍然拒绝：
 
 - `schema_version` 不是 `ideas-0.1`，或 `type` 不是 `idea`
 - `expression` 或 `idea_id` strip 后为空；第一次写入的 `idea_id` 与公式不一致；之后重算 `idea_id`

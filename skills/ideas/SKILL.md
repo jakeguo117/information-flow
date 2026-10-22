@@ -5,7 +5,7 @@ description: "提炼想法。Jake 说「提炼想法」，或周记/反思收束
 
 # ideas
 
-给 Jake 自己用。字段、枚举、AC10 和七种关系见 `references/schema.md`。`schema_version` 字面量是 `ideas-0.1`。时区 Asia/Hong_Kong。
+给 Jake 自己用。字段、枚举、AC10、AC-Fidelity 和七种关系见 `references/schema.md`。选取与改写的细则见 `references/fidelity.md`。`schema_version` 字面量是 `ideas-0.1`。时区 Asia/Hong_Kong。
 
 规则源在 information-flow。本包不改 DigitalBrain 里已有的 Ideas 笔记。落盘将走 `skills/ideas/tools/write_idea.py`（T35），现在只定义字段与流程。
 
@@ -21,9 +21,9 @@ description: "提炼想法。Jake 说「提炼想法」，或周记/反思收束
 
 ### 1. 读周记或反思
 
-读刚写完的那篇周记，或这次已经收束的反思。用他的原话理解核心表达。旧周记里的状态不当作当前事实。不改周记，不写 `📝 Journal/`。
+读刚写完的那篇周记，或这次已经收束的反思。用他的原话理解核心表达。能整句用他的原话，就整句用，标 `origin` 为 `jake`，少动。旧周记里的状态不当作当前事实。不改周记，不写 `📝 Journal/`。
 
-每条候选离开原文也要能看懂：表达、适用场景、限制写全。不为了凑数硬拆。
+每条候选离开原文也要能看懂：表达、适用场景、限制写全。不为了凑数硬拆，也不为了更像一篇文章而换因果。
 
 ### 2. 查已有 Idea
 
@@ -40,13 +40,23 @@ description: "提炼想法。Jake 说「提炼想法」，或周记/反思收束
 - `origin`：`jake`｜`ai_extension`
 - 建议的 `confirmation_state`
 
-他的原话，或他已经说完整的那句，`origin` 为 `jake`。模型补出来的问题、假设、归纳、改写，`origin` 为 `ai_extension`。
+他亲口说完整的一句，`origin` 为 `jake`。模型补出来的问题、假设、归纳、改写，`origin` 为 `ai_extension`。怎么选、怎么改、什么时候能交给 content，按下一小节，不另用一套标准。
 
-AI 延伸单列，`confirmation_state` 为 `candidate`。不把它们说成 Jake 的观点，也不预填 `confirmed`。
+#### 选取与改写保真
 
-他逐条选择：保留、改写、暂存、舍弃。
+准确传递这句 Idea 要说的意思。好听、好排、好写成几步机制，都排在保真后面。下面是浓缩。对照表、自检五题和反面例子见 `references/fidelity.md`。
 
-- 保留：认可当前这句，确认为 `confirmed`
+选取优先原话。周记、聊天或确认记录里，他已经说完整的一句，`origin` 为 `jake`，`expression` 用这句原话，不要先改写再拿去确认。模型从多句归纳、补问或改写出来的，`origin` 为 `ai_extension`，`confirmation_state` 只能是 `candidate`。不把延伸说成他的观点，也不预填 `confirmed`。短清单已经标可公开，但还没有确认这句 `expression` 时，只可当作来源线索，不是 content 能用的 `expression`。
+
+改写只动表面。允许语序微调、把中英夹杂改成通顺中文、去掉口头赘词，以及不引入新步骤名或机制名的同义替换。离开周记之后仍要可读。禁止换因果（因为 A 所以做 B，不能改成因为 C 所以做 D）。禁止换目标。禁止添加原话没有的步骤名或机制名。禁止用外部框架反填进 `expression`。把「存下来、坚持、迭代、accumulate」收成「捕获—回看—改写／叠厚」，就是不合格改写。改完之后，因果箭头还要用原话里的词画得出来。画不出，就退回原话，或只做更小的表面改动。
+
+交候选前先做保真自检。原话里的原因、手段、结果，改写句里还必须在，方向相同。目标词保留，或只做同义，不换成新口号。`expression` 里不得出现原话没有的步骤名或机制名。多出来的解释、例子、机制拿掉，或只放进 `suggested_expression`，不得进 `expression`。`suggested_expression` 不是 ideas-0.1 的节点字段，不写入 Idea 文件。表面改写不要和 Journal 或短清单原话连续 20 个字相同；`origin` 为 `jake` 且用的就是原话时除外。任一题不过，不得把该句标成可交给 content 的 `expression`。
+
+短清单「可公开」不等于这句已经确认。`public-ok` 只表示可以作为公开素材来源，只解决 `visibility`。交给 content 的 `expression` 必须是他保留的原话，或他改过并确认的整句，并且有确认记录：`history` 里 `by` 为 `jake`，表达与当前 `expression` 一致。未再确认的改写句保持 `candidate`。节点测试和演示不得用短清单已批跳过这次确认。
+
+他逐条选择：保留、改写、暂存、舍弃。这里的改写只指他改过的整句，不是模型先改好的句子。
+
+- 保留：认可当前这句，确认为 `confirmed`。当前这句必须已经过保真自检
 - 改写：以他改过的整句为当前 `expression`，再确认
 - 暂存：`deferred`
 - 舍弃：`rejected`
@@ -69,7 +79,11 @@ python3 skills/ideas/tools/write_idea.py
 
 `origin` 为 `ai_extension`，且没有 Jake 确认记录时，`confirmation_state` 不得为 `confirmed`。将来 `write_idea.py` 应拒绝这种写入。记录的形状以 schema 为准：写在该 `idea_id` 的 `history` 里，`by` 为 `jake`，表达与当前 `expression` 一致。只在聊天里说过、没有进入记录的，不算已确认。
 
-`visibility` 省略时为 `private-jake`。取值保留 `private-jake`｜`team`｜`public-ok`（public_ok）。
+### AC-Fidelity
+
+未经他确认的 `expression`，相对来源原话若新增了步骤名或机制名，或因果、目标被替换，不得写入。这一条否决的是模型改写。他亲自改过并确认的整句以那句为准。模型多出来的步骤名、机制名、解释和例子，只允许出现在 `suggested_expression`。`suggested_expression` 只出现在确认前的候选里，不是节点字段。短清单 `public-ok` 不能单独把 `ai_extension` 的改写句升为可交 content。来源原话不在节点字段里，这一条在落盘前拦住，不靠枚举代替。细则见 `references/fidelity.md`。
+
+`visibility` 省略时为 `private-jake`。取值保留 `private-jake`｜`team`｜`public-ok`（public_ok）。`public-ok` 只表示可见范围，不表示这句 `expression` 已确认。
 
 ## 新节点放哪
 
