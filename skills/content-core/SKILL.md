@@ -1,13 +1,13 @@
 ---
 name: content-core
-description: "内容共用底线。写 X、小红书或公众号之前必须先加载。同 topic 一次交齐三版；禁 Journal 原话；essay 逻辑链；敏感五类；不代发。平台写法在 content-x、content-xhs、content-wechat。"
+description: "内容 foundation（ideology 与表达底线）。写 X、小红书或公众号之前必须先加载。anti-AI-slop；长文要 deeper thought；X 行文更深并保留 1–3 张逻辑链配图；小红书必须有 visual aid；公众号第一段直接说事儿。同 topic 一次交齐三版；禁 Journal 原话；essay 逻辑链；敏感五类；不代发。平台版式在 content-x、content-xhs、content-wechat。"
 ---
 
 # content-core
 
-共用意识形态和表达底线。不写某一平台的版式。
+本技能是唯一的 content foundation：意识形态，以及 Idea 到内容的表达底线。不写某一平台的版式。
 
-X 的写法在 `skills/content-x/SKILL.md`。小红书在 `skills/content-xhs/SKILL.md`。公众号在 `skills/content-wechat/SKILL.md`。旧 `skills/content/SKILL.md` 已停用，不能用它生产正文。
+X 的写法在 `skills/content-x/SKILL.md`。小红书在 `skills/content-xhs/SKILL.md`。公众号在 `skills/content-wechat/SKILL.md`。平台技能只叠渠道写法。旧 `skills/content/SKILL.md` 已停用，不能用它生产正文。
 
 字段、枚举、发布包、正文指纹和批准形状见 `skills/content/references/content-record.md`。`schema_version` 字面量是 `content-0.1`。时区 Asia/Hong_Kong，与上海时间同一钟面。
 
@@ -17,7 +17,39 @@ X 的写法在 `skills/content-x/SKILL.md`。小红书在 `skills/content-xhs/SK
 
 只出某一个平台的样例时，仍先加载本技能，再只加载那个平台技能。样例只按该平台技能写，不用别的平台稿改写充数。
 
+本技能加载的就是这套 foundation。三版和单平台样例都先过下一节「foundation 硬规则」，再按平台技能写版式。
+
 普通聊天不选题、不出稿。
+
+## foundation 硬规则
+
+写任何一版之前先过这四条。缺一条，不得交卡。配图张数和渠道版式仍在对应的平台技能，这里不复述。
+
+### 1. anti-AI-slop（全平台）
+
+禁止模板腔、空转句、overrated 或万能开场，包括「清楚过几天就糊了」这一类，以及正确的废话起势。
+
+开门见山，直接说事儿。
+
+长文要有 deeper thought：推论写清假设，机制说透。口语、像真人说话仍要。仅口语不过关。深度和去 slop 是底线。
+
+### 2. X
+
+配图保留 1–3 张，服务逻辑链。Articles 全宽真图等版式仍在 content-x。
+
+行文必须更深、更少 slop。仅「口语自然」不过关。
+
+### 3. 小红书
+
+必须有 visual aid / explanation：解释性配图或图示，类似 X 那种服务逻辑链的说明图。
+
+禁止只靠纯字卡或纯文字卡片交差。
+
+### 4. 公众号
+
+禁止「清楚过几天就糊了」及同类 AI 或 overrated 起势。
+
+开门见山。第一段就直接说事儿。
 
 ## 一次交齐
 
@@ -44,6 +76,8 @@ X 的写法在 `skills/content-x/SKILL.md`。小红书在 `skills/content-xhs/SK
 配图说明、卡片文案和正文阐释须达到专业自媒体 / essay 编辑水准。
 
 禁止看图写话、标签堆砌、正确的废话、无推论的罗列、「因为所以」断层，以及 shallow、rocky、小学生说明文。
+
+同时过 foundation 硬规则的 anti-AI-slop。长文要有 deeper thought：推论写清假设，机制说透。口语、像真人说话仍要。仅口语不过关。
 
 交稿前强制做一轮 copy-edit 自检。指引是 [autopunk copy-editor](https://github.com/ur-grue/autopunk-media-skills/blob/main/skills/editing/copy-editor/SKILL.md)（只作指引，不把外部仓库拷进本库）：收紧散文，标出逻辑缺口，不偷偷改他已确认的论点。缺口未补，不得交。
 
@@ -158,11 +192,11 @@ Fact（可核验：链接 + 日期）
 
 核心表达已经确认，brief 里点名的缺口也补上之后，才写正文。
 
-按 `skills/content-x/SKILL.md`、`skills/content-xhs/SKILL.md`、`skills/content-wechat/SKILL.md` 各写一版。一次交齐。缺一版，不得进入审核。
+按 `skills/content-x/SKILL.md`、`skills/content-xhs/SKILL.md`、`skills/content-wechat/SKILL.md` 各写一版，并过 foundation 硬规则。一次交齐。缺一版，不得进入审核。
 
 ### 5. 审核发布
 
-先做三层过滤、逻辑链、Journal 连续 20 字撞车、copy-edit 和排版自检。通过之后，按 `skills/content/references/content-record.md` 的发布包交卡。一张卡一条内容，卡上同时有这三版。
+先做三层过滤、foundation 硬规则、逻辑链、Journal 连续 20 字撞车、copy-edit 和排版自检。通过之后，按 `skills/content/references/content-record.md` 的发布包交卡。一张卡一条内容，卡上同时有这三版。
 
 交给他时请他回「收到」。当天没有，再提一次。还是没有，就说明他还没回「收到」。正式副本在 Google Drive「内容/草稿/{年-W周}/」（写成 ISO 周，例如 `2026-W42`）。不把发布包写到这台机器的本地磁盘。
 
@@ -194,6 +228,10 @@ bot 不代发。
 
 - [ ] 三版在同一张卡上一次交齐，并分别按 content-x、content-xhs、content-wechat 写成
 - [ ] 逻辑链四行完整：Fact（链接和日期）→ 推论（含假设）→ 机制 → 结论
+- [ ] anti-AI-slop（全平台）：没有模板腔、空转句、overrated 或万能开场（含「清楚过几天就糊了」一类）；开门见山，直接说事儿；长文有 deeper thought（推论写明假设，机制说透），仅口语不过
+- [ ] X：1–3 张服务逻辑链的配图仍在（版式按 content-x）；行文更深、更少 slop，仅「口语自然」不过
+- [ ] 小红书有 visual aid / explanation（解释性配图或图示）；不是纯字卡，也不是纯文字卡片
+- [ ] 公众号第一段直接说事儿；没有「清楚过几天就糊了」及同类 AI 或 overrated 起势
 - [ ] copy-edit 已做，标出的缺口已补，没有改掉已确认的论点
 - [ ] 排版自检五项已勾
 - [ ] Journal 连续 20 字撞车检查已做，无红

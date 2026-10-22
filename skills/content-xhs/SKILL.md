@@ -13,6 +13,8 @@ description: "写小红书。必须先加载 content-core。短 caption 加纸�
 
 小红书样例只按本技能写。不用 X 或公众号稿改写成小红书样例。
 
+visual aid / explanation 按 content-core「foundation 硬规则」：必须有解释性配图，禁止只交纯字卡。
+
 ## 参考
 
 按短内容、卡片编辑来写。不另引外部仓库。逻辑链的定义见 content-core；本平台只做这条链的压缩版。
