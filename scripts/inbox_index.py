@@ -17,8 +17,26 @@ A file that is not a note, and a note that fails to parse, is skipped.
 The jsonl record fields do not change. Success JSON adds ``skipped``
 (objects ``{"path", "reason"}``, paths relative to ``--inbox``) and
 ``skipped_count``. Discovery uses ``reason`` ``not_a_note``; a parse
-failure uses the parser message. See ``discover_notes``. ``IndexConflict``,
-a bad received-at map, and IO errors still fail the run.
+failure uses the parser message. See ``discover_notes``.
+
+A Source that matches a row already in the index, or registered earlier
+in this run, stays unchanged when the only differing fields are soft
+(``SOFT_SOURCE_FIELDS``, currently ``title``). That note's Inputs are
+still indexed. Success JSON lists one conflict object
+``{"path", "source_id", "rule": "kept_existing_title", "fields": [{"field", "kept", "seen"}]}``.
+Any other Source field difference skips that whole note, writes none of
+its Inputs, and lists every differing field under ``rule``
+``skipped_source_mismatch``. Both cases exit 0. Success JSON also adds
+``conflicts`` and ``conflict_count``. The same conflicts are reported
+again on every run, including ``--dry-run``; they are not stored. On an
+empty index, ``discover_notes`` yields notes in path-sorted order and
+the first of those notes is the registered Source.
+
+``IndexConflict`` still fails the run: an existing Input field changed
+(for example ``content_fingerprint``), or an append readback mismatch.
+A jsonl file missing its trailing newline or containing a non-JSON line,
+a bad received-at map or value, a bad ``--now``, and IO errors also fail
+the run.
 """
 
 from __future__ import annotations
@@ -42,6 +60,9 @@ PROCESS_STATES = ("pending", "processing", "completed", "failed", "retry_pending
 HISTORICAL_THROUGH_YEAR = 2022
 # Discovery skip. Parse failures use the parser message instead.
 NOT_A_NOTE = "not_a_note"
+# Source fields that may differ without replacing the stored Source.
+# Any other Source field difference skips the whole note.
+SOFT_SOURCE_FIELDS = ("title",)
 # skills/journal/references/thoughts.md: 📝 Journal/想法/digests/digest-{journal_event_id}.md
 THOUGHT_DIGESTS_DIR = "digests"
 
@@ -124,6 +145,7 @@ class IndexResult:
     planned_sources: list[dict]
     planned_inputs: list[dict]
     skipped: list[dict[str, str]]
+    conflicts: list[dict]
 
 
 def inputs_for_week(inputs: list[dict], week: str) -> list[dict]:
@@ -177,7 +199,10 @@ def index_notes(
 
     ``NoteParseError`` skips that note. Other notes are still indexed.
     ``skipped`` lists those parse failures and does not include discovery
-    skips. Record fields are unchanged.
+    skips. Record fields are unchanged. A soft Source mismatch
+    (``SOFT_SOURCE_FIELDS``) keeps the stored Source and is listed on
+    ``conflicts``. Any other Source field mismatch skips the note before
+    its Inputs are written. ``conflicts`` is recomputed every run.
     """
 
     clock = _clock(now)
@@ -198,6 +223,7 @@ def index_notes(
     existing_input_ids: list[str] = []
     diffs: list[FieldDiff] = []
     skipped: list[dict[str, str]] = []
+    conflicts: list[dict] = []
 
     for note in notes:
         try:
@@ -213,13 +239,18 @@ def index_notes(
             created_source_ids.append(source["source_id"])
             working_sources.append(source)
         else:
-            diffs.extend(
-                _diff_record(
-                    existing_source["source_id"],
-                    existing_source,
-                    _stabilize_source(source, existing_source),
-                )
+            source_diffs = _diff_record(
+                existing_source["source_id"],
+                existing_source,
+                _stabilize_source(source, existing_source),
             )
+            soft = [item for item in source_diffs if item.field in SOFT_SOURCE_FIELDS]
+            hard = [item for item in source_diffs if item.field not in SOFT_SOURCE_FIELDS]
+            if hard:
+                conflicts.append(_source_conflict(note.path, "skipped_source_mismatch", hard + soft))
+                continue
+            if soft:
+                conflicts.append(_source_conflict(note.path, "kept_existing_title", soft))
         for item in parsed["inputs"]:
             existing_item = _find_input(working_inputs, item)
             if existing_item is None:
@@ -264,6 +295,7 @@ def index_notes(
         planned_sources=planned_sources,
         planned_inputs=planned_inputs,
         skipped=skipped,
+        conflicts=conflicts,
     )
 
 
@@ -452,6 +484,15 @@ def _stabilize_input(proposed: dict, existing: dict) -> dict:
         if key in existing:
             stabilized[key] = existing[key]
     return stabilized
+
+
+def _source_conflict(path: str, rule: str, diffs: list[FieldDiff]) -> dict:
+    return {
+        "path": path,
+        "source_id": diffs[0].record_id,
+        "rule": rule,
+        "fields": [{"field": item.field, "kept": item.existing, "seen": item.proposed} for item in diffs],
+    }
 
 
 def _diff_record(record_id: str, existing: dict, proposed: dict) -> list[FieldDiff]:
@@ -672,6 +713,8 @@ def main(argv: list[str] | None = None) -> int:
             "input_count": len(result.inputs),
             "skipped": skipped,
             "skipped_count": len(skipped),
+            "conflicts": result.conflicts,
+            "conflict_count": len(result.conflicts),
         }
     )
     return 0
