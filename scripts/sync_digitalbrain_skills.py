@@ -51,6 +51,8 @@ SKILL_RELATIVE_PATHS = (
     "cognition/tools/write_cognition.py",
     "ideas/SKILL.md",
     "facts/SKILL.md",
+    "content/SKILL.md",
+    "content/references/content-record.md",
 )
 
 MARK_START = "<!-- information-flow:digest-route:start -->"
