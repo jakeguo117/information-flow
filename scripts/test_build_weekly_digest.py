@@ -382,6 +382,7 @@ class SkillContractTests(unittest.TestCase):
             self.assertIn(old_week, text)
             self.assertNotIn("📋 Digests/weekly-briefs/{YYYY-Wnn}.md", text)
             self.assertNotIn("📋 Digests/weekly-briefs/{YYYY-Wnn}/digest.md", text)
+            self.assertNotIn("T-2026W42-a", text)
             start = 0
             found = 0
             while True:
