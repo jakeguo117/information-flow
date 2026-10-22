@@ -1,17 +1,17 @@
 ---
 name: content-x
-description: "X 运营写 X、X Article、X 长文或 X 短帖。必须先加载 content-core，再只加载本技能。出图前加载 canvas-design。同一写作上下文禁止 Skill load content-xhs 或 content-wechat。内容写手不写 X、不加载本技能。中文长文 800–1500 字，口语，交 X Articles 阅读页：5:2 封面，正文 1–3 张全宽真图。短帖可以不配图。不代发。"
+description: "X 运营写 X 长文母稿（X、X Article、X 长文或 X 短帖）。必须先加载 content-core，再只加载本技能。出图前加载 canvas-design。同一写作上下文禁止 Skill load content-xhs 或 content-wechat。内容写手和公众号编辑不写母稿、不加载本技能。中文长文 800–1500 字，口语，交 X Articles 阅读页：5:2 封面，正文 1–3 张全宽真图。短帖可以不配图。不代发。"
 ---
 
 # content-x
 
 写 X、X Article、X 长文或 X 短帖。这里只写平台版式和写法。敏感、逻辑链、禁 Journal 原话、图源、不代发，都在 content-core，不在这里复述。一次交齐三版的适用范围在 content-core：只要 X 时不适用。
 
-谁加载：X 运营。与 content-core 一起用，再只加载本技能。内容写手不写 X 长文，不加载本技能。X 配图仍由内容视觉按 content-visual。
+谁加载：X 运营，写 X 长文母稿。与 content-core 一起用，再只加载本技能。内容写手和公众号编辑不写母稿，不加载本技能。X 配图仍由内容视觉按 content-visual。运营五条另见 content-x-ops，可与写长文分线程，一次只做一类。
 
 ## 第一步
 
-任务是写 X、X Article、X 长文或 X 短帖时，由 X 运营加载。加载顺序只有：`skills/content-core/SKILL.md` →（要出封面或配图才加载 `skills/canvas-design/SKILL.md`）→ 本技能。禁止在这一轮、这一写作上下文里 Skill load `content-xhs` 或 `content-wechat`。内容写手不进入这一轮。
+任务是写 X、X Article、X 长文或 X 短帖时，由 X 运营加载。加载顺序只有：`skills/content-core/SKILL.md` →（要出封面或配图才加载 `skills/canvas-design/SKILL.md`）→ 本技能。禁止在这一轮、这一写作上下文里 Skill load `content-xhs` 或 `content-wechat`。内容写手和公众号编辑不进入这一轮。
 
 必须先加载 `skills/content-core/SKILL.md`。未加载 core，不得写，不得交卡。
 
@@ -19,7 +19,7 @@ description: "X 运营写 X、X Article、X 长文或 X 短帖。必须先加载
 
 X 样例只按本技能写。不用小红书或公众号稿改写成 X 样例。X 样例同样禁止加载 content-xhs 或 content-wechat。
 
-整周多渠道发布包，或他明确要三版交齐：那不是上面这条只要 X 的加载。X 这一版仍只加载 content-core 和本技能，不加载 content-xhs 或 content-wechat。小红书和公众号由内容写手各自加载。本技能仍只负责 X 版式。
+整周多渠道发布包，或他明确要三版交齐：那不是上面这条只要 X 的加载。X 这一版仍只加载 content-core 和本技能，不加载 content-xhs 或 content-wechat。小红书由内容写手加载 content-xhs。公众号由公众号编辑按 content-wechat 从本岗的 X 母稿转换。本技能仍只负责 X 版式。
 
 出图规则在 `skills/content-visual/SKILL.md`（内容视觉）。出图前仍先加载 canvas-design。运营骨架在 `skills/content-x-ops/SKILL.md`（也是 X 运营；写长文和跑运营可以分线程，一次只做一类）。这两处都不是 content-xhs，也不是 content-wechat。
 

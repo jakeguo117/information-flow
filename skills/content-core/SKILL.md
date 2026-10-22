@@ -1,20 +1,21 @@
 ---
 name: content-core
-description: "内容 foundation（ideology 与表达底线）。写 X、小红书或公众号之前必须先加载。anti-AI-slop；长文要 deeper thought；X 行文更深并保留 1–3 张逻辑链配图；小红书必须有 visual aid；公众号第一段直接说事儿。整周多渠道包或明确三版交齐才一次交齐三版；任务只要写 X、X Article、X 长文或 X 短帖时只加载 content-x，禁止同轮 Skill load content-xhs 或 content-wechat；禁 Journal 原话；交卡从中心思想写起，并写明我们的看法；正文沿主线展开；敏感五类；不代发。出封面、配图或卡片前必须加载 canvas-design。编辑审稿加载 qu-ai-wei。平台版式在 content-x、content-xhs、content-wechat。谁加载：X 长文是 X 运营（content-core + content-x）；运营五条也是 X 运营（content-x-ops，可与写长文分线程，一次一类）；小红书和公众号是内容写手（content-core + content-xhs 或 content-wechat，不写 X 长文、不加载 content-x）；X 配图是内容视觉；编辑审稿是编辑（非作者），不写死 bot。"
+description: "内容 foundation（ideology 与表达底线）。写 X、小红书或公众号之前必须先加载。anti-AI-slop；长文要 deeper thought；X 行文更深并保留 1–3 张逻辑链配图；小红书必须有 visual aid；公众号第一段直接说事儿。整周多渠道包或明确三版交齐才一次交齐三版；任务只要写 X、X Article、X 长文或 X 短帖时只加载 content-x，禁止同轮 Skill load content-xhs 或 content-wechat；禁 Journal 原话；交卡从中心思想写起，并写明我们的看法；正文沿主线展开；敏感五类；不代发。出封面、配图或卡片前必须加载 canvas-design。编辑审稿加载 qu-ai-wei。平台版式在 content-x、content-xhs、content-wechat。谁加载：X 长文母稿是 X 运营（content-core + content-x）；运营五条也是 X 运营（content-x-ops，可与写长文分线程，一次一类）；小红书是内容写手（content-core + content-xhs）；公众号是公众号编辑（content-wechat，从 X 母稿转换，不另写新稿）；三渠道图是内容视觉，按渠道裁；编辑审稿是编辑（非作者），不写死 bot。"
 ---
 
 # content-core
 
 本技能是唯一的 content foundation：意识形态，以及 Idea 到内容的表达底线。不写某一平台的版式。
 
-X 的写法在 `skills/content-x/SKILL.md`（X 运营加载）。小红书在 `skills/content-xhs/SKILL.md`，公众号在 `skills/content-wechat/SKILL.md`（内容写手加载；不写 X 长文，不加载 content-x）。平台技能只叠渠道写法。旧 `skills/content/SKILL.md` 已停用，不能用它生产正文。
+X 的写法在 `skills/content-x/SKILL.md`（X 运营加载，写 X 长文母稿）。小红书在 `skills/content-xhs/SKILL.md`（内容写手加载，只小红书）。公众号在 `skills/content-wechat/SKILL.md`（公众号编辑加载，从 X 母稿转换）。平台技能只叠渠道写法。旧 `skills/content/SKILL.md` 已停用，不能用它生产正文。
 
 ## 谁加载
 
-- X 长文、X Article、X 短帖：X 运营。加载 content-core + content-x。不加载 content-xhs、content-wechat。
+- X 长文母稿、X Article、X 短帖：X 运营。加载 content-core + content-x。不加载 content-xhs、content-wechat。
 - 运营五条：X 运营。加载 content-x-ops。写长文和做运营可以分线程，一次只做一类。
-- 小红书、公众号：内容写手。加载 content-core + content-xhs 或 content-wechat。不写 X 长文，不加载 content-x。
-- X 配图：内容视觉。加载 content-visual。出图前先加载 canvas-design。
+- 小红书：内容写手。只加载 content-core + content-xhs。不写 X，不写公众号。
+- 公众号：公众号编辑。加载 content-wechat，从 X 母稿转换。不另写新稿，不换中心思想。
+- 配图：内容视觉。三渠道共用图按渠道裁（X 5:2；公众号封面 2.35:1、分享图 1:1；小红书按平台比例）。加载 content-visual。出图前先加载 canvas-design。
 - 编辑审稿：编辑（非作者）。不写死是哪一个 bot。
 
 字段、枚举、发布包、正文指纹和批准形状见 `skills/content/references/content-record.md`。`schema_version` 字面量是 `content-0.1`。时区 Asia/Hong_Kong，与上海时间同一钟面。
@@ -23,15 +24,17 @@ X 的写法在 `skills/content-x/SKILL.md`（X 运营加载）。小红书在 `s
 
 先加载本技能，再按任务决定平台技能。编辑审稿之前，编辑（非作者）加载 `skills/qu-ai-wei/SKILL.md`。作者写稿时不加载 qu-ai-wei 来代替本技能。qu-ai-wei 不是平台技能，不代替 content-x，也不把 content-xhs 或 content-wechat 带进只要 X 的这一轮。
 
-任务是写 X、X Article、X 长文或 X 短帖，并且不是整周多渠道发布包、也不是明确三版交齐：由 X 运营加载。加载顺序是 content-core → canvas-design（仅出图之前）→ content-x。禁止在这一轮、这一写作上下文里 Skill load `content-xhs` 或 `content-wechat`。内容写手不写这一轮。这种任务不套用「一次交齐」的三版要求，只交 X。点名只要 X 时，即便同时说了「写帖」「做内容」或 `/content`，仍走这一条。写 X 的正文排版以 content-x「写法」为准。该节已点选的条和本节编号清单、段长、小标题密度、收束冲突时，以 content-x 为准，不把旧排版当成硬门槛退稿。
+任务是写 X、X Article、X 长文或 X 短帖，并且不是整周多渠道发布包、也不是明确三版交齐：由 X 运营加载。加载顺序是 content-core → canvas-design（仅出图之前）→ content-x。禁止在这一轮、这一写作上下文里 Skill load `content-xhs` 或 `content-wechat`。内容写手和公众号编辑不写这一轮。这种任务不套用「一次交齐」的三版要求，只交 X。点名只要 X 时，即便同时说了「写帖」「做内容」或 `/content`，仍走这一条。写 X 的正文排版以 content-x「写法」为准。该节已点选的条和本节编号清单、段长、小标题密度、收束冲突时，以 content-x 为准，不把旧排版当成硬门槛退稿。
 
-任务是整周多渠道发布包，或他明确要三版交齐：他说「做内容」「选题」「写帖」「发布包」或 `/content`，以及作者出这一周的草稿，只要不是上一条的只要 X，都算这一包。X 版由 X 运营在 content-core 之后加载 content-x。小红书和公众号由内容写手在 content-core 之后加载 content-xhs、content-wechat。内容写手不加载 content-x。生成任何封面、配图、插图、卡片或版式之前，必须先加载并遵守 `skills/canvas-design/SKILL.md`。一次交齐三版是卡上三版都在。不出图的草稿不必先加载 canvas-design；一旦出图，必须先补上 canvas-design，再出图。缺任一版，不得交卡。
+任务是整周多渠道发布包，或他明确要三版交齐：他说「做内容」「选题」「写帖」「发布包」或 `/content`，以及作者出这一周的草稿，只要不是上一条的只要 X，都算这一包。X 版由 X 运营在 content-core 之后加载 content-x。小红书由内容写手在 content-core 之后加载 content-xhs。公众号由公众号编辑加载 content-wechat，从 X 母稿转换。内容写手不加载 content-x，也不加载 content-wechat。生成任何封面、配图、插图、卡片或版式之前，必须先加载并遵守 `skills/canvas-design/SKILL.md`。一次交齐三版是卡上三版都在。不出图的草稿不必先加载 canvas-design；一旦出图，必须先补上 canvas-design，再出图。缺任一版，不得交卡。
 
 加载顺序（只要 X，X 运营）：content-core → canvas-design（仅出图之前）→ content-x。
 
-加载顺序（小红书或公众号，内容写手）：content-core → canvas-design（仅出图之前）→ content-xhs 或 content-wechat。不加载 content-x。
+加载顺序（小红书，内容写手）：content-core → canvas-design（仅出图之前）→ content-xhs。不加载 content-x，不加载 content-wechat。
 
-加载顺序（整周包或三版交齐）：卡上三版交齐。X 运营只走 content-core → content-x。内容写手只走 content-core → content-xhs、content-wechat。出图之前由出图的那一岗加载 canvas-design。X 配图由内容视觉按 content-visual。
+加载顺序（公众号，公众号编辑）：content-core → content-wechat。从 X 母稿转换，不另写新稿。不加载 content-x 来重写母稿。
+
+加载顺序（整周包或三版交齐）：卡上三版交齐。X 运营只走 content-core → content-x。内容写手只走 content-core → content-xhs。公众号编辑走 content-wechat。配图由内容视觉按 content-visual 按渠道裁。出图之前由出图的那一岗加载 canvas-design。
 
 canvas-design 是出图用的审美层，不是第四个内容主技能。它没有中文字体，没有 5:2、3:4、21:9，也不产公众号 HTML。这三处只在平台技能里做薄适配，不把平台技能加厚成另一套主技能。
 
@@ -79,7 +82,7 @@ canvas-design 是出图用的审美层，不是第四个内容主技能。它没
 
 ## 一次交齐
 
-一次交齐三版只在两种任务里适用：整周多渠道发布包，或他明确要三版交齐。同一 topic 一次生成 X、小红书、公众号三版，放在同一张审批卡上。X 版由 X 运营写，小红书和公众号由内容写手写。三版分别按各自平台技能写。本技能不生产正文。缺任一版，不得交卡。
+一次交齐三版只在两种任务里适用：整周多渠道发布包，或他明确要三版交齐。同一 topic 一次生成 X、小红书、公众号三版，放在同一张审批卡上。X 版由 X 运营写，小红书由内容写手写，公众号由公众号编辑从 X 母稿转换。三版分别按各自平台技能写。本技能不生产正文。缺任一版，不得交卡。
 
 任务只要写 X、X Article、X 长文或 X 短帖：不加载 content-xhs 和 content-wechat，不要求另外两版同卡。只交 X。
 
@@ -297,9 +300,9 @@ Fact 只引用直接支撑中心思想的。要靠假设或外推才接得上的
 
 中心思想和看法已经确认，brief 里点名的缺口也补上之后，作者才写正文。
 
-只要 X（写 X、X Article、X 长文、X 短帖）：由 X 运营按 `skills/content-x/SKILL.md` 写，并过本轮适用的 foundation 硬规则和生成流程。内容写手不写这一轮。骨架按「写手五条」，可用可不用。生成封面或配图前先加载 canvas-design。禁止加载 content-xhs、content-wechat。只交 X，即可进入审稿。每一段都要服务主线的某一环。不为凑骨架编反方、经历或三步清单。
+只要 X（写 X、X Article、X 长文、X 短帖）：由 X 运营按 `skills/content-x/SKILL.md` 写，并过本轮适用的 foundation 硬规则和生成流程。内容写手和公众号编辑不写这一轮。骨架按「写手五条」，可用可不用。生成封面或配图前先加载 canvas-design。禁止加载 content-xhs、content-wechat。只交 X，即可进入审稿。每一段都要服务主线的某一环。不为凑骨架编反方、经历或三步清单。
 
-整周多渠道包或明确三版交齐：X 运营按 `skills/content-x/SKILL.md` 写 X 版，内容写手按 `skills/content-xhs/SKILL.md`、`skills/content-wechat/SKILL.md` 写另外两版，并过 foundation 硬规则和生成流程。骨架按「写手五条」，可用可不用。生成封面、配图或卡片前先加载 canvas-design。一次交齐。缺一版，不得进入审稿。每一段都要服务主线的某一环。不为凑骨架编反方、经历或三步清单。
+整周多渠道包或明确三版交齐：X 运营按 `skills/content-x/SKILL.md` 写 X 版，内容写手按 `skills/content-xhs/SKILL.md` 写小红书，公众号编辑按 `skills/content-wechat/SKILL.md` 从 X 母稿转公众号，并过 foundation 硬规则和生成流程。骨架按「写手五条」，可用可不用。生成封面、配图或卡片前先加载 canvas-design。一次交齐。缺一版，不得进入审稿。每一段都要服务主线的某一环。不为凑骨架编反方、经历或三步清单。
 
 ### 5. 审核发布
 
