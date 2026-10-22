@@ -29,8 +29,9 @@ its Inputs, and lists every differing field under ``rule``
 ``skipped_source_mismatch``. Both cases exit 0. Success JSON also adds
 ``conflicts`` and ``conflict_count``. The same conflicts are reported
 again on every run, including ``--dry-run``; they are not stored. On an
-empty index, ``discover_notes`` yields notes in path-sorted order and
-the first of those notes is the registered Source.
+empty index, the first registered Source is the first note in pathlib
+path order (sorted component-by-component by path parts).
+``discover_notes`` yields notes in that order.
 
 ``IndexConflict`` still fails the run: an existing Input field changed
 (for example ``content_fingerprint``), or an append readback mismatch.
