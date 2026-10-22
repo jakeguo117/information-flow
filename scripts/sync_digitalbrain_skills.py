@@ -58,6 +58,9 @@ SKILL_RELATIVE_PATHS = (
     "content-x/SKILL.md",
     "content-xhs/SKILL.md",
     "content-wechat/SKILL.md",
+    "canvas-design/SKILL.md",
+    "canvas-design/LICENSE.txt",
+    "canvas-design/SOURCE.md",
 )
 
 MARK_START = "<!-- information-flow:digest-route:start -->"
