@@ -17,9 +17,9 @@ X 样例只按本技能写。不用小红书或公众号稿改写成 X 样例。
 
 ## 参考
 
-下面两处只作写法指引，不把外部仓库拷进本库。
+下面两处只作写法参考，不覆盖 content-core，也不把这两处仓库拷进本库。
 
-- [news-article-writer](https://github.com/ur-grue/autopunk-media-skills/blob/main/skills/writing/articles/news-article-writer/SKILL.md)：事实优先，结构可裁切，不发明事实。
+- [news-article-writer](https://github.com/ur-grue/autopunk-media-skills/blob/main/skills/writing/articles/news-article-writer/SKILL.md)：结构可裁切，不发明事实。是否引用 Fact 按 content-core。
 - [journalism-core](https://github.com/jamditis/claude-skills-journalism)：用其中的 ai-writing-detox、newsroom-style、fact-check。去 AI 腔，归因，句子要能核验。
 
 ## 交卡用的正文
@@ -30,19 +30,19 @@ X 样例只按本技能写。不用小红书或公众号稿改写成 X 样例。
 
 ## 怎么写
 
-长文用口语，像真人在说话：少正式，禁止 formative 腔、论文腔和模板腔。逻辑链仍按 content-core，这里不复述。行文的 anti-AI-slop 和 deeper thought 按 content-core「foundation 硬规则」。入口句和读者向骨架按 content-core「写手五条」：首句是痛点或结果预告，接着给可带走的物。
+长文用口语，像真人在说话：少正式，禁止 formative 腔、论文腔和模板腔。主线和逻辑链按 content-core，这里不复述。行文的 anti-AI-slop 和 deeper thought 按 content-core「foundation 硬规则」。入口可以是痛点或结果预告，接着给可带走的物。骨架是否使用，按 content-core。
 
-开头先对号入座，再给事实。每个事实有来源链接和日期，规则见 content-core。不发明事实，不把模型补的判断写成他的口气。
+事实怎么引用、开头怎么起，按 content-core。每个用到的事实有来源链接和日期。不发明事实，不把模型补的判断写成他的口气。
 
-小标题要能裁切：只读某一节，也能看出这一步在论证什么。小标题用判断句。不要把 Fact、推论、机制、结论写成标题，也不要写成 01、02、03。
+小标题要能裁切：只读某一节，也能看出这一步在论证什么。小标题用判断句。不要把中心思想、Fact、我们的看法、结论写成标题，也不要写成 01、02、03。
 
-读者向骨架在 content-core：处境，误判，机制，最小动作，边界。一段只走一步。交卡四行仍是逻辑链，不印成目录。
+主线、交卡逻辑链和可选骨架都在 content-core，这里不复述，也不印成目录。
 
 去 AI 腔：不写空泛起势，不堆「不仅…更…」，不把结论写成口号。收束用 content-core 要求的结论句。
 
 ## 配图
 
-长文默认 1–3 张全宽正文图，插进 Articles 正文。每张图服务逻辑链上的一步（这一步的数据、推论或机制），不用来装饰，也不用示意性图位占位。
+长文默认 1–3 张全宽正文图，插进 Articles 正文。每张图服务 content-core 逻辑链上的一步，不用来装饰，也不用示意性图位占位。
 
 短帖可以不配图。
 

@@ -15,17 +15,17 @@ description: "写小红书。必须先加载 content-core。出图前加载 canv
 
 小红书样例只按本技能写。不用 X 或公众号稿改写成小红书样例。
 
-visual aid / explanation 按 content-core「foundation 硬规则」：必须有解释性配图，禁止只交纯字卡。选题、标题和分页顺序按 content-core「写手五条」。
+visual aid / explanation 按 content-core「foundation 硬规则」：必须有解释性配图，禁止只交纯字卡。选题和标题里的具体要求见 content-core。分页沿 content-core 的主线。
 
 ## 参考
 
-按短内容、卡片编辑来写。不另引外部仓库。逻辑链的定义见 content-core；caption 做同一条逻辑链的压缩版，分页按写手五条。
+按短内容、卡片编辑来写。不另引外部仓库。逻辑链的定义见 content-core；caption 做同一条逻辑链的压缩版。分页按 content-core 的主线。
 
 ## 文案
 
-`caption` 是一句到一段短文案，压缩同一条逻辑链：事实、推论（点明假设）、机制、结论都能对上，只是更短。读者看到的顺序按 content-core 写手五条，不把这四词写成页标题。
+`caption` 是一句到一段短文案，压缩 content-core 的同一条逻辑链，只是更短。不在这里重写链上有哪些行，也不把那些词写成页标题。
 
-卡片文案按叙事链分页，不是另写浅白口号，也不是看图写话。
+卡片文案按 content-core 的主线分页，不是另写浅白口号，也不是看图写话。
 
 禁止把卡片写成标签堆砌或小学生说明文。深度底线见 content-core。
 
@@ -41,7 +41,7 @@ visual aid / explanation 按 content-core「foundation 硬规则」：必须有�
 
 背景、颜色、字体可以变，封面也可以变。纸纹、衬线、页码保持。
 
-一页只走叙事链上的一步，或把一步里的一个数据拆开。页与页是因果或时间，不是定义 1/2/3。不为了凑页数加空页，也不把一句口号铺成多页。
+一页只走 content-core 主线上的一步，或把一步里的一个数据拆开。页与页是因果或时间，不是定义 1/2/3。不为了凑页数加空页，也不把一句口号铺成多页。
 
 小红书靠图。张数等于卡片页数。图源、无真人、标明「配图/示意」、不用付费图工具，见 content-core。换图 revision 加一。
 

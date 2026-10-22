@@ -61,6 +61,15 @@ SKILL_RELATIVE_PATHS = (
     "canvas-design/SKILL.md",
     "canvas-design/LICENSE.txt",
     "canvas-design/SOURCE.md",
+    "qu-ai-wei/SKILL.md",
+    "qu-ai-wei/LICENSE",
+    "qu-ai-wei/SOURCE.md",
+    "qu-ai-wei/references/pattern-catalog.md",
+    "qu-ai-wei/references/editing-boundaries.md",
+    "qu-ai-wei/references/examples.md",
+    "qu-ai-wei/references/platform-patterns.md",
+    "qu-ai-wei/references/brand-voice.md",
+    "qu-ai-wei/references/whitelists.md",
 )
 
 MARK_START = "<!-- information-flow:digest-route:start -->"
