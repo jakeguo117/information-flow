@@ -183,6 +183,15 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 ".cursor/skills/canvas-design/SKILL.md",
                 ".cursor/skills/canvas-design/LICENSE.txt",
                 ".cursor/skills/canvas-design/SOURCE.md",
+                ".cursor/skills/qu-ai-wei/SKILL.md",
+                ".cursor/skills/qu-ai-wei/LICENSE",
+                ".cursor/skills/qu-ai-wei/SOURCE.md",
+                ".cursor/skills/qu-ai-wei/references/pattern-catalog.md",
+                ".cursor/skills/qu-ai-wei/references/editing-boundaries.md",
+                ".cursor/skills/qu-ai-wei/references/examples.md",
+                ".cursor/skills/qu-ai-wei/references/platform-patterns.md",
+                ".cursor/skills/qu-ai-wei/references/brand-voice.md",
+                ".cursor/skills/qu-ai-wei/references/whitelists.md",
                 "AGENTS.md",
             ],
         )
@@ -197,6 +206,10 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
         self.assertIn("canvas-design/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("canvas-design/LICENSE.txt", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("canvas-design/SOURCE.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("qu-ai-wei/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("qu-ai-wei/LICENSE", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("qu-ai-wei/SOURCE.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("qu-ai-wei/references/pattern-catalog.md", sync.SKILL_RELATIVE_PATHS)
         self.assertNotIn(
             ".cursor/skills/facts/SKILL.md",
             sync.commit_paths(Path("/tmp/unused")),
@@ -279,6 +292,37 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 "canvas-design/SKILL.md",
                 "canvas-design/LICENSE.txt",
                 "canvas-design/SOURCE.md",
+            },
+        )
+        self.assertEqual(files, listed)
+
+    def test_every_qu_ai_wei_file_is_allowlisted(self) -> None:
+        """Files under skills/qu-ai-wei must be copied. Sync does not glob.
+
+        The vendored skill, license, source note, and references are the whole tree.
+        """
+        files = {
+            str(path.relative_to(sync.SKILLS_DIR))
+            for path in (sync.SKILLS_DIR / "qu-ai-wei").rglob("*")
+            if path.is_file()
+        }
+        listed = {
+            relative
+            for relative in sync.SKILL_RELATIVE_PATHS
+            if relative.startswith("qu-ai-wei/")
+        }
+        self.assertEqual(
+            files,
+            {
+                "qu-ai-wei/SKILL.md",
+                "qu-ai-wei/LICENSE",
+                "qu-ai-wei/SOURCE.md",
+                "qu-ai-wei/references/pattern-catalog.md",
+                "qu-ai-wei/references/editing-boundaries.md",
+                "qu-ai-wei/references/examples.md",
+                "qu-ai-wei/references/platform-patterns.md",
+                "qu-ai-wei/references/brand-voice.md",
+                "qu-ai-wei/references/whitelists.md",
             },
         )
         self.assertEqual(files, listed)
