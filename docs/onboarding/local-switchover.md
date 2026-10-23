@@ -194,7 +194,15 @@ check_label() {
   plutil -lint "$plist"
   runs_old=$(launchctl print "gui/$(id -u)/$label" 2>/dev/null | sed -n 's/^[[:space:]]*runs = //p' | head -1 || true)
   launchctl bootout "gui/$(id -u)/$label" || true
-  launchctl bootstrap "gui/$(id -u)" "$plist"
+  if ! err=$(launchctl bootstrap "gui/$(id -u)" "$plist" 2>&1); then
+    printf '%s\n' "$err" >&2
+    if printf '%s\n' "$err" | grep -F "Bootstrap failed: 5"; then
+      sleep 2
+      launchctl bootstrap "gui/$(id -u)" "$plist" || return 1
+    else
+      return 1
+    fi
+  fi
   wait_label_idle "$label" "$timeout" "$runs_old" || return 1
   ERR=$(plutil -extract StandardErrorPath raw "$plist")
   before=$(wc -l < "$ERR" | tr -d ' ')
@@ -267,13 +275,12 @@ if state != expect:
     raise SystemExit("state dir is " + str(state))
 print("state dir ok", state)
 PY
-touch "$HOME/infoflow-reconcile-runtime/state/.stamp-before"
+rm -f "$HOME/infoflow-reconcile-runtime/state/reconcile.lock"
 check_label com.jake.digitalbrain-reconcile 180
-find "$HOME/infoflow-reconcile-runtime/state" -type f ! -name '.stamp-before' -newer "$HOME/infoflow-reconcile-runtime/state/.stamp-before" \
-  | grep -q . && echo "runtime state updated" || echo "state dir FAIL"
+test -f "$HOME/infoflow-reconcile-runtime/state/reconcile.lock" && echo "runtime lock recreated" || echo "state dir FAIL"
 ```
 
-`state dir ok`、`check_label` 的 `stderr ok`、`runtime state updated` 三个都要出现。`state dir FAIL` 表示锁没有写进 runtime 的 `state`。这次通过之后再切换分支。切到合并后的 `main` 之后，把 `touch`、`check_label` 和 `find` 再跑一遍。两遍都要通过。副本在检出外面，所以换分支之后它仍每 2 分钟跑。不要删除 plist。
+脚本只打开 `reconcile.lock`，不改它的 mtime，用完会删掉 hold 文件。所以先删掉 runtime 里的 `reconcile.lock`，跑完用 `test -f` 看它是否被重新建出来。`state dir ok`、`check_label` 的 `stderr ok`、`runtime lock recreated` 三个都要出现。切到合并后的 `main` 之后，把 `rm`、`check_label` 和 `test -f` 再跑一遍。两遍都要通过。副本在检出外面，所以换分支之后它仍每 2 分钟跑。不要删除 plist。
 
 **(b) 停掉 label，plist 文件留着**
 
@@ -304,20 +311,23 @@ ls "$HOME/Library/LaunchAgents" | grep -i reconcile
 当前检出在 `cursor/cognition-v1.1` 上，上面有未推送的 `9fdc2ec` 和 `4ca393e`，工作区还有 4 个未提交改动（含 `scripts/push_intake_sources.sh`）。带着这些脏文件去 `git checkout` 会被拒绝。先拷 reconcile（第 4.1 节，默认 (a)），再做下面的备份，然后再换分支。
 
 1. 工作区还脏着时做完第 4.1 节默认 (a)，并且切换前的那一次 reconcile 已经是 `last exit code = 0` 且 `stderr ok`。
-2. **默认用本地备份分支**把当前 HEAD 和未提交改动都留下。日期换成当天。备份分支只留在这台 Mac 上。
+2. **默认用本地备份分支**把当前 HEAD 和未提交改动都留下。分支名带日期和时分，例如 `backup/pre-switchover-YYYYMMDD-HHMM`，同一天再做一次也不会重名。备份分支只留在这台 Mac 上。整段放在子 shell 里，失败不会退出你的交互 shell。
 
 ```bash
+(
 set -e
 mkdir -p "$HOME/infoflow-switchover-backup"
 cd "$HOME/plugins/information-flow"
+BACKUP=backup/pre-switchover-$(date +%Y%m%d-%H%M)
+printf '%s\n' "$BACKUP" | tee "$HOME/infoflow-switchover-backup/backup-branch.txt"
 git branch --show-current
 git rev-parse HEAD | tee "$HOME/infoflow-switchover-backup/pre-switch-head.txt"
 git merge-base --is-ancestor 9fdc2ec HEAD
 git merge-base --is-ancestor 4ca393e HEAD
 git status --short | tee "$HOME/infoflow-switchover-backup/status-before.txt"
-git branch backup/pre-switchover-2026-10-23
-git stash push -u -m "pre-switchover-2026-10-23"
-git checkout backup/pre-switchover-2026-10-23
+git branch "$BACKUP"
+git stash push -u -m "$BACKUP"
+git checkout "$BACKUP"
 git stash pop
 # stash pop 若停在冲突，先解决完再提交；不要在冲突未解决时 checkout 本 PR 分支。
 git add -A
@@ -326,13 +336,14 @@ git checkout cursor/cognition-v1.1
 git status --short
 git merge-base --is-ancestor 9fdc2ec HEAD
 git merge-base --is-ancestor 4ca393e HEAD
-git merge-base --is-ancestor "$(cat "$HOME/infoflow-switchover-backup/pre-switch-head.txt")" backup/pre-switchover-2026-10-23
-git diff --stat "$(cat "$HOME/infoflow-switchover-backup/pre-switch-head.txt")" backup/pre-switchover-2026-10-23
+git merge-base --is-ancestor "$(cat "$HOME/infoflow-switchover-backup/pre-switch-head.txt")" "$BACKUP"
+git diff --stat "$(cat "$HOME/infoflow-switchover-backup/pre-switch-head.txt")" "$BACKUP"
+)
 ```
 
 `git branch --show-current` 先是 `cursor/cognition-v1.1`。两个 `merge-base --is-ancestor` 的退出码都是 0，说明 `9fdc2ec` 和 `4ca393e` 都在当前 HEAD 里。`status-before.txt` 里要有 `scripts/push_intake_sources.sh`。提交之后回到 `cursor/cognition-v1.1`，`git status --short` 为空，HEAD 仍等于 `pre-switch-head.txt`。`git diff --stat` 里能看到刚才那 4 个未提交路径，包括 `scripts/push_intake_sources.sh`。
 
-另一种是只 `git stash push -u -m "pre-switchover-2026-10-23"`，不建分支。回滚命令按第 7 节的备份分支来。默认走备份分支。
+另一种是只 `git stash push -u -m "pre-switchover-YYYYMMDD-HHMM"`，不建分支。回滚命令按第 7 节的备份分支来。默认走备份分支。
 
 3. 记下远端 `main`，给远端 squash 回滚用：
 
@@ -350,18 +361,20 @@ git fetch origin cursor/empty-vault-onboarding-6aee
 git checkout cursor/empty-vault-onboarding-6aee
 ```
 
-5. 放 `config.json`。回滚时若已经把它挪进备份目录，这一步会把它搬回来，不必重填。否则从示例复制再改占位符。
+5. 放 `config.json`。检出根已经有这份文件就不要覆盖。没有、但备份目录里有上次挪走的那份，就把它搬回来。两处都没有，才从示例复制。
 
 ```bash
 cd "$HOME/plugins/information-flow"
-if [ -f "$HOME/infoflow-switchover-backup/config.json" ]; then
+if [ -f config.json ]; then
+  echo "config.json already in checkout; not overwritten"
+elif [ -f "$HOME/infoflow-switchover-backup/config.json" ]; then
   mv "$HOME/infoflow-switchover-backup/config.json" config.json
 else
   cp config.example.json config.json
 fi
 ```
 
-把 `vault_root` 换成你现有 vault 的绝对路径，把 `git_remote` 换成数据仓 remote，`storage_mode` 填 `A` 或 `B`，`git_branch` 保持你要用的分支（示例 `main`），`git_user_name` 和 `git_user_email` 换成该数据仓上已经在用的提交身份。每个 `REPLACE_WITH_` 都要换掉。`cursor/cognition-v1.1` 的 `.gitignore` 不忽略检出根的 `config.json`。回滚前要把它移出检出，否则第 7 节的 `diff -u` 会多一行 `?? config.json`。
+文件里还有 `REPLACE_WITH_` 时，把 `vault_root` 换成你现有 vault 的绝对路径，把 `git_remote` 换成数据仓 remote，`storage_mode` 填 `A` 或 `B`，`git_branch` 保持你要用的分支（示例 `main`），`git_user_name` 和 `git_user_email` 换成该数据仓上已经在用的提交身份。每个 `REPLACE_WITH_` 都要换掉。已经填好的 `config.json` 不要重写。`cursor/cognition-v1.1` 的 `.gitignore` 不忽略检出根的 `config.json`。回滚前要把它移出检出，否则第 7 节的 `diff -u` 会多一行 `?? config.json`。
 6. 在这个 shell 里导出 `YOUTUBE_CLIENT_FILE` 和 `YOUTUBE_TOKEN_FILE`，供下面的密钥检查。要验证 launchd 那种「plist 只有 HOME/PATH」的路径，就不要导出 `INTAKE_GIT_USER_NAME` 和 `INTAKE_GIT_USER_EMAIL`。若 `config.json` 不在检出根，再导出 `INFOFLOW_CONFIG`。
 7. 验证命令：
 
@@ -397,13 +410,12 @@ git checkout main
 git pull origin main
 git rev-parse HEAD
 check_label com.jake.intake-source-push 600
-touch "$HOME/infoflow-reconcile-runtime/state/.stamp-before"
+rm -f "$HOME/infoflow-reconcile-runtime/state/reconcile.lock"
 check_label com.jake.digitalbrain-reconcile 180
-find "$HOME/infoflow-reconcile-runtime/state" -type f ! -name '.stamp-before' -newer "$HOME/infoflow-reconcile-runtime/state/.stamp-before" \
-  | grep -q . && echo "runtime state updated" || echo "state dir FAIL"
+test -f "$HOME/infoflow-reconcile-runtime/state/reconcile.lock" && echo "runtime lock recreated" || echo "state dir FAIL"
 ```
 
-确认 HEAD 是合并提交。`config.json` 在这份 `main` 上被 gitignore，会留在检出根。两个 `check_label` 都要 `stderr ok`，并且出现 `runtime state updated`。这次 intake 跑的是合并后的 `main`。reconcile 这是切到 `main` 之后的那一遍；切换前的那一遍在第 4.1 节。新 shell 要先把第 4 节的三个函数再贴一次。
+确认 HEAD 是合并提交。`config.json` 在这份 `main` 上被 gitignore，会留在检出根。两个 `check_label` 都要 `stderr ok`，并且出现 `runtime lock recreated`。这次 intake 跑的是合并后的 `main`。reconcile 这是切到 `main` 之后的那一遍，锁的检查与第 4.1 节相同：先删 `reconcile.lock`，跑完要能 `test -f`。新 shell 要先把第 4 节的三个函数再贴一次。
 
 ## 7. 一步回滚
 
@@ -411,9 +423,13 @@ find "$HOME/infoflow-reconcile-runtime/state" -type f ! -name '.stamp-before' -n
 
 `cursor/cognition-v1.1` 的 `.gitignore` 不忽略检出根的 `config.json`。先把它移进备份目录，再比较 status。plist 的恢复放在 `diff` 之前，这样 `diff` 非 0 也不会把它跳过。不要删除 plist。
 
+整段放在子 shell 里，失败不会退出你的交互 shell。`BACKUP` 用第 6 节记下的 `backup-branch.txt`（形如 `backup/pre-switchover-YYYYMMDD-HHMM`）。
+
 ```bash
+(
 set -e
 cd "$HOME/plugins/information-flow"
+BACKUP=$(cat "$HOME/infoflow-switchover-backup/backup-branch.txt")
 if [ -f config.json ]; then
   mv config.json "$HOME/infoflow-switchover-backup/config.json"
 fi
@@ -421,7 +437,7 @@ git checkout cursor/cognition-v1.1
 test "$(git rev-parse HEAD)" = "$(cat "$HOME/infoflow-switchover-backup/pre-switch-head.txt")"
 git merge-base --is-ancestor 9fdc2ec HEAD
 git merge-base --is-ancestor 4ca393e HEAD
-git restore --source=backup/pre-switchover-2026-10-23 --worktree --staged .
+git restore --source="$BACKUP" --worktree --staged .
 git reset
 if [ -f "$HOME/infoflow-switchover-backup/com.jake.digitalbrain-reconcile.plist" ]; then
   cp "$HOME/infoflow-switchover-backup/com.jake.digitalbrain-reconcile.plist" \
@@ -429,6 +445,7 @@ if [ -f "$HOME/infoflow-switchover-backup/com.jake.digitalbrain-reconcile.plist"
 fi
 git status --short | tee "$HOME/infoflow-switchover-backup/status-after-rollback.txt"
 diff -u "$HOME/infoflow-switchover-backup/status-before.txt" "$HOME/infoflow-switchover-backup/status-after-rollback.txt"
+)
 ```
 
 `test` 通过，两个 `merge-base --is-ancestor` 退出码都是 0，`diff -u` 没有输出。`status-after-rollback.txt` 里再次出现 `scripts/push_intake_sources.sh`，并且没有 `?? config.json`。走 (b) 时没有那份 plist 副本，`if` 会跳过 `cp`，已安装的 plist 仍留在 LaunchAgents。
@@ -443,10 +460,6 @@ git grep -n DEFAULT_VAULT -- scripts/daily_digest.py
 
 两个 `check_label` 都打印 `stderr ok`，没有 `wait FAIL` 或 `exit code FAIL`。`git grep` 能看到 `DEFAULT_VAULT`，说明检出已回到带旧默认路径的 `cursor/cognition-v1.1`。若 (b) 当时把 reconcile bootout 了，这次 `check_label` 里的 `bootstrap` 会把它装回去；plist 文件一直还在。
 
-再往前走（重新检出本 PR 或 `main`）时，把配置文件搬回检出根，然后从第 6 节第 4 步继续：
-
-```bash
-mv "$HOME/infoflow-switchover-backup/config.json" "$HOME/plugins/information-flow/config.json"
-```
+要再切走时，从第 4.1 节 (a) 和第 6 节第 1 步重新做。回滚之后工作区又是脏的，直接做第 4 步的 checkout 会被拒绝。plist 已指回检出里的脚本，所以 (a) 要重做。第 2 步会用新的时分再建一个备份分支。不要先把备份目录里的 `config.json` 搬回检出再跑第 5 步。
 
 远端 `main` 若已经 squash 合并了本 PR，在 `main` 上再 revert 那一个 squash 并 push。这一步只动远端。Mac 上的 job 以本节把检出放回 `cursor/cognition-v1.1` 为准，不是 `git pull` 之后停在 revert 后的 `main`。
