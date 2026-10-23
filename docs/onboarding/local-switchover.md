@@ -124,33 +124,97 @@ python3 scripts/youtube_oauth.py
 
 它不需要 git 身份。`youtube_oauth.py` 只手动跑。
 
-plist 改完先检查再重载。kickstart 和判定放在紧接着的通过标准里，不要只看 `tail`：
-
-```bash
-plutil -lint "$HOME/Library/LaunchAgents/com.jake.intake-source-push.plist"
-launchctl bootout "gui/$(id -u)/com.jake.intake-source-push"
-launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.jake.intake-source-push.plist"
-```
-
 仓库模板里的 `StandardErrorPath` 文件名是插件检出下的 `state/intake-source-push.err.log`。
 
-通过标准（intake 和 reconcile 每次 kickstart 之后都用这一套）：
-
-1. `launchctl print "gui/$(id -u)/<label>"` 里这一次运行的 `last exit code = 0`。kickstart 返回时 job 可能还在跑；`runs` 要比 kickstart 之前大 1，并且 `state` 不再是 running，再读 `last exit code`。
-2. 该 plist 的 `StandardErrorPath` 里，这一次新写的行没有 `error:`，没有 `missing`，也没有 `is still a placeholder`。配置缺失打印的是 `missing …` 或 `… is still a placeholder`，不是 `error:`。
+通过标准（intake 和 reconcile 每次重载之后都用这一套）。在 bash 或 zsh 里先贴下面三个函数。`bootout` 再 `bootstrap` 会把 `runs` 清掉（本机 reconcile 曾是 4363），`RunAtLoad` 还会自己跑一次，所以不要拿 bootout 之前的 `runs + 1` 当通过条件。`kickstart` 返回时 job 可能还没开始，或还在跑；先等 `state = not running`，超时算失败，然后再读 `last exit code` 和新的 stderr。配置缺失打印的是 `missing …` 或 `… is still a placeholder`，不是 `error:`。
 
 ```bash
-label=com.jake.intake-source-push
-plist="$HOME/Library/LaunchAgents/${label}.plist"
-ERR=$(plutil -extract StandardErrorPath raw "$plist")
-before=$(wc -l < "$ERR" | tr -d ' ')
-launchctl print "gui/$(id -u)/$label" | grep -E 'runs =|last exit code ='
-launchctl kickstart -k "gui/$(id -u)/$label"
-launchctl print "gui/$(id -u)/$label" | grep -E 'state =|runs =|last exit code ='
-tail -n +"$((before + 1))" "$ERR" | grep -E 'error:|missing|is still a placeholder' && echo "stderr FAIL" || echo "stderr ok"
+wait_label_idle() {
+  label=$1
+  timeout=$2
+  runs_ignore=$3
+  start=$SECONDS
+  saw_running=0
+  while [ $((SECONDS - start)) -lt "$timeout" ]; do
+    info=$(launchctl print "gui/$(id -u)/$label" 2>/dev/null || true)
+    state=$(printf '%s\n' "$info" | sed -n 's/^[[:space:]]*state = //p' | head -1)
+    runs=$(printf '%s\n' "$info" | sed -n 's/^[[:space:]]*runs = //p' | head -1)
+    if [ "$state" = "running" ]; then
+      saw_running=1
+    fi
+    advanced=0
+    if [ -n "$runs_ignore" ] && [ -n "$runs" ] && [ "$runs" != "$runs_ignore" ]; then
+      advanced=1
+    fi
+    if [ "$state" = "not running" ]; then
+      if [ "$saw_running" -eq 1 ] || [ "$advanced" -eq 1 ]; then
+        return 0
+      fi
+    fi
+    sleep 1
+  done
+  echo "wait FAIL: $label timeout ${timeout}s" >&2
+  return 1
+}
+
+wait_label_kickstart() {
+  label=$1
+  timeout=$2
+  runs_before=$(launchctl print "gui/$(id -u)/$label" | sed -n 's/^[[:space:]]*runs = //p' | head -1)
+  launchctl kickstart -k "gui/$(id -u)/$label"
+  start=$SECONDS
+  saw_running=0
+  while [ $((SECONDS - start)) -lt "$timeout" ]; do
+    info=$(launchctl print "gui/$(id -u)/$label" 2>/dev/null || true)
+    state=$(printf '%s\n' "$info" | sed -n 's/^[[:space:]]*state = //p' | head -1)
+    runs=$(printf '%s\n' "$info" | sed -n 's/^[[:space:]]*runs = //p' | head -1)
+    if [ "$state" = "running" ]; then
+      saw_running=1
+    fi
+    advanced=0
+    if [ -n "$runs" ] && [ "$runs" != "$runs_before" ]; then
+      advanced=1
+    fi
+    if [ "$state" = "not running" ]; then
+      if [ "$saw_running" -eq 1 ] || [ "$advanced" -eq 1 ]; then
+        printf '%s\n' "$info"
+        return 0
+      fi
+    fi
+    sleep 1
+  done
+  echo "wait FAIL: $label timeout ${timeout}s" >&2
+  return 1
+}
+
+check_label() {
+  label=$1
+  timeout=$2
+  plist="$HOME/Library/LaunchAgents/${label}.plist"
+  plutil -lint "$plist"
+  runs_old=$(launchctl print "gui/$(id -u)/$label" 2>/dev/null | sed -n 's/^[[:space:]]*runs = //p' | head -1 || true)
+  launchctl bootout "gui/$(id -u)/$label" || true
+  launchctl bootstrap "gui/$(id -u)" "$plist"
+  wait_label_idle "$label" "$timeout" "$runs_old" || return 1
+  ERR=$(plutil -extract StandardErrorPath raw "$plist")
+  before=$(wc -l < "$ERR" | tr -d ' ')
+  info=$(wait_label_kickstart "$label" "$timeout") || return 1
+  printf '%s\n' "$info" | grep -F "last exit code = 0" || { echo "exit code FAIL"; return 1; }
+  if tail -n +"$((before + 1))" "$ERR" | grep -E 'error:|missing|is still a placeholder'; then
+    echo "stderr FAIL"
+    return 1
+  fi
+  echo "stderr ok"
+}
 ```
 
-`last exit code = 0` 并且输出 `stderr ok` 才算通过。reconcile 把 `label` 换成 `com.jake.digitalbrain-reconcile`。
+通过是 `check_label` 打印 `stderr ok`，并且中途没有 `wait FAIL` 或 `exit code FAIL`。`last exit code = 0` 只在等到 `state = not running` 之后才读。intake 超时用 600 秒，reconcile 用 180 秒：
+
+```bash
+check_label com.jake.intake-source-push 600
+```
+
+reconcile 把 label 换成 `com.jake.digitalbrain-reconcile`，超时换成 180。新开的 shell 要先把三个函数再贴一次。
 
 较旧的 launchctl：对同一个 plist 用 `launchctl unload`，再用 `launchctl load`。
 
@@ -162,7 +226,7 @@ tail -n +"$((before + 1))" "$ERR" | grep -E 'error:|missing|is still a placehold
 
 远端 `origin/cursor/cognition-v1.1` 上能看到的 `scripts/reconcile_live_vault_untracked.py` 来自提交 `7608291`，远端仓库里没有 reconcile AppleScript，也没有 `icloud_io.py`。本机正在跑的不是那份远端快照。本机插件检出在 `cursor/cognition-v1.1` 之上还有两笔未推送的本地提交 `9fdc2ec` 和 `4ca393e`，再加上 4 个未提交改动（其中有 `scripts/push_intake_sources.sh`）。正在跑的 reconcile 来自这些本地提交和未提交改动，不在远端仓库里。
 
-本机有一份 reconcile AppleScript，只在这台 Mac 上，不在远端 git 里。它大约第 10 行的 `scriptPath` 把插件检出路径写死到 `reconcile_live_vault_untracked.py`。这份 .py 依赖同目录、未进 git 的 `icloud_io.py`，锁放在插件检出里的 `state/`。job 大约每 2 分钟跑一次，label 是 `com.jake.digitalbrain-reconcile`。`main` 和本 PR 都没有这份本地实现。本 PR 的 `push_intake_sources.sh` 也不再在结束时调用它。不要把整支 `cursor/cognition-v1.1` 合并进 `main` 来保留这个 job。
+本机有一份 reconcile AppleScript，只在这台 Mac 上，不在远端 git 里。它大约第 10 行的 `scriptPath` 把插件检出路径写死到 `reconcile_live_vault_untracked.py`。这份 .py 依赖同目录、未进 git 的 `icloud_io.py`。锁目录是 `Path(__file__).parents[1] / "state"`（本机 .py 大约第 70 和 77 行）。job 大约每 2 分钟跑一次，label 是 `com.jake.digitalbrain-reconcile`。`main` 和本 PR 都没有这份本地实现。本 PR 的 `push_intake_sources.sh` 也不再在结束时调用它。不要把整支 `cursor/cognition-v1.1` 合并进 `main` 来保留这个 job。
 
 **默认是 (a)。** 这个 job 每 2 分钟都在跑。(a) 让它继续做同一件事，运行中的系统不被停掉。(b) 会停掉它。
 
@@ -171,40 +235,45 @@ tail -n +"$((before + 1))" "$ERR" | grep -E 'error:|missing|is still a placehold
 ```bash
 launchctl print "gui/$(id -u)/com.jake.digitalbrain-reconcile" | grep -E 'state =|runs =|last exit code ='
 plutil -extract ProgramArguments xml1 -o - "$HOME/Library/LaunchAgents/com.jake.digitalbrain-reconcile.plist"
-mkdir -p "$HOME/infoflow-switchover-backup" "$HOME/infoflow-reconcile-runtime/state"
+mkdir -p "$HOME/infoflow-switchover-backup" "$HOME/infoflow-reconcile-runtime/scripts" "$HOME/infoflow-reconcile-runtime/state"
 cp "$HOME/Library/LaunchAgents/com.jake.digitalbrain-reconcile.plist" \
   "$HOME/infoflow-switchover-backup/com.jake.digitalbrain-reconcile.plist"
 ```
 
-plist 文件名以 `ls "$HOME/Library/LaunchAgents" | grep -i reconcile` 为准。把下面三份**当前工作区里的文件**（含未提交内容）拷进 `$HOME/infoflow-reconcile-runtime/`，放在同一目录：
+plist 文件名以 `ls "$HOME/Library/LaunchAgents" | grep -i reconcile` 为准。把下面三份**当前工作区里的文件**（含未提交内容）都放进 `$HOME/infoflow-reconcile-runtime/scripts/`，不要平铺在 `infoflow-reconcile-runtime/` 根上：
 
 - plist 的 `ProgramArguments` 指向的那份 AppleScript
 - 检出里的 `scripts/reconcile_live_vault_untracked.py`
 - 它旁边的 `icloud_io.py`
 
-然后：
+本机 .py 用 `Path(__file__).parents[1] / "state"` 算锁目录。文件在 `.../scripts/` 里时，这个目录就是 `$HOME/infoflow-reconcile-runtime/state`。平铺在 runtime 根上时，`parents[1]` 是家目录，锁会写到 `$HOME/state`。不要改 .py 里的这条路径，目录层本身就是对的。检出里的原文件先留着，交给第 6 节备份。
 
-1. 在副本目录保留刚建的 `state/`。打开副本 .py，若锁路径仍指向插件检出里的 `state/`，只改副本里的这一处，指到 `$HOME/infoflow-reconcile-runtime/state`。检出里的原文件先留着，交给第 6 节备份。
-2. 打开副本 AppleScript，把大约第 10 行的 `scriptPath` 改成副本 .py 的绝对路径。
-3. 改已安装 plist 的 `ProgramArguments`，让它指向这份副本 AppleScript。
+然后做两件事，都要做：
 
-重载并按本节上面的通过标准查一次（切换分支之前）：
+1. 打开副本 AppleScript，把大约第 10 行的 `scriptPath` 改成 `$HOME/infoflow-reconcile-runtime/scripts/reconcile_live_vault_untracked.py` 的绝对路径。
+2. 改已安装 plist 的 `ProgramArguments`，让它指向这份副本 AppleScript。
+
+先确认锁目录算出来就是 runtime 的 `state`，再重载：
 
 ```bash
-label=com.jake.digitalbrain-reconcile
-plist="$HOME/Library/LaunchAgents/${label}.plist"
-plutil -lint "$plist"
-ERR=$(plutil -extract StandardErrorPath raw "$plist")
-before=$(wc -l < "$ERR" | tr -d ' ')
-launchctl print "gui/$(id -u)/$label" | grep -E 'runs =|last exit code ='
-launchctl bootout "gui/$(id -u)/$label"
-launchctl bootstrap "gui/$(id -u)" "$plist"
-launchctl kickstart -k "gui/$(id -u)/$label"
-launchctl print "gui/$(id -u)/$label" | grep -E 'state =|runs =|last exit code ='
-tail -n +"$((before + 1))" "$ERR" | grep -E 'error:|missing|is still a placeholder' && echo "stderr FAIL" || echo "stderr ok"
+python3 - << 'PY'
+from pathlib import Path
+script = Path.home() / "infoflow-reconcile-runtime" / "scripts" / "reconcile_live_vault_untracked.py"
+state = script.resolve().parents[1] / "state"
+expect = (Path.home() / "infoflow-reconcile-runtime" / "state").resolve()
+if not script.is_file():
+    raise SystemExit("missing copy: " + str(script))
+if state != expect:
+    raise SystemExit("state dir is " + str(state))
+print("state dir ok", state)
+PY
+touch "$HOME/infoflow-reconcile-runtime/state/.stamp-before"
+check_label com.jake.digitalbrain-reconcile 180
+find "$HOME/infoflow-reconcile-runtime/state" -type f ! -name '.stamp-before' -newer "$HOME/infoflow-reconcile-runtime/state/.stamp-before" \
+  | grep -q . && echo "runtime state updated" || echo "state dir FAIL"
 ```
 
-`runs` 增加 1，`last exit code = 0`，并且输出 `stderr ok`。这次通过之后再切换分支。切到合并后的 `main` 之后，用同一组命令再查一次。两遍都要通过。副本在检出外面，所以换分支之后它仍每 2 分钟跑。不要删除 plist。
+`state dir ok`、`check_label` 的 `stderr ok`、`runtime state updated` 三个都要出现。`state dir FAIL` 表示锁没有写进 runtime 的 `state`。这次通过之后再切换分支。切到合并后的 `main` 之后，把 `touch`、`check_label` 和 `find` 再跑一遍。两遍都要通过。副本在检出外面，所以换分支之后它仍每 2 分钟跑。不要删除 plist。
 
 **(b) 停掉 label，plist 文件留着**
 
@@ -272,8 +341,27 @@ git fetch origin
 git rev-parse origin/main | tee "$HOME/infoflow-switchover-backup/origin-main-before.txt"
 ```
 
-4. 在这个 `plugins/information-flow` 检出里检出本 PR 分支（含本文件的 `cursor/empty-vault-onboarding-6aee`）。先不要 `git checkout main`。
-5. `cp config.example.json config.json`。把 `vault_root` 换成你现有 vault 的绝对路径，把 `git_remote` 换成数据仓 remote，`storage_mode` 填 `A` 或 `B`，`git_branch` 保持你要用的分支（示例 `main`），`git_user_name` 和 `git_user_email` 换成该数据仓上已经在用的提交身份。每个 `REPLACE_WITH_` 都要换掉。
+4. 切换窗口先停 intake，再换分支。默认 (a) 的 reconcile 不停。在这个 `plugins/information-flow` 检出里检出本 PR 分支（含本文件的 `cursor/empty-vault-onboarding-6aee`）。先不要 `git checkout main`。
+
+```bash
+launchctl bootout "gui/$(id -u)/com.jake.intake-source-push" || true
+cd "$HOME/plugins/information-flow"
+git fetch origin cursor/empty-vault-onboarding-6aee
+git checkout cursor/empty-vault-onboarding-6aee
+```
+
+5. 放 `config.json`。回滚时若已经把它挪进备份目录，这一步会把它搬回来，不必重填。否则从示例复制再改占位符。
+
+```bash
+cd "$HOME/plugins/information-flow"
+if [ -f "$HOME/infoflow-switchover-backup/config.json" ]; then
+  mv "$HOME/infoflow-switchover-backup/config.json" config.json
+else
+  cp config.example.json config.json
+fi
+```
+
+把 `vault_root` 换成你现有 vault 的绝对路径，把 `git_remote` 换成数据仓 remote，`storage_mode` 填 `A` 或 `B`，`git_branch` 保持你要用的分支（示例 `main`），`git_user_name` 和 `git_user_email` 换成该数据仓上已经在用的提交身份。每个 `REPLACE_WITH_` 都要换掉。`cursor/cognition-v1.1` 的 `.gitignore` 不忽略检出根的 `config.json`。回滚前要把它移出检出，否则第 7 节的 `diff -u` 会多一行 `?? config.json`。
 6. 在这个 shell 里导出 `YOUTUBE_CLIENT_FILE` 和 `YOUTUBE_TOKEN_FILE`，供下面的密钥检查。要验证 launchd 那种「plist 只有 HOME/PATH」的路径，就不要导出 `INTAKE_GIT_USER_NAME` 和 `INTAKE_GIT_USER_EMAIL`。若 `config.json` 不在检出根，再导出 `INFOFLOW_CONFIG`。
 7. 验证命令：
 
@@ -293,55 +381,72 @@ grep -E 'error:|missing|is still a placeholder' "$HOME/infoflow-switchover-backu
 
 不要跑 `run_digest_jobs.sh`：它会调 YouTube API 并写 vault。
 
-8. 按第 4 节重载 intake，并用那里的通过标准。`label` 用 `com.jake.intake-source-push`。`last exit code = 0`，`runs` 比 kickstart 前大 1，新的 stderr 行输出 `stderr ok`。
-9. 上面都通过，再合 PR。
-10. 合完以后，在同一个插件检出：
+8. 同一个 shell 里第 4 节的函数还在时，重载并检查 intake。它会先 `bootstrap`（`RunAtLoad` 跑完并等到 `state = not running`），再 `launchctl kickstart`，等到再次 `state = not running` 才读退出码和 stderr。
 
 ```bash
+check_label com.jake.intake-source-push 600
+```
+
+输出要有 `stderr ok`，不能有 `wait FAIL`、`exit code FAIL` 或 `stderr FAIL`。
+9. 上面都通过，再合 PR。
+10. 合完以后、切到 `main` 之前，先再停一次 intake，然后在同一个插件检出：
+
+```bash
+launchctl bootout "gui/$(id -u)/com.jake.intake-source-push" || true
 git checkout main
 git pull origin main
 git rev-parse HEAD
+check_label com.jake.intake-source-push 600
+touch "$HOME/infoflow-reconcile-runtime/state/.stamp-before"
+check_label com.jake.digitalbrain-reconcile 180
+find "$HOME/infoflow-reconcile-runtime/state" -type f ! -name '.stamp-before' -newer "$HOME/infoflow-reconcile-runtime/state/.stamp-before" \
+  | grep -q . && echo "runtime state updated" || echo "state dir FAIL"
 ```
 
-确认 HEAD 是合并提交。`config.json` 被 gitignore，会留在检出根。再对 `com.jake.intake-source-push` 做一次第 4 节的 bootout / bootstrap / kickstart，通过标准仍是 `last exit code = 0` 且 `stderr ok`。这次 intake 跑的是合并后的 `main`。然后对 `com.jake.digitalbrain-reconcile` 再做一次第 4.1 节的同一组检查（切换到 `main` 之后的那一次）。两遍 reconcile（切换前、切到 `main` 后）和两遍 intake（PR 分支上、切到 `main` 后）都要满足这个标准。
+确认 HEAD 是合并提交。`config.json` 在这份 `main` 上被 gitignore，会留在检出根。两个 `check_label` 都要 `stderr ok`，并且出现 `runtime state updated`。这次 intake 跑的是合并后的 `main`。reconcile 这是切到 `main` 之后的那一遍；切换前的那一遍在第 4.1 节。新 shell 要先把第 4 节的三个函数再贴一次。
 
 ## 7. 一步回滚
 
 回滚这台 Mac 的插件检出：回到 `cursor/cognition-v1.1` 在备份时的那一点（HEAD 含 `9fdc2ec` 和 `4ca393e`），把未提交改动放回工作区，然后重载 launchd。
 
+`cursor/cognition-v1.1` 的 `.gitignore` 不忽略检出根的 `config.json`。先把它移进备份目录，再比较 status。plist 的恢复放在 `diff` 之前，这样 `diff` 非 0 也不会把它跳过。不要删除 plist。
+
 ```bash
 set -e
 cd "$HOME/plugins/information-flow"
+if [ -f config.json ]; then
+  mv config.json "$HOME/infoflow-switchover-backup/config.json"
+fi
 git checkout cursor/cognition-v1.1
 test "$(git rev-parse HEAD)" = "$(cat "$HOME/infoflow-switchover-backup/pre-switch-head.txt")"
 git merge-base --is-ancestor 9fdc2ec HEAD
 git merge-base --is-ancestor 4ca393e HEAD
 git restore --source=backup/pre-switchover-2026-10-23 --worktree --staged .
 git reset
+if [ -f "$HOME/infoflow-switchover-backup/com.jake.digitalbrain-reconcile.plist" ]; then
+  cp "$HOME/infoflow-switchover-backup/com.jake.digitalbrain-reconcile.plist" \
+    "$HOME/Library/LaunchAgents/com.jake.digitalbrain-reconcile.plist"
+fi
 git status --short | tee "$HOME/infoflow-switchover-backup/status-after-rollback.txt"
 diff -u "$HOME/infoflow-switchover-backup/status-before.txt" "$HOME/infoflow-switchover-backup/status-after-rollback.txt"
-cp "$HOME/infoflow-switchover-backup/com.jake.digitalbrain-reconcile.plist" \
-  "$HOME/Library/LaunchAgents/com.jake.digitalbrain-reconcile.plist"
 ```
 
-`test` 通过，两个 `merge-base --is-ancestor` 退出码都是 0，`diff -u` 没有输出。`status-after-rollback.txt` 里再次出现 `scripts/push_intake_sources.sh`。若当时走的是 (b)、plist 没改过，就跳过最后一条 `cp`。不要删除 plist。
+`test` 通过，两个 `merge-base --is-ancestor` 退出码都是 0，`diff -u` 没有输出。`status-after-rollback.txt` 里再次出现 `scripts/push_intake_sources.sh`，并且没有 `?? config.json`。走 (b) 时没有那份 plist 副本，`if` 会跳过 `cp`，已安装的 plist 仍留在 LaunchAgents。
 
-然后重载并踢两个 job，通过标准与第 4 节相同（`last exit code = 0`，新 stderr 没有 `error:` / `missing` / `is still a placeholder`）：
+然后再贴第 4 节的三个函数（新 shell 里还没有），重载两个 job。`check_label` 会等到 `state = not running` 再读 `last exit code`，新 stderr 里不能有 `error:`、`missing` 或 `is still a placeholder`：
 
 ```bash
-for label in com.jake.intake-source-push com.jake.digitalbrain-reconcile; do
-  plist="$HOME/Library/LaunchAgents/${label}.plist"
-  ERR=$(plutil -extract StandardErrorPath raw "$plist")
-  before=$(wc -l < "$ERR" | tr -d ' ')
-  launchctl bootout "gui/$(id -u)/$label" || true
-  launchctl bootstrap "gui/$(id -u)" "$plist"
-  launchctl kickstart -k "gui/$(id -u)/$label"
-  launchctl print "gui/$(id -u)/$label" | grep -E 'state =|runs =|last exit code ='
-  tail -n +"$((before + 1))" "$ERR" | grep -E 'error:|missing|is still a placeholder' && echo "$label stderr FAIL" || echo "$label stderr ok"
-done
+check_label com.jake.digitalbrain-reconcile 180
+check_label com.jake.intake-source-push 600
 git grep -n DEFAULT_VAULT -- scripts/daily_digest.py
 ```
 
-两个 label 都是 `last exit code = 0` 和 `stderr ok`。`git grep` 能看到 `DEFAULT_VAULT`，说明检出已回到带旧默认路径的 `cursor/cognition-v1.1`。若 (b) 当时把 reconcile bootout 了，这次 `bootstrap` 会把它装回去；plist 文件一直还在。
+两个 `check_label` 都打印 `stderr ok`，没有 `wait FAIL` 或 `exit code FAIL`。`git grep` 能看到 `DEFAULT_VAULT`，说明检出已回到带旧默认路径的 `cursor/cognition-v1.1`。若 (b) 当时把 reconcile bootout 了，这次 `check_label` 里的 `bootstrap` 会把它装回去；plist 文件一直还在。
+
+再往前走（重新检出本 PR 或 `main`）时，把配置文件搬回检出根，然后从第 6 节第 4 步继续：
+
+```bash
+mv "$HOME/infoflow-switchover-backup/config.json" "$HOME/plugins/information-flow/config.json"
+```
 
 远端 `main` 若已经 squash 合并了本 PR，在 `main` 上再 revert 那一个 squash 并 push。这一步只动远端。Mac 上的 job 以本节把检出放回 `cursor/cognition-v1.1` 为准，不是 `git pull` 之后停在 revert 后的 `main`。
