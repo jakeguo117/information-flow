@@ -17,18 +17,27 @@ AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 PORT = 18765
 REDIRECT = f"http://localhost:{PORT}/"
-SECRETS_DIR = (
-    Path.home()
-    / "Library/Mobile Documents/com~apple~CloudDocs/.secrets/youtube"
-)
-CLIENT_PATH = SECRETS_DIR / "google_client_secret.json"
-TOKEN_PATH = SECRETS_DIR / "youtube_token.json"
+
+
+def client_path() -> Path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from infoflow_config import require_secret_file
+
+    return require_secret_file("YOUTUBE_CLIENT_FILE", "YouTube OAuth client")
+
+
+def token_path() -> Path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from infoflow_config import require_secret_file
+
+    return require_secret_file("YOUTUBE_TOKEN_FILE", "YouTube OAuth token")
 
 
 def load_client() -> dict:
-    if not CLIENT_PATH.is_file():
-        raise SystemExit(f"missing OAuth client: {CLIENT_PATH}")
-    data = json.loads(CLIENT_PATH.read_text(encoding="utf-8"))
+    path = client_path()
+    if not path.is_file():
+        raise SystemExit(f"missing OAuth client: {path}")
+    data = json.loads(path.read_text(encoding="utf-8"))
     installed = data.get("installed") or data.get("web")
     if not installed or "client_id" not in installed or "client_secret" not in installed:
         raise SystemExit("OAuth client JSON missing installed.client_id/secret")
@@ -50,9 +59,10 @@ def exchange(client: dict, code: str) -> dict:
         payload = json.loads(resp.read().decode())
     if "refresh_token" not in payload:
         raise SystemExit("token response missing refresh_token; re-consent with prompt=consent")
-    TOKEN_PATH.parent.mkdir(parents=True, exist_ok=True)
-    TOKEN_PATH.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    TOKEN_PATH.chmod(0o600)
+    path = token_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    path.chmod(0o600)
     return payload
 
 
@@ -122,7 +132,7 @@ def main() -> int:
         print("oauth timed out waiting for browser consent", file=sys.stderr)
         return 1
     exchange(client, captured["code"])
-    print(f"wrote {TOKEN_PATH} scopes={SCOPE}")
+    print(f"wrote {token_path()} scopes={SCOPE}")
     return 0
 
 

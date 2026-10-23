@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -19,15 +18,6 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 HK_TZ = ZoneInfo("Asia/Hong_Kong")
-DEFAULT_VAULT = (
-    Path.home()
-    / "Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain"
-)
-SECRETS_DIR = (
-    Path.home() / "Library/Mobile Documents/com~apple~CloudDocs/.secrets/youtube"
-)
-CLIENT_PATH = Path(os.environ.get("YOUTUBE_CLIENT_FILE") or (SECRETS_DIR / "google_client_secret.json"))
-TOKEN_PATH = Path(os.environ.get("YOUTUBE_TOKEN_FILE") or (SECRETS_DIR / "youtube_token.json"))
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 STATE_PATH = PLUGIN_ROOT / "state" / "youtube-likes.json"
 MODEL_PATH = PLUGIN_ROOT / "models" / "ggml-small.bin"
@@ -37,8 +27,24 @@ WHISPER_TIMEOUT_S = 1200
 CAPTION_LANGS = "zh-Hans,zh-Hant,en,en-orig"
 TAG_RE = re.compile(r"<[^>]+>")
 TS_RE = re.compile(r"<\d{2}:\d{2}:\d{2}[.\d]*>")
+
+
 def vault_path(raw: str | None) -> Path:
-    return Path(raw).expanduser() if raw else DEFAULT_VAULT
+    from infoflow_config import require_vault
+
+    return require_vault(raw)
+
+
+def client_path() -> Path:
+    from infoflow_config import require_secret_file
+
+    return require_secret_file("YOUTUBE_CLIENT_FILE", "YouTube OAuth client")
+
+
+def token_path() -> Path:
+    from infoflow_config import require_secret_file
+
+    return require_secret_file("YOUTUBE_TOKEN_FILE", "YouTube OAuth token")
 
 
 def which(name: str) -> str | None:
@@ -61,9 +67,10 @@ def save_json(path: Path, payload: dict) -> None:
 
 
 def load_client() -> dict:
-    if not CLIENT_PATH.is_file():
-        raise SystemExit(f"missing OAuth client: {CLIENT_PATH}")
-    data = load_json(CLIENT_PATH)
+    path = client_path()
+    if not path.is_file():
+        raise SystemExit(f"missing OAuth client: {path}")
+    data = load_json(path)
     installed = data.get("installed") or data.get("web")
     if not installed:
         raise SystemExit("OAuth client JSON missing installed/web")
@@ -71,9 +78,10 @@ def load_client() -> dict:
 
 
 def load_token() -> dict:
-    if not TOKEN_PATH.is_file():
-        raise SystemExit(f"missing YouTube token; run youtube_oauth.py first: {TOKEN_PATH}")
-    return load_json(TOKEN_PATH)
+    path = token_path()
+    if not path.is_file():
+        raise SystemExit(f"missing YouTube token; run youtube_oauth.py first: {path}")
+    return load_json(path)
 
 
 def refresh_token(client: dict, token: dict) -> dict:
@@ -92,7 +100,7 @@ def refresh_token(client: dict, token: dict) -> dict:
     token["expires_in"] = new.get("expires_in")
     if new.get("refresh_token"):
         token["refresh_token"] = new["refresh_token"]
-    save_json(TOKEN_PATH, token)
+    save_json(token_path(), token)
     return token
 
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Copy information-flow skills into a DigitalBrain vault.
+"""Copy information-flow skills into a vault.
 
-Source of truth stays in this repo. DigitalBrain only keeps copies so a
-Cursor Cloud session opened on obsidian-digitalbrain sees the same rules.
+Source of truth stays in this repo. The vault keeps copies so a session
+opened on the data repo sees the same rules.
 Does not rewrite Journal, Digests, Resources, or Cognition content.
 
 Default mode writes allowlisted skill copies that exist in this tree and
@@ -25,10 +25,6 @@ from pathlib import Path
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 SKILLS_DIR = PLUGIN_ROOT / "skills"
 ROUTE_SNIPPET = SKILLS_DIR / "digitalbrain-agents-route.md"
-DEFAULT_VAULT = (
-    Path.home()
-    / "Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain"
-)
 
 SKILL_RELATIVE_PATHS = (
     "intake/SKILL.md",
@@ -83,7 +79,9 @@ LEGACY_DIGEST_HEADING = re.compile(
 
 
 def vault_path(raw: str | None) -> Path:
-    return Path(raw).expanduser() if raw else DEFAULT_VAULT
+    from infoflow_config import require_vault
+
+    return require_vault(raw)
 
 
 def route_snippet_path() -> Path:
