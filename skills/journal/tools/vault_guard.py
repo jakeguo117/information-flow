@@ -1,25 +1,21 @@
 #!/usr/bin/env python3
-"""Refuse vault writes unless the git remote is an allowed data vault.
+"""Refuse vault writes unless every git remote is jakeguo117/obsidian-digitalbrain.
 
-Default allowlist is jakeguo117/obsidian-digitalbrain. Override with
-INFOFLOW_VAULT_REMOTE (comma-separated) or config.json key vault_remote.
-information-flow and this code repository are always refused.
+origin must exist. Each remote's fetch URL and effective push URL (pushurl,
+pushInsteadOf, insteadOf) must be an https or ssh github.com URL for that
+repository. information-flow and this code repository are always refused.
 """
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import subprocess
 from pathlib import Path
 
 DEFAULT_VAULT_REMOTE = "jakeguo117/obsidian-digitalbrain"
-ENV_ALLOWLIST = "INFOFLOW_VAULT_REMOTE"
 ENV_RUNTIME = "INFOFLOW_RUNTIME"
 RUNTIME_CODEX_CLOUD = "codex-cloud"
-CONFIG_KEY = "vault_remote"
-PLACEHOLDER_MARK = "REPLACE_WITH_"
 DENIED_REPO_NAMES = frozenset({"information-flow"})
 MARKER_NAME = ".runtime-codex-cloud"
 
@@ -28,13 +24,16 @@ CODE_REPO_REFUSAL = "写入只许进 obsidian-digitalbrain，工作区是 inform
 OTHER_REFUSAL = "写入只许进 obsidian-digitalbrain，当前远端不在允许列表，拒绝并停下"
 GIT_MISSING = "git is not available; file was not written"
 
-_SLUG = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
-_GITHUB = re.compile(
-    r"^(?:https?://|ssh://|git://)(?:[^@/]+@)?github\.com[:/](?P<owner>[^/]+)/(?P<repo>[^/]+)$",
+_GITHUB_HTTPS = re.compile(
+    r"^https://(?:[^@/]+@)?github\.com(?::\d+)?/(?P<owner>[^/]+)/(?P<repo>[^/]+)$",
+    re.IGNORECASE,
+)
+_GITHUB_SSH = re.compile(
+    r"^ssh://(?:[^@/]+@)?github\.com(?::\d+)?/(?P<owner>[^/]+)/(?P<repo>[^/]+)$",
     re.IGNORECASE,
 )
 _GITHUB_SCP = re.compile(
-    r"^git@github\.com:(?P<owner>[^/]+)/(?P<repo>[^/]+)$",
+    r"^[^@/\s]+@github\.com:(?P<owner>[^/]+)/(?P<repo>[^/]+)$",
     re.IGNORECASE,
 )
 
@@ -68,67 +67,15 @@ def is_code_repo(path: Path) -> bool:
 
 
 def slug_of(value: str) -> str | None:
+    """Return owner/repo for a github.com https or ssh URL. Anything else is None."""
     text = value.strip().rstrip("/")
     if text.endswith(".git"):
         text = text[:-4]
-    if _SLUG.fullmatch(text):
-        return text.lower()
-    for pattern in (_GITHUB, _GITHUB_SCP):
+    for pattern in (_GITHUB_HTTPS, _GITHUB_SSH, _GITHUB_SCP):
         match = pattern.fullmatch(text)
         if match:
             return f"{match.group('owner')}/{match.group('repo')}".lower()
     return None
-
-
-def _usable(value: str) -> bool:
-    text = value.strip()
-    return bool(text) and PLACEHOLDER_MARK not in text
-
-
-def _as_list(value: object) -> list[str] | None:
-    if isinstance(value, str):
-        if not _usable(value):
-            return None
-        parts = [part.strip() for part in value.split(",") if part.strip()]
-        return parts or None
-    if isinstance(value, list):
-        parts = [item.strip() for item in value if isinstance(item, str) and _usable(item)]
-        return parts or None
-    return None
-
-
-def _config_path() -> Path | None:
-    env = os.environ.get("INFOFLOW_CONFIG")
-    if env and env.strip():
-        return Path(env).expanduser()
-    here = Path(__file__).resolve()
-    for candidate in here.parents:
-        if (candidate / "config.example.json").is_file() and (
-            candidate / "skills" / "journal" / "SKILL.md"
-        ).is_file():
-            path = candidate / "config.json"
-            return path if path.is_file() else None
-    return None
-
-
-def allowlist() -> list[str]:
-    """Env, then config.json vault_remote, then the default data vault."""
-    env = os.environ.get(ENV_ALLOWLIST)
-    if env is not None and env.strip():
-        parsed = _as_list(env)
-        if parsed:
-            return parsed
-    path = _config_path()
-    if path is not None and path.is_file():
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            data = None
-        if isinstance(data, dict):
-            parsed = _as_list(data.get(CONFIG_KEY))
-            if parsed:
-                return parsed
-    return [DEFAULT_VAULT_REMOTE]
 
 
 def _git(vault: Path, args: list[str]) -> subprocess.CompletedProcess[str]:
@@ -145,18 +92,49 @@ def _git(vault: Path, args: list[str]) -> subprocess.CompletedProcess[str]:
     )
 
 
-def _slugs_from_remote_v(stdout: str) -> list[str]:
-    slugs: list[str] = []
-    seen: set[str] = set()
-    for line in stdout.splitlines():
-        parts = line.split()
-        if len(parts) < 2:
-            continue
-        slug = slug_of(parts[1])
-        if slug and slug not in seen:
-            seen.add(slug)
-            slugs.append(slug)
-    return slugs
+def _remote_urls(vault: Path, name: str, *, push: bool) -> list[str] | None:
+    args = ["remote", "get-url"]
+    if push:
+        args.append("--push")
+    args.extend(["--all", name])
+    proc = _git(vault, args)
+    urls = [line.strip() for line in (proc.stdout or "").splitlines() if line.strip()]
+    if proc.returncode != 0 or not urls:
+        return None
+    return urls
+
+
+def _remote_rejection(vault: Path, code: bool) -> tuple[str, str] | None:
+    listed = _git(vault, ["remote"])
+    names = [line.strip() for line in (listed.stdout or "").splitlines() if line.strip()]
+    if listed.returncode != 0:
+        names = []
+    if "origin" not in names:
+        if code:
+            return "refused", CODE_REPO_REFUSAL
+        return "refused", OTHER_REFUSAL
+    public = False
+    mismatch = False
+    for name in names:
+        for push in (False, True):
+            urls = _remote_urls(vault, name, push=push)
+            if urls is None:
+                mismatch = True
+                continue
+            for url in urls:
+                slug = slug_of(url)
+                repo = slug.split("/", 1)[1] if slug is not None else ""
+                if repo in DENIED_REPO_NAMES:
+                    public = True
+                elif slug != DEFAULT_VAULT_REMOTE:
+                    mismatch = True
+    if public:
+        return "refused", PUBLIC_REPO_REFUSAL
+    if code:
+        return "refused", CODE_REPO_REFUSAL
+    if mismatch:
+        return "refused", OTHER_REFUSAL
+    return None
 
 
 def rejection(vault: Path) -> tuple[str, str] | None:
@@ -167,7 +145,7 @@ def rejection(vault: Path) -> tuple[str, str] | None:
             return "refused", CODE_REPO_REFUSAL
         return "unavailable", "vault missing; write refused"
     try:
-        proc = _git(vault, ["remote", "-v"])
+        return _remote_rejection(vault, code)
     except FileNotFoundError:
         if code:
             return "refused", CODE_REPO_REFUSAL
@@ -176,13 +154,3 @@ def rejection(vault: Path) -> tuple[str, str] | None:
         if code:
             return "refused", CODE_REPO_REFUSAL
         return "unavailable", GIT_MISSING
-    slugs = _slugs_from_remote_v(proc.stdout or "")
-    for slug in slugs:
-        if slug.split("/", 1)[1] in DENIED_REPO_NAMES:
-            return "refused", PUBLIC_REPO_REFUSAL
-    if code:
-        return "refused", CODE_REPO_REFUSAL
-    allowed = {parsed for item in allowlist() if (parsed := slug_of(item))}
-    if any(slug in allowed for slug in slugs):
-        return None
-    return "refused", OTHER_REFUSAL

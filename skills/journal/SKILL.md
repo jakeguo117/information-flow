@@ -91,7 +91,7 @@ python3 skills/journal/tools/write_journal.py retry --vault "$VAULT" --approval 
 
 `FILE` 是这一次的 JSON。`confirmed` 必须是 true，并且 `phrase` 必须正好是 `可以写`、`写吧` 或 `OK 写`。「写周记」只是开始讨论，不是这句短语。不符合时工具返回 `refused`，写入数为 0，不创建 `📝 Journal/`。同一 `event_id` 重复送达只保留 1 份；内容不一致则 `conflict`，不覆盖。`retry` 在磁盘已有相同内容时直接读回，不另写一篇。工具不写 `📖 Cognition/`，不 `git commit` / `git push`。周记文件本身仍不自动 push。
 
-写入只许进 obsidian-digitalbrain，发现是公开仓就拒绝并停下。工具核对 vault 的 git remote。默认只允许 `jakeguo117/obsidian-digitalbrain`。允许列表用环境变量 `INFOFLOW_VAULT_REMOTE`（逗号分隔）或 `config.json` 的 `vault_remote`，没有配置时用这个默认。远端仓库名是 `information-flow`，或工作区就是 information-flow 代码仓，一律拒绝，文件数为 0。不要改用别的方式写文件。
+写入只许进 obsidian-digitalbrain，发现是公开仓就拒绝并停下。工具核对 origin 以及每一个 git remote 的 fetch URL 和实际 push URL（含 pushurl、pushInsteadOf、insteadOf），只接受 github.com 上 `jakeguo117/obsidian-digitalbrain` 的 https 或 ssh。没有 git remote 的普通目录按设计拒绝写入。远端仓库名是 `information-flow`，或工作区就是 information-flow 代码仓，一律拒绝，文件数为 0。不要改用别的方式写文件。
 
 `write_journal.py` 返回 `success` 之后，才把这次 `list-open` 的每一条写进一份新的消化清单。失败、拒绝、冲突都不写清单，那些想法下次还能捞到。清单必须正好覆盖当前未消化的 id，每条是 `展开` 或 `看过未展开`，并链到这篇周记。不改旧的想法文件，也不在旧文件上打勾。
 

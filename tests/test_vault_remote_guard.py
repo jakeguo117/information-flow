@@ -107,16 +107,14 @@ class SlugTests(unittest.TestCase):
             vault_guard.slug_of("https://x-access-token:secret@github.com/jakeguo117/information-flow"),
             "jakeguo117/information-flow",
         )
+        self.assertEqual(
+            vault_guard.slug_of("ssh://git@github.com/jakeguo117/obsidian-digitalbrain.git"),
+            "jakeguo117/obsidian-digitalbrain",
+        )
         self.assertIsNone(vault_guard.slug_of("/tmp/remote.git"))
-
-    def test_default_allowlist_without_env(self) -> None:
-        with mock.patch.dict(
-            os.environ,
-            {"INFOFLOW_CONFIG": str(ROOT / "no-such-infoflow-config.json")},
-            clear=False,
-        ):
-            os.environ.pop("INFOFLOW_VAULT_REMOTE", None)
-            self.assertEqual(vault_guard.allowlist(), [vault_guard.DEFAULT_VAULT_REMOTE])
+        self.assertIsNone(vault_guard.slug_of("jakeguo117/obsidian-digitalbrain"))
+        self.assertIsNone(vault_guard.slug_of("http://github.com/jakeguo117/obsidian-digitalbrain.git"))
+        self.assertIsNone(vault_guard.slug_of("git://github.com/jakeguo117/obsidian-digitalbrain.git"))
 
 
 class JournalRemoteTests(unittest.TestCase):
@@ -142,18 +140,14 @@ class JournalRemoteTests(unittest.TestCase):
             self.assertTrue(data["already_persisted"])
             self.assertEqual(data["files_written"], 0)
 
-    def test_information_flow_remote_is_refused_even_if_allowlisted(self) -> None:
+    def test_information_flow_remote_is_refused_even_with_an_allowed_backup(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             vault = Path(raw) / "vault"
             init_remote(vault, PUBLIC)
             subprocess.check_call(
-                ["git", "-C", str(vault), "remote", "add", "also", ALLOW]
+                ["git", "-C", str(vault), "remote", "add", "backup", ALLOW]
             )
-            code, data = save_journal(
-                vault,
-                journal_approval(),
-                {"INFOFLOW_VAULT_REMOTE": "jakeguo117/information-flow,jakeguo117/obsidian-digitalbrain"},
-            )
+            code, data = save_journal(vault, journal_approval())
             self.assertEqual(code, 2, data)
             self.assertEqual(data["message"], vault_guard.PUBLIC_REPO_REFUSAL)
             self.assertEqual(data["files_written"], 0)
@@ -174,46 +168,176 @@ class JournalRemoteTests(unittest.TestCase):
             self.assertEqual(data["message"], vault_guard.OTHER_REFUSAL, data)
             self.assertEqual(data["files_written"], 0)
 
-    def test_env_replaces_the_default_allowlist(self) -> None:
-        with tempfile.TemporaryDirectory() as raw:
-            vault = Path(raw) / "vault"
-            init_remote(vault, OTHER)
-            code, data = save_journal(vault, journal_approval(), {"INFOFLOW_VAULT_REMOTE": "example/notes"})
-            self.assertEqual(code, 0, data)
-            self.assertEqual(data["files_written"], 1)
+            plain = Path(raw) / "plain"
+            plain.mkdir()
+            code, data = save_journal(plain, journal_approval(event_id="vault-guard-plain-dir"))
+            self.assertEqual(code, 2, data)
+            self.assertEqual(data["message"], vault_guard.OTHER_REFUSAL, data)
+            self.assertEqual(data["files_written"], 0)
+            self.assertFalse((plain / "📝 Journal").exists())
 
-            blocked = Path(raw) / "default"
-            init_remote(blocked, ALLOW)
-            code, data = save_journal(
-                blocked,
-                journal_approval(event_id="vault-guard-other"),
-                {"INFOFLOW_VAULT_REMOTE": "example/notes"},
-            )
+    def test_extra_allow_remote_does_not_permit_push(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            missing_origin = root / "backup-only"
+            init_remote(missing_origin, None)
+            subprocess.check_call(["git", "-C", str(missing_origin), "remote", "add", "backup", ALLOW])
+            code, data = save_journal(missing_origin, journal_approval(event_id="vault-guard-no-origin"))
+            self.assertEqual(code, 2, data)
             self.assertEqual(data["message"], vault_guard.OTHER_REFUSAL, data)
             self.assertEqual(data["files_written"], 0)
 
-    def test_config_vault_remote_allows_a_non_default_slug(self) -> None:
+            other = root / "other-origin"
+            init_remote(other, OTHER)
+            subprocess.check_call(["git", "-C", str(other), "remote", "add", "backup", ALLOW])
+            code, data = save_journal(other, journal_approval(event_id="vault-guard-extra-remote"))
+            self.assertEqual(code, 2, data)
+            self.assertEqual(data["message"], vault_guard.OTHER_REFUSAL, data)
+            self.assertEqual(data["files_written"], 0)
+
+            vault = root / "vault"
+            remote = root / "remote.git"
+            subprocess.check_call(["git", "init", "--bare", "-b", "main", str(remote)], stdout=subprocess.DEVNULL)
+            subprocess.check_call(["git", "init", "-b", "main", str(vault)], stdout=subprocess.DEVNULL)
+            for args in (
+                ["config", "user.email", "synthetic@example.com"],
+                ["config", "user.name", "Synthetic"],
+                ["config", "commit.gpgsign", "false"],
+            ):
+                subprocess.check_call(["git", "-C", str(vault), *args])
+            (vault / "README.md").write_text("synthetic\n", encoding="utf-8")
+            subprocess.check_call(["git", "-C", str(vault), "add", "README.md"])
+            subprocess.check_call(["git", "-C", str(vault), "commit", "-m", "init"])
+            subprocess.check_call(["git", "-C", str(vault), "remote", "add", "origin", str(remote)])
+            subprocess.check_call(["git", "-C", str(vault), "remote", "add", "backup", ALLOW])
+            subprocess.check_call(["git", "-C", str(vault), "push", "-u", "origin", "main"])
+            before = git(remote, "rev-parse", "main").stdout.strip()
+            words = root / "words.txt"
+            words.write_text("合成原话\n", encoding="utf-8")
+            code, data = run_tool(
+                [
+                    sys.executable,
+                    str(JOURNAL / "capture_thought.py"),
+                    "add",
+                    "--vault",
+                    str(vault),
+                    "--text-file",
+                    str(words),
+                    "--at",
+                    "2026-10-23T09:06:00+08:00",
+                    "--publish",
+                ]
+            )
+            self.assertEqual(code, 2, data)
+            self.assertEqual(data["status"], "not_saved")
+            self.assertNotEqual(data.get("pushed"), True)
+            self.assertEqual(git(remote, "rev-parse", "main").stdout.strip(), before)
+            self.assertEqual(list(vault.rglob("thought-*.md")), [])
+
+    def test_effective_push_url_rewrites_are_refused(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
-            vault = Path(raw) / "vault"
-            init_remote(vault, OTHER)
-            config = Path(raw) / "config.json"
-            config.write_text(json.dumps({"vault_remote": "example/notes"}), encoding="utf-8")
-            code, data = save_journal(vault, journal_approval(), {"INFOFLOW_CONFIG": str(config)})
+            root = Path(raw)
+            pushurl = root / "pushurl"
+            init_remote(pushurl, ALLOW)
+            subprocess.check_call(["git", "-C", str(pushurl), "remote", "set-url", "--push", "origin", ALLOW])
+            subprocess.check_call(
+                ["git", "-C", str(pushurl), "remote", "set-url", "--add", "--push", "origin", PUBLIC]
+            )
+            code, data = save_journal(pushurl, journal_approval(event_id="vault-guard-pushurl"))
+            self.assertEqual(code, 2, data)
+            self.assertEqual(data["message"], vault_guard.PUBLIC_REPO_REFUSAL, data)
+            self.assertEqual(data["files_written"], 0)
+            self.assertFalse((pushurl / "📝 Journal").exists())
+
+            instead_push = root / "push-instead"
+            init_remote(instead_push, ALLOW)
+            subprocess.check_call(
+                [
+                    "git",
+                    "-C",
+                    str(instead_push),
+                    "config",
+                    f"url.{PUBLIC}/.pushInsteadOf",
+                    ALLOW,
+                ]
+            )
+            code, data = save_journal(instead_push, journal_approval(event_id="vault-guard-push-instead"))
+            self.assertEqual(code, 2, data)
+            self.assertEqual(data["message"], vault_guard.PUBLIC_REPO_REFUSAL, data)
+            self.assertEqual(data["files_written"], 0)
+
+            instead_of = root / "instead-of"
+            init_remote(instead_of, ALLOW)
+            subprocess.check_call(
+                [
+                    "git",
+                    "-C",
+                    str(instead_of),
+                    "config",
+                    f"url.{PUBLIC}/.insteadOf",
+                    ALLOW,
+                ]
+            )
+            code, data = save_journal(instead_of, journal_approval(event_id="vault-guard-instead-of"))
+            self.assertEqual(code, 2, data)
+            self.assertEqual(data["message"], vault_guard.PUBLIC_REPO_REFUSAL, data)
+            self.assertEqual(data["files_written"], 0)
+
+    def test_env_and_config_cannot_replace_the_allowlist(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            public = root / "public"
+            init_remote(public, PUBLIC)
+            config = root / "config.json"
+            config.write_text(json.dumps({"vault_remote": "jakeguo117/information-flow"}), encoding="utf-8")
+            code, data = save_journal(
+                public,
+                journal_approval(event_id="vault-guard-env-public"),
+                {
+                    "INFOFLOW_VAULT_REMOTE": "jakeguo117/information-flow",
+                    "INFOFLOW_CONFIG": str(config),
+                },
+            )
+            self.assertEqual(code, 2, data)
+            self.assertEqual(data["message"], vault_guard.PUBLIC_REPO_REFUSAL, data)
+            self.assertEqual(data["files_written"], 0)
+
+            other = root / "other"
+            init_remote(other, OTHER)
+            widened = root / "widened.json"
+            widened.write_text(json.dumps({"vault_remote": "example/notes"}), encoding="utf-8")
+            code, data = save_journal(
+                other,
+                journal_approval(event_id="vault-guard-env-other"),
+                {"INFOFLOW_VAULT_REMOTE": "example/notes", "INFOFLOW_CONFIG": str(widened)},
+            )
+            self.assertEqual(code, 2, data)
+            self.assertEqual(data["message"], vault_guard.OTHER_REFUSAL, data)
+            self.assertEqual(data["files_written"], 0)
+
+            allowed = root / "allowed"
+            init_remote(allowed, ALLOW)
+            code, data = save_journal(
+                allowed,
+                journal_approval(event_id="vault-guard-env-ignored"),
+                {"INFOFLOW_VAULT_REMOTE": "example/notes", "INFOFLOW_CONFIG": str(widened)},
+            )
             self.assertEqual(code, 0, data)
             self.assertEqual(data["files_written"], 1)
 
-            placeholder = Path(raw) / "placeholder.json"
-            placeholder.write_text(
-                json.dumps({"vault_remote": "REPLACE_WITH_VAULT_REMOTE"}),
-                encoding="utf-8",
-            )
-            default_vault = Path(raw) / "default"
-            init_remote(default_vault, ALLOW)
-            code, data = save_journal(
-                default_vault,
-                journal_approval(event_id="vault-guard-placeholder"),
-                {"INFOFLOW_CONFIG": str(placeholder)},
-            )
+    def test_bare_owner_repo_url_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw) / "vault"
+            init_remote(vault, "jakeguo117/obsidian-digitalbrain")
+            code, data = save_journal(vault, journal_approval(event_id="vault-guard-bare-slug"))
+            self.assertEqual(code, 2, data)
+            self.assertEqual(data["message"], vault_guard.OTHER_REFUSAL, data)
+            self.assertEqual(data["files_written"], 0)
+            self.assertFalse((vault / "📝 Journal").exists())
+
+            ssh = Path(raw) / "ssh"
+            init_remote(ssh, "git@github.com:jakeguo117/obsidian-digitalbrain.git")
+            code, data = save_journal(ssh, journal_approval(event_id="vault-guard-ssh"))
             self.assertEqual(code, 0, data)
             self.assertEqual(data["files_written"], 1)
 
@@ -285,7 +409,6 @@ class ThoughtAndOtherWriterTests(unittest.TestCase):
             subprocess.check_call(["git", "-C", str(vault), "add", "README.md"])
             subprocess.check_call(["git", "-C", str(vault), "commit", "-m", "init"])
             subprocess.check_call(["git", "-C", str(vault), "remote", "add", "origin", str(remote)])
-            subprocess.check_call(["git", "-C", str(vault), "remote", "add", "infoflow-allow", ALLOW])
             subprocess.check_call(["git", "-C", str(vault), "push", "-u", "origin", "main"])
             before = git(remote, "rev-parse", "main").stdout.strip()
 
@@ -305,39 +428,53 @@ class ThoughtAndOtherWriterTests(unittest.TestCase):
             (shim / "git").chmod(0o755)
             words = root / "words.txt"
             words.write_text("Codex Cloud 通路测试\n", encoding="utf-8")
-            env = os.environ.copy()
-            env["PATH"] = f"{shim}{os.pathsep}{env.get('PATH', '')}"
-            env["INFOFLOW_RUNTIME"] = "codex-cloud"
-            env.pop("INFOFLOW_VAULT_REMOTE", None)
-            env.pop("INFOFLOW_CONFIG", None)
-            proc = subprocess.run(
-                [
-                    sys.executable,
-                    str(JOURNAL / "capture_thought.py"),
-                    "add",
-                    "--vault",
-                    str(vault),
-                    "--text-file",
-                    str(words),
-                    "--at",
-                    "2026-10-23T09:05:00+08:00",
-                    "--publish",
-                ],
-                capture_output=True,
-                text=True,
-                env=env,
-            )
-            data = json.loads(proc.stdout or "{}")
-            self.assertEqual(proc.returncode, 0, proc.stderr + proc.stdout)
+            import capture_thought
+            import io
+            from contextlib import redirect_stdout
+
+            pushes: list[list[str]] = []
+            real_run = subprocess.run
+
+            def spy(args, *a, **kwargs):
+                tokens = [str(item) for item in args] if isinstance(args, (list, tuple)) else []
+                if tokens and Path(tokens[0]).name == "git" and "push" in tokens:
+                    pushes.append(tokens)
+                return real_run(args, *a, **kwargs)
+
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "PATH": f"{shim}{os.pathsep}{os.environ.get('PATH', '')}",
+                    "INFOFLOW_RUNTIME": "codex-cloud",
+                },
+            ):
+                with mock.patch.object(vault_guard, "rejection", return_value=None):
+                    with mock.patch("subprocess.run", spy):
+                        buf = io.StringIO()
+                        with redirect_stdout(buf):
+                            code = capture_thought.main(
+                                [
+                                    "add",
+                                    "--vault",
+                                    str(vault),
+                                    "--text-file",
+                                    str(words),
+                                    "--at",
+                                    "2026-10-23T09:05:00+08:00",
+                                    "--publish",
+                                ]
+                            )
+            data = json.loads(buf.getvalue() or "{}")
+            self.assertEqual(code, 0, buf.getvalue())
             self.assertEqual(data["status"], "success", data)
             self.assertEqual(data["runtime"], "codex-cloud")
             self.assertFalse(data["pushed"])
+            self.assertEqual(pushes, [])
             self.assertEqual(git(remote, "rev-parse", "main").stdout.strip(), before)
             written = list(vault.rglob("thought-20261023-0905.md"))
             self.assertEqual(len(written), 1)
             status = git(vault, "status", "--porcelain")
             self.assertIn("??", status.stdout)
-            self.assertNotIn("push was called", proc.stderr)
 
     def test_cognition_and_ideas_refuse_and_allow(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
@@ -484,7 +621,12 @@ class PackagingTests(unittest.TestCase):
         skill = (ROOT / "skills" / "journal" / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn(vault_guard.PUBLIC_REPO_REFUSAL, skill)
         self.assertIn("INFOFLOW_RUNTIME=codex-cloud", skill)
+        self.assertIn("没有 git remote 的普通目录按设计拒绝写入", skill)
+        self.assertNotIn("INFOFLOW_VAULT_REMOTE", skill)
+        self.assertNotIn("vault_remote", skill)
         self.assertIn("event_id", skill)
+        example = json.loads((ROOT / "config.example.json").read_text(encoding="utf-8"))
+        self.assertNotIn("vault_remote", example)
 
 
 if __name__ == "__main__":

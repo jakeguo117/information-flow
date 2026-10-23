@@ -2,7 +2,6 @@
   "vault_root": "REPLACE_WITH_VAULT_ROOT",
   "storage_mode": "REPLACE_WITH_A_OR_B",
   "git_remote": "REPLACE_WITH_GIT_REMOTE",
-  "vault_remote": "REPLACE_WITH_VAULT_REMOTE",
   "git_branch": "main",
   "git_user_name": "REPLACE_WITH_GIT_USER_NAME",
   "git_user_email": "REPLACE_WITH_GIT_USER_EMAIL",
