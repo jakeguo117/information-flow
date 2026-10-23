@@ -115,6 +115,14 @@ class SlugTests(unittest.TestCase):
         self.assertIsNone(vault_guard.slug_of("jakeguo117/obsidian-digitalbrain"))
         self.assertIsNone(vault_guard.slug_of("http://github.com/jakeguo117/obsidian-digitalbrain.git"))
         self.assertIsNone(vault_guard.slug_of("git://github.com/jakeguo117/obsidian-digitalbrain.git"))
+        self.assertIsNone(vault_guard.slug_of("https://evil.example?@github.com/jakeguo117/obsidian-digitalbrain"))
+        self.assertIsNone(vault_guard.slug_of("https://evil.example#@github.com/jakeguo117/obsidian-digitalbrain"))
+        self.assertIsNone(vault_guard.slug_of("https://evil.example\\@github.com/jakeguo117/obsidian-digitalbrain"))
+        self.assertIsNone(vault_guard.slug_of("ssh://evil.example?@github.com/jakeguo117/obsidian-digitalbrain"))
+        self.assertEqual(
+            vault_guard.slug_of("https://x-access-token:secret@github.com/jakeguo117/obsidian-digitalbrain.git"),
+            "jakeguo117/obsidian-digitalbrain",
+        )
 
 
 class JournalRemoteTests(unittest.TestCase):
@@ -339,6 +347,65 @@ class JournalRemoteTests(unittest.TestCase):
             init_remote(ssh, "git@github.com:jakeguo117/obsidian-digitalbrain.git")
             code, data = save_journal(ssh, journal_approval(event_id="vault-guard-ssh"))
             self.assertEqual(code, 0, data)
+            self.assertEqual(data["files_written"], 1)
+
+    def test_disguised_userinfo_host_is_refused_as_origin_and_pushurl(self) -> None:
+        disguised = (
+            "https://evil.example?@github.com/jakeguo117/obsidian-digitalbrain",
+            "https://evil.example#@github.com/jakeguo117/obsidian-digitalbrain",
+            "https://evil.example\\@github.com/jakeguo117/obsidian-digitalbrain",
+        )
+        token = "https://x-access-token:secret@github.com/jakeguo117/obsidian-digitalbrain.git"
+        self.assertEqual(vault_guard.slug_of(token), vault_guard.DEFAULT_VAULT_REMOTE)
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            for index, url in enumerate(disguised, start=1):
+                self.assertIsNone(vault_guard.slug_of(url))
+                origin = root / f"origin-{index}"
+                init_remote(origin, url)
+                code, data = save_journal(origin, journal_approval(event_id=f"vault-guard-evil-origin-{index}"))
+                self.assertEqual(code, 2, data)
+                self.assertEqual(data["message"], vault_guard.OTHER_REFUSAL, data)
+                self.assertEqual(data["files_written"], 0)
+                self.assertFalse((origin / "📝 Journal").exists())
+
+                via_push = root / f"push-{index}"
+                init_remote(via_push, ALLOW)
+                subprocess.check_call(
+                    ["git", "-C", str(via_push), "remote", "set-url", "--push", "origin", url]
+                )
+                code, data = save_journal(via_push, journal_approval(event_id=f"vault-guard-evil-push-{index}"))
+                self.assertEqual(code, 2, data)
+                self.assertEqual(data["message"], vault_guard.OTHER_REFUSAL, data)
+                self.assertEqual(data["files_written"], 0)
+                self.assertFalse((via_push / "📝 Journal").exists())
+
+            words = root / "words.txt"
+            words.write_text("合成原话\n", encoding="utf-8")
+            code, data = run_tool(
+                [
+                    sys.executable,
+                    str(JOURNAL / "capture_thought.py"),
+                    "add",
+                    "--vault",
+                    str(root / "origin-1"),
+                    "--text-file",
+                    str(words),
+                    "--at",
+                    "2026-10-23T09:07:00+08:00",
+                    "--publish",
+                ]
+            )
+            self.assertEqual(code, 2, data)
+            self.assertEqual(data["status"], "not_saved")
+            self.assertNotEqual(data.get("pushed"), True)
+            self.assertEqual(list((root / "origin-1").rglob("thought-*.md")), [])
+
+            allowed = root / "token"
+            init_remote(allowed, token)
+            code, data = save_journal(allowed, journal_approval(event_id="vault-guard-access-token"))
+            self.assertEqual(code, 0, data)
+            self.assertEqual(data["status"], "success")
             self.assertEqual(data["files_written"], 1)
 
     def test_code_checkout_is_refused(self) -> None:

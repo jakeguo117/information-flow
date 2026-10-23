@@ -9,9 +9,9 @@ repository. information-flow and this code repository are always refused.
 from __future__ import annotations
 
 import os
-import re
 import subprocess
 from pathlib import Path
+from urllib.parse import urlsplit
 
 DEFAULT_VAULT_REMOTE = "jakeguo117/obsidian-digitalbrain"
 ENV_RUNTIME = "INFOFLOW_RUNTIME"
@@ -24,18 +24,7 @@ CODE_REPO_REFUSAL = "写入只许进 obsidian-digitalbrain，工作区是 inform
 OTHER_REFUSAL = "写入只许进 obsidian-digitalbrain，当前远端不在允许列表，拒绝并停下"
 GIT_MISSING = "git is not available; file was not written"
 
-_GITHUB_HTTPS = re.compile(
-    r"^https://(?:[^@/]+@)?github\.com(?::\d+)?/(?P<owner>[^/]+)/(?P<repo>[^/]+)$",
-    re.IGNORECASE,
-)
-_GITHUB_SSH = re.compile(
-    r"^ssh://(?:[^@/]+@)?github\.com(?::\d+)?/(?P<owner>[^/]+)/(?P<repo>[^/]+)$",
-    re.IGNORECASE,
-)
-_GITHUB_SCP = re.compile(
-    r"^[^@/\s]+@github\.com:(?P<owner>[^/]+)/(?P<repo>[^/]+)$",
-    re.IGNORECASE,
-)
+_BAD_USERINFO = frozenset("/?#@\\")
 
 
 def codex_cloud() -> bool:
@@ -66,16 +55,64 @@ def is_code_repo(path: Path) -> bool:
     return False
 
 
+def _owner_repo(path: str) -> str | None:
+    trimmed = path.rstrip("/")
+    if trimmed.endswith(".git"):
+        trimmed = trimmed[:-4]
+    if not trimmed.startswith("/"):
+        return None
+    owner, sep, repo = trimmed[1:].partition("/")
+    if not sep or not owner or not repo or "/" in repo:
+        return None
+    if any(char in owner + repo for char in _BAD_USERINFO):
+        return None
+    return f"{owner}/{repo}".lower()
+
+
+def _userinfo_ok(netloc: str) -> bool:
+    if "@" not in netloc:
+        return True
+    if netloc.count("@") != 1:
+        return False
+    userinfo = netloc.split("@", 1)[0]
+    return not any(char in userinfo for char in _BAD_USERINFO)
+
+
+def _slug_scp(text: str) -> str | None:
+    """git@github.com:owner/repo, with the same userinfo limits as https."""
+    if "://" in text or text.count("@") != 1 or any(char in text for char in "?#\\"):
+        return None
+    userinfo, rest = text.split("@", 1)
+    if not userinfo or any(char in userinfo for char in _BAD_USERINFO):
+        return None
+    host, sep, path = rest.partition(":")
+    if sep != ":" or host.lower() != "github.com" or not path or path.startswith("/"):
+        return None
+    return _owner_repo("/" + path)
+
+
 def slug_of(value: str) -> str | None:
-    """Return owner/repo for a github.com https or ssh URL. Anything else is None."""
-    text = value.strip().rstrip("/")
-    if text.endswith(".git"):
-        text = text[:-4]
-    for pattern in (_GITHUB_HTTPS, _GITHUB_SSH, _GITHUB_SCP):
-        match = pattern.fullmatch(text)
-        if match:
-            return f"{match.group('owner')}/{match.group('repo')}".lower()
-    return None
+    """Return owner/repo for a github.com https or ssh URL. Anything else is None.
+
+    Userinfo may carry an access token. It may not contain / ? # @ or backslash.
+    A query or fragment is rejected, so a host hidden before '?' or '#' is not github.com.
+    """
+    text = value.strip()
+    if not text:
+        return None
+    if "://" not in text:
+        return _slug_scp(text)
+    try:
+        parts = urlsplit(text)
+    except ValueError:
+        return None
+    if parts.scheme.lower() not in {"https", "ssh"}:
+        return None
+    if parts.query or parts.fragment:
+        return None
+    if parts.hostname != "github.com" or not _userinfo_ok(parts.netloc):
+        return None
+    return _owner_repo(parts.path)
 
 
 def _git(vault: Path, args: list[str]) -> subprocess.CompletedProcess[str]:
