@@ -8,6 +8,7 @@ and canonical validation.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import sys
 from pathlib import Path
@@ -31,6 +32,23 @@ from cognition_lib import (
     validate_docs,
     write_target_error,
 )
+
+
+_GUARD = None
+_GUARD_MISSING = "写入只许进 obsidian-digitalbrain，vault guard 缺失，拒绝并停下"
+
+
+def _rejection(vault: Path) -> tuple[str, str] | None:
+    global _GUARD
+    if _GUARD is None:
+        path = Path(__file__).resolve().parents[2] / "journal" / "tools" / "vault_guard.py"
+        spec = importlib.util.spec_from_file_location("infoflow_vault_guard", path)
+        if spec is None or spec.loader is None or not path.is_file():
+            return "refused", _GUARD_MISSING
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _GUARD = module
+    return _GUARD.rejection(vault)
 
 
 def emit(payload: dict[str, Any], ok: bool) -> int:
@@ -73,6 +91,11 @@ def perform(
     approval: dict[str, Any],
     direct_instruction: bool,
 ) -> tuple[dict[str, Any], bool]:
+    rejected = _rejection(vault)
+    if rejected is not None:
+        status, message = rejected
+        return {"status": status, "message": message, "files_written": 0}, False
+
     proposed = parse_markdown(payload_text)
     if proposed.parse_error:
         return {

@@ -19,6 +19,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import journal_lib
+import vault_guard
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 JOURNAL_DIR_NAME = journal_lib.JOURNAL_DIR_NAME
@@ -346,6 +347,13 @@ def add_thought(
         }, False
     try:
         _vault(vault)
+    except OSError as exc:
+        return {"status": "unavailable", "message": str(exc), "files_written": 0}, False
+    rejected = vault_guard.rejection(vault)
+    if rejected is not None:
+        status, message = rejected
+        return {"status": status, "message": message, "files_written": 0}, False
+    try:
         local = at.astimezone(SHANGHAI)
         week = week_id(local)
         if explicit_id is not None:
@@ -477,6 +485,10 @@ def record_digest(
         _vault(vault)
     except OSError as exc:
         return {"status": "unavailable", "message": str(exc), "files_written": 0}, False
+    rejected = vault_guard.rejection(vault)
+    if rejected is not None:
+        status, message = rejected
+        return {"status": status, "message": message, "files_written": 0}, False
     checked = _journal_ok(vault, journal_result)
     if isinstance(checked, str):
         return {"status": "refused", "message": checked, "files_written": 0}, False
@@ -1171,6 +1183,27 @@ def publish_exact(vault: Path, relative: str) -> tuple[dict[str, Any], bool]:
     if isinstance(checked, str):
         return {"status": "refused", "message": checked, "files_written": 0, "pushed": False}, False
     target, posix = checked
+    rejected = vault_guard.rejection(vault)
+    if rejected is not None:
+        status, message = rejected
+        return {
+            "status": status,
+            "message": message,
+            "path": str(target),
+            "relative": posix,
+            "files_written": 0,
+            "pushed": False,
+        }, False
+    if vault_guard.codex_cloud():
+        return {
+            "status": "success",
+            "runtime": vault_guard.RUNTIME_CODEX_CLOUD,
+            "pushed": False,
+            "message": "push to main skipped; leave the file for the Codex pull request",
+            "path": str(target),
+            "relative": posix,
+            "files_written": 0,
+        }, True
     inside = _git(vault, ["rev-parse", "--is-inside-work-tree"])
     if _git_unavailable_message(inside):
         return {
