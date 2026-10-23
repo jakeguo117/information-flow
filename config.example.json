@@ -1,0 +1,7 @@
+{
+  "vault_root": "REPLACE_WITH_VAULT_ROOT",
+  "storage_mode": "REPLACE_WITH_A_OR_B",
+  "git_remote": "REPLACE_WITH_GIT_REMOTE",
+  "git_branch": "main",
+  "enabled_sources": []
+}
