@@ -95,7 +95,7 @@ sha1 按 UTF-8 字节、十六进制小写，取前 12 位。`source_refs` 为�
 
 | 键 | 里面有什么 |
 |---|---|
-| `x` | `body`：中文长文，800–1500 字 |
+| `x` | `body`：中文长文，约 3000 字（口径见 content-x） |
 | `xiaohongshu` | `caption`：一句短文案。`cards`：字符串列表，按页序，每项含页码 n/N |
 | `wechat_mp` | `title`、`summary`、`cover_note`、`body`、`sources_note`。`body` 用小标题分段，图片说明写在正文对应的位置 |
 
