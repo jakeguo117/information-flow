@@ -124,61 +124,99 @@ python3 scripts/youtube_oauth.py
 
 它不需要 git 身份。`youtube_oauth.py` 只手动跑。
 
-plist 改完先检查，再重载，再用 kickstart 跑一次：
+plist 改完先检查再重载。kickstart 和判定放在紧接着的通过标准里，不要只看 `tail`：
 
 ```bash
 plutil -lint "$HOME/Library/LaunchAgents/com.jake.intake-source-push.plist"
 launchctl bootout "gui/$(id -u)/com.jake.intake-source-push"
 launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.jake.intake-source-push.plist"
-launchctl kickstart -k "gui/$(id -u)/com.jake.intake-source-push"
-launchctl print "gui/$(id -u)/com.jake.intake-source-push"
-ERR=$(plutil -extract StandardErrorPath raw "$HOME/Library/LaunchAgents/com.jake.intake-source-push.plist")
-tail -n 50 "$ERR"
 ```
 
-仓库模板里的 `StandardErrorPath` 文件名是插件检出下的 `state/intake-source-push.err.log`。kickstart 之后，这次新写进该文件的行里不要有 `error:`。
+仓库模板里的 `StandardErrorPath` 文件名是插件检出下的 `state/intake-source-push.err.log`。
+
+通过标准（intake 和 reconcile 每次 kickstart 之后都用这一套）：
+
+1. `launchctl print "gui/$(id -u)/<label>"` 里这一次运行的 `last exit code = 0`。kickstart 返回时 job 可能还在跑；`runs` 要比 kickstart 之前大 1，并且 `state` 不再是 running，再读 `last exit code`。
+2. 该 plist 的 `StandardErrorPath` 里，这一次新写的行没有 `error:`，没有 `missing`，也没有 `is still a placeholder`。配置缺失打印的是 `missing …` 或 `… is still a placeholder`，不是 `error:`。
+
+```bash
+label=com.jake.intake-source-push
+plist="$HOME/Library/LaunchAgents/${label}.plist"
+ERR=$(plutil -extract StandardErrorPath raw "$plist")
+before=$(wc -l < "$ERR" | tr -d ' ')
+launchctl print "gui/$(id -u)/$label" | grep -E 'runs =|last exit code ='
+launchctl kickstart -k "gui/$(id -u)/$label"
+launchctl print "gui/$(id -u)/$label" | grep -E 'state =|runs =|last exit code ='
+tail -n +"$((before + 1))" "$ERR" | grep -E 'error:|missing|is still a placeholder' && echo "stderr FAIL" || echo "stderr ok"
+```
+
+`last exit code = 0` 并且输出 `stderr ok` 才算通过。reconcile 把 `label` 换成 `com.jake.digitalbrain-reconcile`。
 
 较旧的 launchctl：对同一个 plist 用 `launchctl unload`，再用 `launchctl load`。
 
-这些命令放在第 6 节的读取和 `push_intake_sources.sh` 已经是 rc=0 之后。kickstart 时，plist 指向的检出必须已经是你正在验证的分支。
+这些命令放在第 6 节的读取和 `push_intake_sources.sh` 已经是 rc=0 之后。kickstart 时，intake plist 指向的检出必须已经是你正在验证的分支。
 
-### 4.1 从 `cursor/cognition-v1.1` 回到 `main`，以及 reconcile
+### 4.1 reconcile：本机正在跑的是本地提交加未提交改动
 
-先在仍停在 `cursor/cognition-v1.1` 的检出上做完本节，再 `git checkout` 离开这个分支。离开之后工作区里就没有 reconcile 脚本了。
+先做本节，并且工作区还是脏的时候做。做完再做第 6 节的备份提交，然后再 `git checkout`。不要删除这个 job 的 plist，不要 `rm` LaunchAgents 里的文件。
 
-查过 `origin/cursor/cognition-v1.1` 和 `origin/main`：
+远端 `origin/cursor/cognition-v1.1` 上能看到的 `scripts/reconcile_live_vault_untracked.py` 来自提交 `7608291`，远端仓库里没有 reconcile AppleScript，也没有 `icloud_io.py`。本机正在跑的不是那份远端快照。本机插件检出在 `cursor/cognition-v1.1` 之上还有两笔未推送的本地提交 `9fdc2ec` 和 `4ca393e`，再加上 4 个未提交改动（其中有 `scripts/push_intake_sources.sh`）。正在跑的 reconcile 来自这些本地提交和未提交改动，不在远端仓库里。
 
-- `scripts/reconcile_live_vault_untracked.py` 只在 `cursor/cognition-v1.1`（提交 `7608291`）。`main` 和本 PR 都没有这个文件。该分支的 `push_intake_sources.sh` 在结束时会调用它。本 PR 的 `push_intake_sources.sh` 不再调用它。
-- 该分支上的脚本仍带内置 vault 路径。本 PR 不把那份脚本抄进来。
-- 仓库历史里没有单独的 reconcile AppleScript。该分支和 `main` 上都有的 AppleScript 只有 `scripts/run_intake_source_push.applescript`，它只跑 intake push。`main` 的 README 写了 label `com.jake.digitalbrain-reconcile`（登录以及大约每 2 分钟），两支分支的 git 树里都没有这份 plist。
-- `cursor/cognition-v1.1` 比 `main` 旧，上面的 Cognition 提交已经被 `main` 上后来的技能取代。不要为了 reconcile 去合并整个 `cursor/cognition-v1.1`。
+本机有一份 reconcile AppleScript，只在这台 Mac 上，不在远端 git 里。它大约第 10 行的 `scriptPath` 把插件检出路径写死到 `reconcile_live_vault_untracked.py`。这份 .py 依赖同目录、未进 git 的 `icloud_io.py`，锁放在插件检出里的 `state/`。job 大约每 2 分钟跑一次，label 是 `com.jake.digitalbrain-reconcile`。`main` 和本 PR 都没有这份本地实现。本 PR 的 `push_intake_sources.sh` 也不再在结束时调用它。不要把整支 `cursor/cognition-v1.1` 合并进 `main` 来保留这个 job。
 
-若本机装过这个 job，它的 plist 和它指向的 AppleScript 只在本机 `~/Library/LaunchAgents/` 或 plist 的 `ProgramArguments` 里。不要删除 plist，不要删除它指向的脚本，不要 `rm` LaunchAgents 里的文件。
+**默认是 (a)。** 这个 job 每 2 分钟都在跑。(a) 让它继续做同一件事，运行中的系统不被停掉。(b) 会停掉它。
 
-还在 `cursor/cognition-v1.1` 上时：
+**(a) 默认：三份文件一起拷到检出外面，job 继续跑**
 
 ```bash
-launchctl print "gui/$(id -u)/com.jake.digitalbrain-reconcile" || true
-ls "$HOME/Library/LaunchAgents" | grep -i reconcile || true
+launchctl print "gui/$(id -u)/com.jake.digitalbrain-reconcile" | grep -E 'state =|runs =|last exit code ='
+plutil -extract ProgramArguments xml1 -o - "$HOME/Library/LaunchAgents/com.jake.digitalbrain-reconcile.plist"
+mkdir -p "$HOME/infoflow-switchover-backup" "$HOME/infoflow-reconcile-runtime/state"
+cp "$HOME/Library/LaunchAgents/com.jake.digitalbrain-reconcile.plist" \
+  "$HOME/infoflow-switchover-backup/com.jake.digitalbrain-reconcile.plist"
 ```
 
-label 在，或者 LaunchAgents 里有对应 plist：
+plist 文件名以 `ls "$HOME/Library/LaunchAgents" | grep -i reconcile` 为准。把下面三份**当前工作区里的文件**（含未提交内容）拷进 `$HOME/infoflow-reconcile-runtime/`，放在同一目录：
 
-1. 用 `plutil -extract ProgramArguments xml1 -o -` 看已安装 plist 的参数。把参数里的每一个脚本（Python，以及若有的 AppleScript）复制到插件检出**外面**的目录。
-2. 改已安装 plist 的 `ProgramArguments`，让它们指向这些副本。
-3. 只重载这个 label，job 继续跑：
+- plist 的 `ProgramArguments` 指向的那份 AppleScript
+- 检出里的 `scripts/reconcile_live_vault_untracked.py`
+- 它旁边的 `icloud_io.py`
+
+然后：
+
+1. 在副本目录保留刚建的 `state/`。打开副本 .py，若锁路径仍指向插件检出里的 `state/`，只改副本里的这一处，指到 `$HOME/infoflow-reconcile-runtime/state`。检出里的原文件先留着，交给第 6 节备份。
+2. 打开副本 AppleScript，把大约第 10 行的 `scriptPath` 改成副本 .py 的绝对路径。
+3. 改已安装 plist 的 `ProgramArguments`，让它指向这份副本 AppleScript。
+
+重载并按本节上面的通过标准查一次（切换分支之前）：
+
+```bash
+label=com.jake.digitalbrain-reconcile
+plist="$HOME/Library/LaunchAgents/${label}.plist"
+plutil -lint "$plist"
+ERR=$(plutil -extract StandardErrorPath raw "$plist")
+before=$(wc -l < "$ERR" | tr -d ' ')
+launchctl print "gui/$(id -u)/$label" | grep -E 'runs =|last exit code ='
+launchctl bootout "gui/$(id -u)/$label"
+launchctl bootstrap "gui/$(id -u)" "$plist"
+launchctl kickstart -k "gui/$(id -u)/$label"
+launchctl print "gui/$(id -u)/$label" | grep -E 'state =|runs =|last exit code ='
+tail -n +"$((before + 1))" "$ERR" | grep -E 'error:|missing|is still a placeholder' && echo "stderr FAIL" || echo "stderr ok"
+```
+
+`runs` 增加 1，`last exit code = 0`，并且输出 `stderr ok`。这次通过之后再切换分支。切到合并后的 `main` 之后，用同一组命令再查一次。两遍都要通过。副本在检出外面，所以换分支之后它仍每 2 分钟跑。不要删除 plist。
+
+**(b) 停掉 label，plist 文件留着**
+
+只在你接受下面的后果时用。不要删除 plist。
 
 ```bash
 launchctl bootout "gui/$(id -u)/com.jake.digitalbrain-reconcile"
-launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.jake.digitalbrain-reconcile.plist"
-launchctl print "gui/$(id -u)/com.jake.digitalbrain-reconcile"
+launchctl print "gui/$(id -u)/com.jake.digitalbrain-reconcile" || true
+ls "$HOME/Library/LaunchAgents" | grep -i reconcile
 ```
 
-plist 文件名以你机器上 `ls` 看到的为准。上面的文件名是 README 里的 label 加上 `.plist`。对不上就用 `ls` 的结果。
-
-若要先停掉、等以后 `main` 上有不带个人默认路径的脚本再开：只执行 `launchctl bootout "gui/$(id -u)/com.jake.digitalbrain-reconcile"`。plist 文件留在 `~/Library/LaunchAgents/`。不要删除。脚本在离开分支前先复制出去，或接受这个 job 保持停止。`main` 上出现脚本之后再 `bootstrap`。
-
-切到本 PR 或合并后的 `main` 之后，每 4 小时的 intake push 不再顺带 reconcile。2 分钟那次若已指向检出外的副本，仍由那份副本负责。
+`print` 找不到 label，`ls` 仍能看到 plist 文件。停着的这段时间里，这个 job 不再做的事是：清掉 vault 里与即将拉下来的版本字节相同的未跟踪副本，好让 Obsidian Git 的 pull 能快进；内容不同的文件本来就会留在原地。已提交的笔记不会被删。后果是 pull 会继续被这些未跟踪副本挡住，新落到 vault 里的未跟踪文件也会一直挡着，直到以后再 `bootstrap` 这份 plist。检出里的 `state/` 锁不再被这个 job 更新。
 
 ## 5. GitHub Actions
 
@@ -192,20 +230,52 @@ plist 文件名以你机器上 `ls` 看到的为准。上面的文件名是 READ
 
 本 PR 不改这三份 workflow。
 
-## 6. 先配好并验证，再合并，最后才切到 `main`
+## 6. 先保住本机状态，再验证，再合并，最后才切到 `main`
 
-1. 检出还在 `cursor/cognition-v1.1` 时，先做完第 4.1 节。
-2. 记下当前 `main`，回滚要用：
+当前检出在 `cursor/cognition-v1.1` 上，上面有未推送的 `9fdc2ec` 和 `4ca393e`，工作区还有 4 个未提交改动（含 `scripts/push_intake_sources.sh`）。带着这些脏文件去 `git checkout` 会被拒绝。先拷 reconcile（第 4.1 节，默认 (a)），再做下面的备份，然后再换分支。
+
+1. 工作区还脏着时做完第 4.1 节默认 (a)，并且切换前的那一次 reconcile 已经是 `last exit code = 0` 且 `stderr ok`。
+2. **默认用本地备份分支**把当前 HEAD 和未提交改动都留下。日期换成当天。备份分支只留在这台 Mac 上。
+
+```bash
+set -e
+mkdir -p "$HOME/infoflow-switchover-backup"
+cd "$HOME/plugins/information-flow"
+git branch --show-current
+git rev-parse HEAD | tee "$HOME/infoflow-switchover-backup/pre-switch-head.txt"
+git merge-base --is-ancestor 9fdc2ec HEAD
+git merge-base --is-ancestor 4ca393e HEAD
+git status --short | tee "$HOME/infoflow-switchover-backup/status-before.txt"
+git branch backup/pre-switchover-2026-10-23
+git stash push -u -m "pre-switchover-2026-10-23"
+git checkout backup/pre-switchover-2026-10-23
+git stash pop
+# stash pop 若停在冲突，先解决完再提交；不要在冲突未解决时 checkout 本 PR 分支。
+git add -A
+git commit -m "backup: uncommitted Mac state before switchover"
+git checkout cursor/cognition-v1.1
+git status --short
+git merge-base --is-ancestor 9fdc2ec HEAD
+git merge-base --is-ancestor 4ca393e HEAD
+git merge-base --is-ancestor "$(cat "$HOME/infoflow-switchover-backup/pre-switch-head.txt")" backup/pre-switchover-2026-10-23
+git diff --stat "$(cat "$HOME/infoflow-switchover-backup/pre-switch-head.txt")" backup/pre-switchover-2026-10-23
+```
+
+`git branch --show-current` 先是 `cursor/cognition-v1.1`。两个 `merge-base --is-ancestor` 的退出码都是 0，说明 `9fdc2ec` 和 `4ca393e` 都在当前 HEAD 里。`status-before.txt` 里要有 `scripts/push_intake_sources.sh`。提交之后回到 `cursor/cognition-v1.1`，`git status --short` 为空，HEAD 仍等于 `pre-switch-head.txt`。`git diff --stat` 里能看到刚才那 4 个未提交路径，包括 `scripts/push_intake_sources.sh`。
+
+另一种是只 `git stash push -u -m "pre-switchover-2026-10-23"`，不建分支。回滚命令按第 7 节的备份分支来。默认走备份分支。
+
+3. 记下远端 `main`，给远端 squash 回滚用：
 
 ```bash
 git fetch origin
-git rev-parse origin/main
+git rev-parse origin/main | tee "$HOME/infoflow-switchover-backup/origin-main-before.txt"
 ```
 
-3. 在 plist 指向的那个 `plugins/information-flow` 检出里，先检出**本 PR 分支**（含本文件的 `cursor/empty-vault-onboarding-6aee`）。先不要 `git checkout main`。
-4. `cp config.example.json config.json`。把 `vault_root` 换成你现有 vault 的绝对路径，把 `git_remote` 换成数据仓 remote，`storage_mode` 填 `A` 或 `B`，`git_branch` 保持你要用的分支（示例 `main`），`git_user_name` 和 `git_user_email` 换成该数据仓上已经在用的提交身份。每个 `REPLACE_WITH_` 都要换掉。
-5. 在这个 shell 里导出 `YOUTUBE_CLIENT_FILE` 和 `YOUTUBE_TOKEN_FILE`，供下面的密钥检查。要验证 launchd 那种「plist 只有 HOME/PATH」的路径，就不要导出 `INTAKE_GIT_USER_NAME` 和 `INTAKE_GIT_USER_EMAIL`。若 `config.json` 不在检出根，再导出 `INFOFLOW_CONFIG`。
-6. 验证命令：
+4. 在这个 `plugins/information-flow` 检出里检出本 PR 分支（含本文件的 `cursor/empty-vault-onboarding-6aee`）。先不要 `git checkout main`。
+5. `cp config.example.json config.json`。把 `vault_root` 换成你现有 vault 的绝对路径，把 `git_remote` 换成数据仓 remote，`storage_mode` 填 `A` 或 `B`，`git_branch` 保持你要用的分支（示例 `main`），`git_user_name` 和 `git_user_email` 换成该数据仓上已经在用的提交身份。每个 `REPLACE_WITH_` 都要换掉。
+6. 在这个 shell 里导出 `YOUTUBE_CLIENT_FILE` 和 `YOUTUBE_TOKEN_FILE`，供下面的密钥检查。要验证 launchd 那种「plist 只有 HOME/PATH」的路径，就不要导出 `INTAKE_GIT_USER_NAME` 和 `INTAKE_GIT_USER_EMAIL`。若 `config.json` 不在检出根，再导出 `INFOFLOW_CONFIG`。
+7. 验证命令：
 
 ```bash
 python3 scripts/infoflow_config.py get vault_root
@@ -214,26 +284,18 @@ python3 scripts/infoflow_config.py get git_branch
 python3 scripts/infoflow_config.py get git_user_name
 python3 scripts/infoflow_config.py get git_user_email
 test -d "$(python3 scripts/infoflow_config.py get vault_root)"
-/bin/sh scripts/push_intake_sources.sh
+/bin/sh scripts/push_intake_sources.sh >"$HOME/infoflow-switchover-backup/push.out" 2>"$HOME/infoflow-switchover-backup/push.err"
 echo "push_intake_sources rc=$?"
+grep -E 'error:|missing|is still a placeholder' "$HOME/infoflow-switchover-backup/push.err" && echo "push stderr FAIL" || echo "push stderr ok"
 ```
 
-`push_intake_sources rc` 必须是 `0`。脚本默认先等 45 秒，然后只在 Snipd / WeRead 有差异时提交并 push 这两棵树。日志里是 `no source changes` 时退出码也是 0。树已经在本地、想跳过等待时，可以在同一条命令前加 `INTAKE_SOURCE_ICLOUD_WAIT=0`，通过标准仍是 rc=0。
+`push_intake_sources rc` 必须是 `0`，并且输出 `push stderr ok`。stderr 里不能有 `error:`、`missing` 或 `is still a placeholder`。脚本默认先等 45 秒，然后只在 Snipd / WeRead 有差异时提交并 push 这两棵树。日志里是 `no source changes` 时退出码也是 0。树已经在本地、想跳过等待时，可以在同一条命令前加 `INTAKE_SOURCE_ICLOUD_WAIT=0`，通过标准仍是 rc=0 且 `push stderr ok`。
 
 不要跑 `run_digest_jobs.sh`：它会调 YouTube API 并写 vault。
 
-7. 按第 4 节 `bootout` / `bootstrap`，然后：
-
-```bash
-launchctl kickstart -k "gui/$(id -u)/com.jake.intake-source-push"
-ERR=$(plutil -extract StandardErrorPath raw "$HOME/Library/LaunchAgents/com.jake.intake-source-push.plist")
-tail -n 50 "$ERR"
-```
-
-这次写进 err log 的行里不要有 `error:`。
-
-8. 上面都通过，再合 PR。
-9. 合完以后，在同一个插件检出：
+8. 按第 4 节重载 intake，并用那里的通过标准。`label` 用 `com.jake.intake-source-push`。`last exit code = 0`，`runs` 比 kickstart 前大 1，新的 stderr 行输出 `stderr ok`。
+9. 上面都通过，再合 PR。
+10. 合完以后，在同一个插件检出：
 
 ```bash
 git checkout main
@@ -241,36 +303,45 @@ git pull origin main
 git rev-parse HEAD
 ```
 
-确认 HEAD 是合并提交。`config.json` 被 gitignore，会留在检出根。然后再按第 4 节 `bootout` / `bootstrap` / `kickstart` 一次，并再看一遍 err log。这次 job 跑的是合并后的 `main`。
+确认 HEAD 是合并提交。`config.json` 被 gitignore，会留在检出根。再对 `com.jake.intake-source-push` 做一次第 4 节的 bootout / bootstrap / kickstart，通过标准仍是 `last exit code = 0` 且 `stderr ok`。这次 intake 跑的是合并后的 `main`。然后对 `com.jake.digitalbrain-reconcile` 再做一次第 4.1 节的同一组检查（切换到 `main` 之后的那一次）。两遍 reconcile（切换前、切到 `main` 后）和两遍 intake（PR 分支上、切到 `main` 后）都要满足这个标准。
 
 ## 7. 一步回滚
 
-合并若是 squash，在 `main` 上 revert 那一个 squash 提交并 push。插件检出 `git pull`。
-
-不 revert 远端时，把插件工作副本钉回第 6 节记下的合并前 SHA：
+回滚这台 Mac 的插件检出：回到 `cursor/cognition-v1.1` 在备份时的那一点（HEAD 含 `9fdc2ec` 和 `4ca393e`），把未提交改动放回工作区，然后重载 launchd。
 
 ```bash
-git checkout <合并前 origin/main 的 SHA>
+set -e
+cd "$HOME/plugins/information-flow"
+git checkout cursor/cognition-v1.1
+test "$(git rev-parse HEAD)" = "$(cat "$HOME/infoflow-switchover-backup/pre-switch-head.txt")"
+git merge-base --is-ancestor 9fdc2ec HEAD
+git merge-base --is-ancestor 4ca393e HEAD
+git restore --source=backup/pre-switchover-2026-10-23 --worktree --staged .
+git reset
+git status --short | tee "$HOME/infoflow-switchover-backup/status-after-rollback.txt"
+diff -u "$HOME/infoflow-switchover-backup/status-before.txt" "$HOME/infoflow-switchover-backup/status-after-rollback.txt"
+cp "$HOME/infoflow-switchover-backup/com.jake.digitalbrain-reconcile.plist" \
+  "$HOME/Library/LaunchAgents/com.jake.digitalbrain-reconcile.plist"
 ```
 
-然后重载并踢一次 intake job：
+`test` 通过，两个 `merge-base --is-ancestor` 退出码都是 0，`diff -u` 没有输出。`status-after-rollback.txt` 里再次出现 `scripts/push_intake_sources.sh`。若当时走的是 (b)、plist 没改过，就跳过最后一条 `cp`。不要删除 plist。
+
+然后重载并踢两个 job，通过标准与第 4 节相同（`last exit code = 0`，新 stderr 没有 `error:` / `missing` / `is still a placeholder`）：
 
 ```bash
-launchctl bootout "gui/$(id -u)/com.jake.intake-source-push"
-launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.jake.intake-source-push.plist"
-launchctl kickstart -k "gui/$(id -u)/com.jake.intake-source-push"
-```
-
-plist 里多出来的环境变量可以留着，旧脚本不读它们。`config.json` 里多出来的 `git_user_name` / `git_user_email` 也可以留着。第 4.1 节放到检出外的 reconcile 副本和它的 plist 留在原地，不要删。若当时只做了 `bootout`、plist 还在，这个 job 保持停止；要让它再跑，检出得回到 `cursor/cognition-v1.1`，或者 plist 已经指向检出外的副本。
-
-确认已经回到旧行为：
-
-```bash
-git rev-parse HEAD
+for label in com.jake.intake-source-push com.jake.digitalbrain-reconcile; do
+  plist="$HOME/Library/LaunchAgents/${label}.plist"
+  ERR=$(plutil -extract StandardErrorPath raw "$plist")
+  before=$(wc -l < "$ERR" | tr -d ' ')
+  launchctl bootout "gui/$(id -u)/$label" || true
+  launchctl bootstrap "gui/$(id -u)" "$plist"
+  launchctl kickstart -k "gui/$(id -u)/$label"
+  launchctl print "gui/$(id -u)/$label" | grep -E 'state =|runs =|last exit code ='
+  tail -n +"$((before + 1))" "$ERR" | grep -E 'error:|missing|is still a placeholder' && echo "$label stderr FAIL" || echo "$label stderr ok"
+done
 git grep -n DEFAULT_VAULT -- scripts/daily_digest.py
-launchctl print "gui/$(id -u)/com.jake.intake-source-push"
-ERR=$(plutil -extract StandardErrorPath raw "$HOME/Library/LaunchAgents/com.jake.intake-source-push.plist")
-tail -n 30 "$ERR"
 ```
 
-`git rev-parse HEAD` 等于合并前记下的 SHA（钉工作副本时），或等于 revert 之后的新 `main`（走 revert 时）。`git grep` 能看到 `DEFAULT_VAULT`。`launchctl print` 里 intake 这个 label 仍在。kickstart 之后的 err log 里不应再出现缺 `git_user_name` 的报错。reconcile 若按第 4.1 节留着，`launchctl print "gui/$(id -u)/com.jake.digitalbrain-reconcile"` 的程序路径仍是检出外的副本，或仍是你没有删除的那份 plist。
+两个 label 都是 `last exit code = 0` 和 `stderr ok`。`git grep` 能看到 `DEFAULT_VAULT`，说明检出已回到带旧默认路径的 `cursor/cognition-v1.1`。若 (b) 当时把 reconcile bootout 了，这次 `bootstrap` 会把它装回去；plist 文件一直还在。
+
+远端 `main` 若已经 squash 合并了本 PR，在 `main` 上再 revert 那一个 squash 并 push。这一步只动远端。Mac 上的 job 以本节把检出放回 `cursor/cognition-v1.1` 为准，不是 `git pull` 之后停在 revert 后的 `main`。
