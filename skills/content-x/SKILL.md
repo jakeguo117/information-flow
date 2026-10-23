@@ -63,7 +63,7 @@ content-core 里和本节冲突的旧排版不是硬门槛，不拿来退掉下�
 
 ## 怎么写
 
-长文用口语，像真人在讲自己经历过的事：日记式叙事，有文学感；少正式，禁止 formative 腔、论文腔、模板腔、讲课腔和清单腔。标题、首句、段落、小标题、证据、列表、加粗和收束按上一节「写法」。主线和逻辑链按 content-core，这里不复述。行文的 anti-AI-slop 和 deeper thought 按 content-core「foundation 硬规则」。骨架是否使用，按 content-core，且不压过「写法」。
+长文用口语，像真人在讲自己经历过的事：语气可以像日记，有文学感；骨架按 content-core 生成流程第 5 步的 essay，不用日记体代替分论点；少正式，禁止 formative 腔、论文腔、模板腔、讲课腔和清单腔。标题、首句、段落、小标题、证据、列表、加粗和收束按上一节「写法」。主线和逻辑链按 content-core，这里不复述。行文的 anti-AI-slop 和 deeper thought 按 content-core「foundation 硬规则」。骨架是否使用，按 content-core，且不压过「写法」。
 
 不发明事实，不把模型补的判断写成他的口气。证据按「写法」：论点后面马上跟上，可以是可核验文件或数据，也可以是他已经发出的帖。
 
