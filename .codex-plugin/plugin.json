@@ -1,26 +1,25 @@
 {
   "name": "information-flow",
   "version": "0.1.4",
-  "description": "写周记、周记、weekly journal. Lists the week's digest before any journal text. Daily intake and Markdown Cognition stay separate; private cognition stays out of this repo.",
+  "description": "写周记、记想法。Cognition（Evidence / Belief / Principle）单独确认；私人认知不进本仓库。",
   "author": {
     "name": "Jake Guo",
     "url": "https://github.com/jakeguo117"
   },
   "repository": "https://github.com/jakeguo117/information-flow",
   "license": "UNLICENSED",
-  "keywords": ["journal", "digest", "obsidian", "youtube", "snipd"],
+  "keywords": ["journal", "cognition"],
   "skills": "./skills/",
   "interface": {
     "displayName": "Information Flow",
-    "shortDescription": "写周记：先列当周 digest",
-    "longDescription": "Pulls Snipd, WeRead, and YouTube likes into weekly intake.md. Journal opens the weekly digest at 📋 Digests/{YYYY-Wnn}/digest.md on its own, shows all three groups in full with item IDs, and discusses by ID; write_journal.py --append-digest saves the full digest as a separate section at the journal end in the same write. Discussion starts from recent journals and old project echoes, not a week dump. Journal writes only after Jake says OK. Cognition (Evidence/Belief/Principle, schema_version 1.1) is a separate Markdown layer in DigitalBrain with a human gate; private cognition is not stored in this repo. Skill copies sync into DigitalBrain.",
+    "shortDescription": "写周记、记想法；Cognition 另确认",
+    "longDescription": "Journal：说「写周记」后讨论，Jake 说可以写才落盘；「记一下：」「想法：」只记原话。Cognition（Evidence / Belief / Principle，schema_version 1.1）是 DigitalBrain 里单独的 Markdown 层，要另一次确认才写入；私人认知不进本仓库。这个包只有 journal 和 cognition。",
     "developerName": "Jake Guo",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],
     "defaultPrompt": [
       "写周记",
-      "跑今天的 Digest",
-      "同步 YouTube 点赞"
+      "记想法"
     ]
   }
 }
