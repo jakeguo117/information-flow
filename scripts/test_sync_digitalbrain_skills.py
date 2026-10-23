@@ -539,7 +539,12 @@ class SkillFlowContractTests(unittest.TestCase):
             self.assertIn("skills/content-core/SKILL.md", body, platform)
             self.assertNotIn(sensitive, body, platform)
             self.assertNotIn("一条帖子出三版", body, platform)
-        self.assertIn("800–1500", x_skill)
+        self.assertIn(
+            "中文长文 ≥1500 字（目标 1500–3000，约 5–10 分钟@300 字/分）",
+            x_skill,
+        )
+        self.assertIn("### 最短篇幅", x_skill)
+        self.assertNotIn("800–1500", x_skill)
         self.assertIn("1–3", x_skill)
         self.assertIn("短帖可以没有配图", x_skill)
         self.assertIn("不要求小红书式多图卡片", x_skill)
