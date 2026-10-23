@@ -14,16 +14,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from weekly_intake import iso_week, refresh_intake  # noqa: E402
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
-DEFAULT_VAULT = (
-    Path.home()
-    / "Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain"
-)
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 STATE_DIR = PLUGIN_ROOT / "state"
 
 
 def vault_path(raw: str | None) -> Path:
-    return Path(raw).expanduser() if raw else DEFAULT_VAULT
+    from infoflow_config import require_vault
+
+    return require_vault(raw)
 
 
 def main(argv: list[str] | None = None) -> int:

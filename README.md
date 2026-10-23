@@ -36,13 +36,15 @@ python3 scripts/package_journal_pack.py --chatgpt-plugin
 
 The file is `dist/information-flow-plugin.zip`. `dist/` is not committed.
 
-Obsidian Git on the iCloud vault is pull-only. Plugins and skill copies land in that working tree before `HEAD` moves, and Git then refuses the whole fast-forward. `scripts/reconcile_live_vault_untracked.py` fetches `origin/main`, clears incoming paths whose bytes already match, fast-forwards, and merges real local edits back on top. A failed fast-forward restores those files and exits non-zero. launchd `com.jake.digitalbrain-reconcile` runs it at login and every 2 minutes. The same reconcile also runs at the end of intake source push.
+Obsidian Git on the iCloud vault is pull-only. Plugins and skill copies land in that working tree before `HEAD` moves, and Git then refuses the whole fast-forward. `scripts/reconcile_live_vault_untracked.py` (on branch `cursor/cognition-v1.1`, not in this tree) clears incoming paths whose bytes already match, then fast-forwards. launchd `com.jake.digitalbrain-reconcile` is the Mac job for that script. This tree's `push_intake_sources.sh` does not call it. Keep or pause that job before switching the checkout to `main`: `docs/onboarding/local-switchover.md`.
 
 ## Runtime (not in git)
 
 - `models/ggml-small.bin` — Whisper fallback
 - `state/` — logs
-- YouTube OAuth: iCloud `.secrets/youtube/`
+- `config.json` in this plugin checkout (the directory that contains `scripts/`), or the absolute path in `INFOFLOW_CONFIG`. The checkout copy is gitignored. Copy `config.example.json` and replace every `REPLACE_WITH_` value. Scripts read `vault_root`, `git_remote`, `git_branch`, `storage_mode`, `git_user_name`, and `git_user_email` from that file. `INTAKE_GIT_USER_NAME` and `INTAKE_GIT_USER_EMAIL` override the two git identity fields when set. A missing value is an error. There is no built-in vault path.
+- YouTube OAuth files stay outside this repo and outside the vault. `YOUTUBE_CLIENT_FILE` is the client JSON (`installed` or `web`, with `client_id` and `client_secret`). `YOUTUBE_TOKEN_FILE` is the token JSON (`youtube_oauth.py` writes it; it needs `refresh_token`). A shell profile is invisible to launchd. A job that runs `youtube_likes.py` needs both variables in that job's environment.
+- Moving an existing Mac onto this config, including launchd reload and the `cursor/cognition-v1.1` reconcile job: `docs/onboarding/local-switchover.md`.
 
 ## Vault
 

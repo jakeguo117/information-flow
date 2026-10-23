@@ -24,10 +24,6 @@ from weekly_intake import (  # noqa: E402
 )
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
-DEFAULT_VAULT = (
-    Path.home()
-    / "Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain"
-)
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 STATE_DIR = PLUGIN_ROOT / "state"
 
@@ -36,7 +32,9 @@ WEREAD_TIME = re.compile(r"^>\s*⏱\s+(\d{4}-\d{2}-\d{2})")
 
 
 def vault_path(raw: str | None) -> Path:
-    return Path(raw).expanduser() if raw else DEFAULT_VAULT
+    from infoflow_config import require_vault
+
+    return require_vault(raw)
 
 
 def snipd_thread(text: str) -> str:

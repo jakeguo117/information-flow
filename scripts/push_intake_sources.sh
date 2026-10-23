@@ -1,14 +1,30 @@
 #!/bin/sh
-# Copy Inbox/Snipd and Inbox/WeRead from the iCloud vault onto a standalone
+# Copy Inbox/Snipd and Inbox/WeRead from the vault onto a standalone
 # origin/main clone, then commit and push only those paths. Never runs git
-# inside the iCloud vault (launchd cannot getcwd() there), and never touches
-# Journal, Digests, the dirty vault branch, or com.jake.journal-daily-digest.
+# inside the source vault, and never touches Journal or Digests.
+# Vault, remote, and git identity are required. There is no default path.
+# Git identity is config.json git_user_name / git_user_email.
+# INTAKE_GIT_USER_NAME and INTAKE_GIT_USER_EMAIL override those fields.
 set -eu
 
-PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/plugins/information-flow}"
-VAULT="${INTAKE_VAULT:-$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain}"
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+PLUGIN_ROOT="${PLUGIN_ROOT:-$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)}"
+PY="${PYTHON3:-python3}"
+
+if [ -z "${INTAKE_VAULT:-}" ]; then
+  INTAKE_VAULT=$("$PY" "$SCRIPT_DIR/infoflow_config.py" get vault_root)
+fi
+VAULT=$INTAKE_VAULT
+
+if [ -z "${INTAKE_SOURCE_REMOTE:-}" ]; then
+  INTAKE_SOURCE_REMOTE=$("$PY" "$SCRIPT_DIR/infoflow_config.py" get git_remote)
+fi
+REMOTE=$INTAKE_SOURCE_REMOTE
+
+INTAKE_GIT_USER_NAME=$("$PY" "$SCRIPT_DIR/infoflow_config.py" get git_user_name)
+INTAKE_GIT_USER_EMAIL=$("$PY" "$SCRIPT_DIR/infoflow_config.py" get git_user_email)
+
 WORKTREE="${INTAKE_SOURCE_WORKTREE:-$PLUGIN_ROOT/state/digitalbrain-main}"
-REMOTE="${INTAKE_SOURCE_REMOTE:-git@github.com:jakeguo117/obsidian-digitalbrain.git}"
 WAIT="${INTAKE_SOURCE_ICLOUD_WAIT:-45}"
 SNIPD="📥 Inbox/Snipd"
 WEREAD="📥 Inbox/WeRead"
@@ -59,11 +75,11 @@ git_clone() {
 }
 
 if [ "$WAIT" -gt 0 ]; then
-  log "waiting ${WAIT}s for iCloud"
+  log "waiting ${WAIT}s for the source tree"
   sleep "$WAIT"
 fi
 
-# launchd may start with a cwd git cannot read. Never cd into iCloud:
+# A scheduler may start with a cwd git cannot read. Never cd into the source vault:
 # macOS then returns EPERM on getcwd() for later git calls.
 cd "$PLUGIN_ROOT" || die "cannot cd to plugin root: $PLUGIN_ROOT"
 
@@ -75,7 +91,7 @@ command -v python3 >/dev/null || die "python3 not found"
 vault_real=$(realpath_of "$VAULT")
 
 if [ -f "$WORKTREE/.git" ]; then
-  log "replacing iCloud-linked worktree with standalone clone"
+  log "replacing linked worktree with standalone clone"
   rm -rf "$WORKTREE"
 fi
 
@@ -89,10 +105,10 @@ if [ ! -d "$WORKTREE/.git" ]; then
 fi
 
 wt_real=$(realpath_of "$WORKTREE")
-[ "$wt_real" != "$vault_real" ] || die "refusing to commit in the iCloud vault working tree"
+[ "$wt_real" != "$vault_real" ] || die "refusing to commit in the source vault working tree"
 
-gitw config user.name Jake
-gitw config user.email jakeguo117@gmail.com
+gitw config user.name "$INTAKE_GIT_USER_NAME"
+gitw config user.email "$INTAKE_GIT_USER_EMAIL"
 gitw remote set-url origin "$REMOTE"
 gitw fetch origin
 
