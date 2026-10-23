@@ -516,6 +516,40 @@ class EmptyVaultScaffoldTests(unittest.TestCase):
             self.assertFalse(PLUGIN.resolve() in resolved.parents)
             self.assertFalse(resolved.is_relative_to(PLUGIN.resolve()))
 
+    def test_local_switchover_doc_has_no_personal_defaults(self) -> None:
+        doc = PLUGIN / "docs" / "onboarding" / "local-switchover.md"
+        text = doc.read_text(encoding="utf-8")
+        for banned in (
+            "/Users/jake",
+            "jakeguo",
+            "iCloud~md~obsidian",
+            "obsidian-digitalbrain",
+            "@gmail",
+        ):
+            self.assertNotIn(banned, text)
+        for required in (
+            "INFOFLOW_CONFIG",
+            "INFOFLOW_VAULT_ROOT",
+            "YOUTUBE_CLIENT_FILE",
+            "YOUTUBE_TOKEN_FILE",
+            "INTAKE_GIT_USER_NAME",
+            "INTAKE_GIT_USER_EMAIL",
+            "launchctl bootout",
+            "daily-intake.yml",
+            "sync-digitalbrain-skills.yml",
+            "weekly-digest.yml",
+            "push_intake_sources.sh",
+            "run_digest_jobs.sh",
+            "REPLACE_WITH_VAULT_ROOT",
+            "REPLACE_WITH_GIT_REMOTE",
+        ):
+            self.assertIn(required, text)
+        wrapper = (PLUGIN / "scripts" / "run_intake_source_push.applescript").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("INTAKE_GIT_USER_NAME", wrapper)
+        self.assertIn("on envAssign", wrapper)
+
     def test_placeholder_remote_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
