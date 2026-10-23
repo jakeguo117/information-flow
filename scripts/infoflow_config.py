@@ -23,6 +23,8 @@ ENV_FOR_KEY = {
     "git_remote": "INFOFLOW_GIT_REMOTE",
     "git_branch": "INFOFLOW_GIT_BRANCH",
     "storage_mode": "INFOFLOW_STORAGE_MODE",
+    "git_user_name": "INTAKE_GIT_USER_NAME",
+    "git_user_email": "INTAKE_GIT_USER_EMAIL",
 }
 
 

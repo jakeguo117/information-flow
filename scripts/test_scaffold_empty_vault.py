@@ -135,6 +135,11 @@ class EmptyVaultScaffoldTests(unittest.TestCase):
         self.assertIn("REPLACE_WITH_VAULT_ROOT", example)
         self.assertIn("REPLACE_WITH_GIT_REMOTE", example)
         self.assertIn("REPLACE_WITH_A_OR_B", example)
+        self.assertIn("REPLACE_WITH_GIT_USER_NAME", example)
+        self.assertIn("REPLACE_WITH_GIT_USER_EMAIL", example)
+        example_json = json.loads(example)
+        self.assertEqual(example_json["git_user_name"], "REPLACE_WITH_GIT_USER_NAME")
+        self.assertEqual(example_json["git_user_email"], "REPLACE_WITH_GIT_USER_EMAIL")
         joined = "\n".join(blobs)
         for banned in BANNED:
             self.assertNotIn(banned, joined)
@@ -534,7 +539,12 @@ class EmptyVaultScaffoldTests(unittest.TestCase):
             "YOUTUBE_TOKEN_FILE",
             "INTAKE_GIT_USER_NAME",
             "INTAKE_GIT_USER_EMAIL",
+            "git_user_name",
+            "git_user_email",
+            "REPLACE_WITH_GIT_USER_NAME",
+            "REPLACE_WITH_GIT_USER_EMAIL",
             "launchctl bootout",
+            "launchctl kickstart",
             "daily-intake.yml",
             "sync-digitalbrain-skills.yml",
             "weekly-digest.yml",
@@ -542,13 +552,119 @@ class EmptyVaultScaffoldTests(unittest.TestCase):
             "run_digest_jobs.sh",
             "REPLACE_WITH_VAULT_ROOT",
             "REPLACE_WITH_GIT_REMOTE",
+            "plugins/information-flow",
+            "cursor/cognition-v1.1",
+            "reconcile_live_vault_untracked.py",
+            "com.jake.intake-source-push",
+            "com.jake.digitalbrain-reconcile",
+            "push_intake_sources rc",
+            "不要删除",
         ):
             self.assertIn(required, text)
+        self.assertNotIn("Git 身份**不在**", text)
+        readme = (PLUGIN / "README.md").read_text(encoding="utf-8")
+        runtime = readme.split("## Runtime (not in git)", 1)[1].split("## ", 1)[0]
+        self.assertIn("config.json", runtime)
+        self.assertIn("docs/onboarding/local-switchover.md", runtime)
+        self.assertIn("YOUTUBE_CLIENT_FILE", runtime)
+        self.assertIn("YOUTUBE_TOKEN_FILE", runtime)
+        self.assertIn("git_user_name", runtime)
+        self.assertIn("git_user_email", runtime)
+        self.assertNotIn(".secrets/youtube/", runtime)
+        push = (PLUGIN / "scripts" / "push_intake_sources.sh").read_text(encoding="utf-8")
+        self.assertIn('get git_user_name', push)
+        self.assertIn('get git_user_email', push)
+        self.assertNotIn("INTAKE_GIT_USER_NAME and INTAKE_GIT_USER_EMAIL are required", push)
         wrapper = (PLUGIN / "scripts" / "run_intake_source_push.applescript").read_text(
             encoding="utf-8"
         )
         self.assertIn("INTAKE_GIT_USER_NAME", wrapper)
         self.assertIn("on envAssign", wrapper)
+
+    def test_git_identity_env_overrides_config_and_push_script_reads_it(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            cfg = root / "config.json"
+            cfg.write_text(
+                json.dumps(
+                    {
+                        "git_user_name": "config-name",
+                        "git_user_email": "config@example.com",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with patch.dict(os.environ, {"INFOFLOW_CONFIG": str(cfg)}, clear=False):
+                os.environ.pop("INTAKE_GIT_USER_NAME", None)
+                os.environ.pop("INTAKE_GIT_USER_EMAIL", None)
+                self.assertEqual(infoflow_config.require_setting("git_user_name"), "config-name")
+                self.assertEqual(
+                    infoflow_config.require_setting("git_user_email"), "config@example.com"
+                )
+            with patch.dict(
+                os.environ,
+                {
+                    "INFOFLOW_CONFIG": str(cfg),
+                    "INTAKE_GIT_USER_NAME": "env-name",
+                    "INTAKE_GIT_USER_EMAIL": "env@example.com",
+                },
+                clear=False,
+            ):
+                self.assertEqual(infoflow_config.require_setting("git_user_name"), "env-name")
+                self.assertEqual(
+                    infoflow_config.require_setting("git_user_email"), "env@example.com"
+                )
+            with patch.dict(os.environ, {"INTAKE_GIT_USER_NAME": "REPLACE_WITH_GIT_USER_NAME"}):
+                with self.assertRaises(SystemExit) as caught:
+                    infoflow_config.require_setting("git_user_name", config_file=str(cfg))
+                self.assertIn("placeholder", str(caught.exception))
+
+            missing_vault = str(root / "missing-vault")
+            reached = self._run_push(cfg, INTAKE_VAULT=missing_vault)
+            self.assertNotEqual(reached.returncode, 0)
+            self.assertIn("vault missing", reached.stderr)
+            self.assertNotIn("missing git_user_name", reached.stderr)
+
+            empty = root / "empty.json"
+            empty.write_text("{}", encoding="utf-8")
+            no_identity = self._run_push(empty, INTAKE_VAULT=missing_vault)
+            self.assertNotEqual(no_identity.returncode, 0)
+            self.assertIn("missing git_user_name", no_identity.stderr)
+
+            from_env = self._run_push(
+                empty,
+                INTAKE_VAULT=missing_vault,
+                INTAKE_GIT_USER_NAME="env-name",
+                INTAKE_GIT_USER_EMAIL="env@example.com",
+            )
+            self.assertIn("vault missing", from_env.stderr)
+            self.assertNotIn("missing git_user_name", from_env.stderr)
+
+    def _run_push(self, cfg: Path, **extra: str) -> subprocess.CompletedProcess[str]:
+        env = os.environ.copy()
+        for key in (
+            "INTAKE_GIT_USER_NAME",
+            "INTAKE_GIT_USER_EMAIL",
+            "INTAKE_VAULT",
+            "INTAKE_SOURCE_REMOTE",
+            "INFOFLOW_VAULT_ROOT",
+            "INFOFLOW_GIT_REMOTE",
+            "INFOFLOW_CONFIG",
+            "INFOFLOW_GIT_BRANCH",
+            "INFOFLOW_STORAGE_MODE",
+        ):
+            env.pop(key, None)
+        env["INFOFLOW_CONFIG"] = str(cfg)
+        env["INTAKE_SOURCE_ICLOUD_WAIT"] = "0"
+        env["INTAKE_SOURCE_REMOTE"] = "git@example.invalid:vault.git"
+        env.update(extra)
+        return subprocess.run(
+            ["/bin/sh", str(PLUGIN / "scripts" / "push_intake_sources.sh")],
+            cwd=PLUGIN,
+            env=env,
+            text=True,
+            capture_output=True,
+        )
 
     def test_placeholder_remote_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as raw:

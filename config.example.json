@@ -3,5 +3,7 @@
   "storage_mode": "REPLACE_WITH_A_OR_B",
   "git_remote": "REPLACE_WITH_GIT_REMOTE",
   "git_branch": "main",
+  "git_user_name": "REPLACE_WITH_GIT_USER_NAME",
+  "git_user_email": "REPLACE_WITH_GIT_USER_EMAIL",
   "enabled_sources": []
 }

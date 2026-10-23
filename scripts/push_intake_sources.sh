@@ -3,6 +3,8 @@
 # origin/main clone, then commit and push only those paths. Never runs git
 # inside the source vault, and never touches Journal or Digests.
 # Vault, remote, and git identity are required. There is no default path.
+# Git identity is config.json git_user_name / git_user_email.
+# INTAKE_GIT_USER_NAME and INTAKE_GIT_USER_EMAIL override those fields.
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
@@ -19,10 +21,8 @@ if [ -z "${INTAKE_SOURCE_REMOTE:-}" ]; then
 fi
 REMOTE=$INTAKE_SOURCE_REMOTE
 
-if [ -z "${INTAKE_GIT_USER_NAME:-}" ] || [ -z "${INTAKE_GIT_USER_EMAIL:-}" ]; then
-  echo "error: INTAKE_GIT_USER_NAME and INTAKE_GIT_USER_EMAIL are required" >&2
-  exit 1
-fi
+INTAKE_GIT_USER_NAME=$("$PY" "$SCRIPT_DIR/infoflow_config.py" get git_user_name)
+INTAKE_GIT_USER_EMAIL=$("$PY" "$SCRIPT_DIR/infoflow_config.py" get git_user_email)
 
 WORKTREE="${INTAKE_SOURCE_WORKTREE:-$PLUGIN_ROOT/state/digitalbrain-main}"
 WAIT="${INTAKE_SOURCE_ICLOUD_WAIT:-45}"
