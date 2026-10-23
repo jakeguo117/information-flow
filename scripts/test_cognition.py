@@ -1156,14 +1156,27 @@ class WriteAuthTests(unittest.TestCase):
 
 class PrivacyAndContractTests(unittest.TestCase):
     def test_public_tree_has_no_cognition_payload_dir(self) -> None:
+        """No Cognition notes in this repo.
+
+        The empty-vault template may ship the top-level directory and a
+        placeholder README. Type directories and note files stay out.
+        """
+        allowed = {
+            (ROOT / "templates" / "empty-vault" / COG).resolve(),
+            (ROOT / "templates" / "empty-vault" / COG / "README.md").resolve(),
+        }
         skip = {".git", "state", "__pycache__"}
         hits = []
         for path in ROOT.rglob("*"):
             if skip.intersection(path.parts):
                 continue
             if path.name == COG or COG in path.parts:
-                hits.append(path)
+                if path.resolve() not in allowed:
+                    hits.append(path)
         self.assertEqual(hits, [])
+        template = ROOT / "templates" / "empty-vault" / COG
+        self.assertTrue((template / "README.md").is_file())
+        self.assertEqual([path.name for path in template.iterdir()], ["README.md"])
 
     def test_fixtures_are_synthetic(self) -> None:
         blob = ""
