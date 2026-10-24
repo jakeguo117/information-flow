@@ -21,7 +21,7 @@ X 样例只按本技能写。不用小红书或公众号稿改写成 X 样例。
 
 整周多渠道发布包，或他明确要三版交齐：那不是上面这条只要 X 的加载。X 这一版仍只加载 content-core 和本技能，不加载 content-xhs 或 content-wechat。小红书由内容写手加载 content-xhs。公众号由公众号编辑按 content-wechat 从本岗的 X 母稿转换。本技能仍只负责 X 版式。
 
-出图规则在 `skills/content-visual/SKILL.md`（内容视觉）。出图前仍先加载 canvas-design。运营骨架在 `skills/content-x-ops/SKILL.md`（也是 X 运营；写长文和跑运营可以分线程，一次只做一类）。这两处都不是 content-xhs，也不是 content-wechat。
+出图规则在 `skills/content-visual/SKILL.md`（内容视觉）。出图前仍先加载 canvas-design。运营骨架在 `skills/content-x-ops/SKILL.md`（也是 X 运营；写长文和跑运营可以分线程，一次只做一类）。这两处都不是 content-xhs，也不是 content-wechat。同 topic 的配图需求包由本岗交一份，写明公众号、小红书画幅。
 
 ## 写法
 
@@ -99,4 +99,4 @@ canvas-design 没有 5:2，也没有中文字体。本仓库不附带 `canvas-fo
 
 本轮只要 X：只交 X。小红书版或公众号版未写，不得因此拦住这张卡，也不得为了补那两版去加载 `content-xhs` 或 `content-wechat`。
 
-整周多渠道包或明确三版交齐：小红书版和公众号版未齐，不得交卡。
+整周多渠道包或明确三版交齐：三张卡（一渠道一张）同一批交统一出口；小红书版或公众号版未齐，这一批先不交。
