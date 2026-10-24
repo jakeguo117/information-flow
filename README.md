@@ -4,7 +4,7 @@ Jake only. Daily content in, weekly journal out, durable Cognition in DigitalBra
 
 ## Skills
 
-- `intake` — resolve this week's `📋 Digests/{YYYY-Wnn}/intake.md` from the Shanghai date (portrait + old-thread echoes first; never dump the week). Intake items and concept cards are not Evidence.
+- `intake` — collect only, no discussion: Inbox originals stay as they are, and `📥 Inbox/_index/` gets one append-only line per Input. The weekly `📋 Digests/{YYYY-Wnn}/intake.md` is retired; 「看本周汇总」 goes to `digest`, which reads the latest Thursday snapshot `📋 Digests/cycles/{cycle_id}/r{n}.md`. Intake items and concept cards are not Evidence.
 - `journal` — on demand: find echoes from recent journals / already-linked projects, then write `📝 Journal/` only after Jake says OK. Persistent save goes through `write_journal.py`; without `可以写` / `写吧` / `OK 写` the tool writes 0 files. After a journal is written, hand off to `cognition` propose; journal never writes Cognition files.
 - `cognition` — propose / promote / retrieve / revise Evidence, Belief, and Principle as Markdown (`schema_version: "1.1"`) under DigitalBrain `📖 Cognition/`. Human gate. Writes go through validator + write coordinator. Retrieval returns `found | no_match | partial | unavailable`.
 
@@ -21,14 +21,14 @@ python3 skills/journal/tools/write_journal.py save --vault "$VAULT" --approval F
 
 ## Skills
 
-- `intake` — resolve this week's `📋 Digests/{YYYY-Wnn}/intake.md` from the Shanghai date (portrait + old-thread echoes first; never dump the week)
+- `intake` — collect only, no discussion; the weekly `📋 Digests/{YYYY-Wnn}/intake.md` is retired, and 「看本周汇总」 reads the latest Thursday snapshot through `digest`
 - `journal` — on demand: find echoes from recent journals / already-linked projects, then write `📝 Journal/` only after Jake says OK
 
 Skill copies on DigitalBrain (`.cursor/skills/` + the AGENTS.md route block) are overwritten by `scripts/sync_digitalbrain_skills.py` when this repo's `main` changes. Existing notes are not rewritten.
 
-`daily-intake` runs at 07:30 Asia/Hong_Kong. It collects YouTube likes into DigitalBrain `📥 Inbox/YouTube-Likes/` (since the last successful run, or yesterday in Asia/Hong_Kong) and syncs skill copies. It does not write a daily digest. Skill-file changes on `main` also run `sync-digitalbrain-skills`. Snipd and WeRead still land from the local plugins; `com.jake.intake-source-push` pushes only `📥 Inbox/Snipd/` and `📥 Inbox/WeRead/` to DigitalBrain `main` at login and every 4 hours while the Mac is on. It never runs `journal`.
+`daily-intake` runs at 07:30 Asia/Hong_Kong (cron `30 23 * * *` UTC) and can also be started by hand with `workflow_dispatch` (no inputs). It collects YouTube likes (since the last successful run, or yesterday in Asia/Hong_Kong) into DigitalBrain `📥 Inbox/YouTube-Likes/` and syncs skill copies. All three workflows check DigitalBrain out without a `ref`, so they read and push its default branch, which is `main`. It does not write a daily digest. Skill-file changes on `main` (or a manual `workflow_dispatch`) also run `sync-digitalbrain-skills`; it has no schedule, and its `TZ` is Asia/Shanghai, also UTC+8, used only for the date in its commit message. Snipd and WeRead still land from the local plugins; `com.jake.intake-source-push` pushes only `📥 Inbox/Snipd/` and `📥 Inbox/WeRead/` to DigitalBrain `main` at login and every 4 hours while the Mac is on. It never runs `journal`.
 
-Thursday `weekly-digest` (Asia/Hong_Kong): 08:00 `process_batch.py` writes `📋 Digests/cycles/{cycle_id}/batch.json`; 20:00 `build_digest_v2.py` writes `📋 Digests/cycles/{cycle_id}/r{n}.md`. `cycle_id` is that Thursday's `cy-YYYYMMDD`. `workflow_dispatch` takes `stage` (`process` or `digest`) and a Thursday `cycle_id`. A missing `📥 Inbox/_index`, or a missing or empty `inputs.jsonl`, logs 索引未建，跳过 and the job stays green. Outputs push to `obsidian-digitalbrain` `main`. There is no Friday journal cron. `📋 Digests/daily/` is not generated.
+Thursday `weekly-digest` (Asia/Hong_Kong): 08:00 `process_batch.py` writes `📋 Digests/cycles/{cycle_id}/batch.json`; 20:00 `build_digest_v2.py` writes `📋 Digests/cycles/{cycle_id}/r{n}.md`. `cycle_id` is that Thursday's `cy-YYYYMMDD`; a scheduled start that is not Thursday in Asia/Hong_Kong fails closed. `workflow_dispatch` requires both `stage` (`process` or `digest`) and a Thursday `cycle_id`; an empty, malformed or non-Thursday `cycle_id` fails the job. A missing `📥 Inbox/_index`, or a missing or empty `inputs.jsonl`, logs 索引未建，跳过 and the job stays green. Each run commits only `📋 Digests/cycles/{cycle_id}/` and `📥 Inbox/_index/` (the status lines `process_batch.py` writes), refuses any other staged path, and pushes to `obsidian-digitalbrain` `main`. There is no Friday journal cron. `📋 Digests/daily/` is not generated.
 
 ChatGPT upload ZIP (root `plugin.json`, `.codex-plugin/plugin.json`, skills, and the journal pack files, timestamps fixed at 1980-01-01):
 

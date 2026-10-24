@@ -7,7 +7,7 @@ description: "提炼想法。Jake 说「提炼想法」，或周记/反思收束
 
 给 Jake 自己用。字段、枚举、AC10、AC-Fidelity 和七种关系见 `references/schema.md`。选取与改写的细则见 `references/fidelity.md`。`schema_version` 字面量是 `ideas-0.1`。时区 Asia/Hong_Kong。
 
-规则源在 information-flow。本包不改 DigitalBrain 里已有的 Ideas 笔记。落盘将走 `skills/ideas/tools/write_idea.py`（T35），现在只定义字段与流程。
+规则源在 information-flow。本包不改 DigitalBrain 里已有的 Ideas 笔记。落盘走 `skills/ideas/tools/write_idea.py`（T35，已在本仓，有单测），用法见下文「4. 确认前不落盘」。
 
 ## 什么时候用
 
@@ -48,7 +48,7 @@ description: "提炼想法。Jake 说「提炼想法」，或周记/反思收束
 
 选取优先原话。周记、聊天或确认记录里，他已经说完整的一句，`origin` 为 `jake`，`expression` 用这句原话，不要先改写再拿去确认。模型从多句归纳、补问或改写出来的，`origin` 为 `ai_extension`，`confirmation_state` 只能是 `candidate`。不把延伸说成他的观点，也不预填 `confirmed`。短清单已经标可公开，但还没有确认这句 `expression` 时，只可当作来源线索，不是 content 能用的 `expression`。
 
-改写只动表面。允许语序微调、把中英夹杂改成通顺中文、去掉口头赘词，以及不引入新步骤名或机制名的同义替换。离开周记之后仍要可读。禁止换因果（因为 A 所以做 B，不能改成因为 C 所以做 D）。禁止换目标。禁止添加原话没有的步骤名或机制名。禁止用外部框架反填进 `expression`。把「存下来、坚持、迭代、accumulate」收成「捕获—回看—改写／叠厚」，就是不合格改写。改完之后，因果箭头还要用原话里的词画得出来。画不出，就退回原话，或只做更小的表面改动。
+改写只动表面。允许语序微调、把中英夹杂改成通顺中文、去掉口头赘词，以及不引入新步骤名或机制名的同义替换。离开周记之后仍要可读。禁止换因果（因为 A 所以做 B，不能改成因为 C 所以做 D）。禁止换目标。禁止添加原话没有的步骤名或机制名。禁止用外部框架反填进 `expression`。把「存下来、积起来／滚复利」收成「捕获—回看—改写／叠厚」，就是不合格改写。（「坚持迭代」半句已按 Jake 19:22 默认从锁定 expression 去掉；示例勿再写成「存下来 → 坚持迭代 → 滚复利」。）改完之后，因果箭头还要用原话里的词画得出来。画不出，就退回原话，或只做更小的表面改动。
 
 交候选前先做保真自检。原话里的原因、手段、结果，改写句里还必须在，方向相同。目标词保留，或只做同义，不换成新口号。`expression` 里不得出现原话没有的步骤名或机制名。多出来的解释、例子、机制拿掉，或只放进 `suggested_expression`，不得进 `expression`。`suggested_expression` 不是 ideas-0.1 的节点字段，不写入 Idea 文件。表面改写不要和 Journal 或短清单原话连续 20 个字相同；`origin` 为 `jake` 且用的就是原话时除外。任一题不过，不得把该句标成可交给 content 的 `expression`。
 
@@ -70,14 +70,14 @@ description: "提炼想法。Jake 说「提炼想法」，或周记/反思收束
 他选定之前不写文件。选定之后也不要手写 Markdown 绕过工具。
 
 ```bash
-python3 skills/ideas/tools/write_idea.py
+python3 skills/ideas/tools/write_idea.py write --vault <DigitalBrain 路径> --payload <节点 JSON 文件>
 ```
 
-这个工具是 T35，本包没有，也没有命令行参数可调用。工具还没落地时，停在已确认的字段草稿上，告诉他这次没有写入。
+这个工具是 T35。payload 是一个 ideas-0.1 节点的 JSON；同一节点重写用 `retry`，加 `--dry-run` 只看路径不写。它只在他选定之后由你手动运行：没有 workflow、定时任务或别的脚本调用它，DigitalBrain 的 skill 副本里也没有它（`scripts/sync_digitalbrain_skills.py` 只同步本文件，见 T38）。当前环境找不到这个工具或它拒绝写入时，停在已确认的字段草稿上，告诉他这次没有写入。
 
 ### AC10
 
-`origin` 为 `ai_extension`，且没有 Jake 确认记录时，`confirmation_state` 不得为 `confirmed`。将来 `write_idea.py` 应拒绝这种写入。记录的形状以 schema 为准：写在该 `idea_id` 的 `history` 里，`by` 为 `jake`，表达与当前 `expression` 一致。只在聊天里说过、没有进入记录的，不算已确认。
+`origin` 为 `ai_extension`，且没有 Jake 确认记录时，`confirmation_state` 不得为 `confirmed`。`write_idea.py` 会拒绝这种写入。记录的形状以 schema 为准：写在该 `idea_id` 的 `history` 里，`by` 为 `jake`，表达与当前 `expression` 一致。只在聊天里说过、没有进入记录的，不算已确认。
 
 ### AC-Fidelity
 
