@@ -37,6 +37,7 @@ SKILL_RELATIVE_PATHS = (
     "journal/tools/write_journal.py",
     "journal/tools/thought_lib.py",
     "journal/tools/capture_thought.py",
+    "journal/tools/vault_guard.py",
     "cognition/SKILL.md",
     "cognition/references/schema.md",
     "cognition/references/retrieval.md",

@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import difflib
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -723,6 +724,23 @@ def success(path: Path, idea_id: str, op: str, *, dry_run: bool, already: bool) 
     }
 
 
+_GUARD = None
+_GUARD_MISSING = "写入只许进 obsidian-digitalbrain，vault guard 缺失，拒绝并停下"
+
+
+def _rejection(vault: Path) -> tuple[str, str] | None:
+    global _GUARD
+    if _GUARD is None:
+        path = Path(__file__).resolve().parents[2] / "journal" / "tools" / "vault_guard.py"
+        spec = importlib.util.spec_from_file_location("infoflow_vault_guard", path)
+        if spec is None or spec.loader is None or not path.is_file():
+            return "refused", _GUARD_MISSING
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _GUARD = module
+    return _GUARD.rejection(vault)
+
+
 def perform(
     vault: Path,
     action: str,
@@ -735,6 +753,10 @@ def perform(
         return {"ok": False, "error": "action must be write or retry"}
     if not vault.is_dir():
         return {"ok": False, "error": "vault missing"}
+    rejected = _rejection(vault)
+    if rejected is not None:
+        _status, message = rejected
+        return {"ok": False, "error": message}
     if not (vault / IDEAS_DIR).is_dir():
         return {"ok": False, "error": "ideas directory missing"}
     try:

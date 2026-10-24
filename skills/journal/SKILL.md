@@ -33,6 +33,8 @@ python3 skills/journal/tools/capture_thought.py add --vault "$VAULT" --text-file
 
 只有这一步的退出码是 0、并且状态是成功，才说「记了」，并把原话原样给他看。推送或 publish 因任何原因失败（没有 git、没有推送权限、网络、工作区不干净、工具拒绝、路径已在 main、提交里有修改或删除、快进不了），都要清楚告诉他「没存上」，给一个短原因，再把他的原话原样念回去，让他自己留着。不要说已经存上，也不要说「记了」。
 
+写入只许进 obsidian-digitalbrain，发现是公开仓就拒绝并停下。`INFOFLOW_RUNTIME=codex-cloud` 时，`--publish` 只把文件留在工作区，不推 `main`；退出码 0 且 `runtime` 为 `codex-cloud` 表示还没进 main，交给 Codex 的 PR，不要自己 `git push`。
+
 没存上之后：退出码 4 是 git 不在 PATH，或 git 调用本身报了网络失败，文件还在本地。不靠异常消息里的词来判断。远端如果没动，网络恢复后可以对同一路径 `publish`。远端如果已经前进（竞态，或断网之后赶上 08:00 日摘要），「对同一路径再 publish」本身不是恢复办法：只新增且路径还不在 origin 上时，工具会重放后再推。条件不满足时退出码 2。挡路的是修改、删除、重命名、合并、路径已在 origin 上或内容不合格时，reason 不给 push 命令：把这些提交移到 task branch 开 PR，或交给 Jake，例子是 `git branch task/thought-recovery HEAD && git reset --keep origin/main`，不推 main。分支已经建好、但 `reset --keep` 失败时，只再跑 `git reset --keep origin/main`。校验已经通过、失败出在 git 重放本身时，reason 也不给 push 命令：先排除原因，再重新 `publish`，让工具重新校验后推送。如果 rebase 停在半路，运行 `git rebase --abort`。退出码 3 是远端拒绝，不要强推。退出码 2 是门禁拒绝，reason 里会点名路径或提交；别人暂存的修改或删除留在原地，不要为了推想法把周记一起提交。退出码 5 是工具自己的异常，reason 是异常类名和消息，原话仍在 verbatim 里，这不是 git 不可用。
 
 DigitalBrain `.cursor/skills/` 里的副本由 information-flow Actions 覆盖。改行为只改这个仓库。
@@ -88,6 +90,8 @@ python3 skills/journal/tools/write_journal.py retry --vault "$VAULT" --approval 
 本周周四快照实际打开时，`save` / `retry` 一律带 `--digest-snapshot <digest_id>@r<n>`。`digest_id` 用该快照 frontmatter 的 `digest_id`（`dg-{cycle_id}`），`r<n>` 用实际打开的修订，例如 `dg-cy-20261015@r2`。没有这份快照时不带这个参数。不要再传 `--append-digest`，也不要附旧的周 digest 路径。
 
 `FILE` 是这一次的 JSON。`confirmed` 必须是 true，并且 `phrase` 必须正好是 `可以写`、`写吧` 或 `OK 写`。「写周记」只是开始讨论，不是这句短语。不符合时工具返回 `refused`，写入数为 0，不创建 `📝 Journal/`。同一 `event_id` 重复送达只保留 1 份；内容不一致则 `conflict`，不覆盖。`retry` 在磁盘已有相同内容时直接读回，不另写一篇。工具不写 `📖 Cognition/`，不 `git commit` / `git push`。周记文件本身仍不自动 push。
+
+写入只许进 obsidian-digitalbrain，发现是公开仓就拒绝并停下。工具核对 origin 以及每一个 git remote 的 fetch URL 和实际 push URL（含 pushurl、pushInsteadOf、insteadOf），只接受 github.com 上 `jakeguo117/obsidian-digitalbrain` 的 https 或 ssh。没有 git remote 的普通目录按设计拒绝写入。远端仓库名是 `information-flow`，或工作区就是 information-flow 代码仓，一律拒绝，文件数为 0。不要改用别的方式写文件。
 
 `write_journal.py` 返回 `success` 之后，才把这次 `list-open` 的每一条写进一份新的消化清单。失败、拒绝、冲突都不写清单，那些想法下次还能捞到。清单必须正好覆盖当前未消化的 id，每条是 `展开` 或 `看过未展开`，并链到这篇周记。不改旧的想法文件，也不在旧文件上打勾。
 

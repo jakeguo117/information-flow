@@ -67,6 +67,8 @@ description: "提炼想法。Jake 说「提炼想法」，或周记/反思收束
 
 ### 4. 确认前不落盘
 
+写入只许进 obsidian-digitalbrain，发现是公开仓就拒绝并停下。
+
 他选定之前不写文件。选定之后也不要手写 Markdown 绕过工具。
 
 ```bash

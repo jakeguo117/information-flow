@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+"""Refuse vault writes unless every git remote is jakeguo117/obsidian-digitalbrain.
+
+origin must exist. Each remote's fetch URL and effective push URL (pushurl,
+pushInsteadOf, insteadOf) must be an https or ssh github.com URL for that
+repository. information-flow and this code repository are always refused.
+"""
+
+from __future__ import annotations
+
+import os
+import subprocess
+from pathlib import Path
+from urllib.parse import urlsplit
+
+DEFAULT_VAULT_REMOTE = "jakeguo117/obsidian-digitalbrain"
+ENV_RUNTIME = "INFOFLOW_RUNTIME"
+RUNTIME_CODEX_CLOUD = "codex-cloud"
+DENIED_REPO_NAMES = frozenset({"information-flow"})
+MARKER_NAME = ".runtime-codex-cloud"
+
+PUBLIC_REPO_REFUSAL = "写入只许进 obsidian-digitalbrain，发现是公开仓就拒绝并停下"
+CODE_REPO_REFUSAL = "写入只许进 obsidian-digitalbrain，工作区是 information-flow 代码仓，拒绝并停下"
+OTHER_REFUSAL = "写入只许进 obsidian-digitalbrain，当前远端不在允许列表，拒绝并停下"
+GIT_MISSING = "git is not available; file was not written"
+
+_BAD_USERINFO = frozenset("/?#@\\")
+
+
+def codex_cloud() -> bool:
+    """True when this process should leave commits to a Codex Cloud pull request."""
+    raw = os.environ.get(ENV_RUNTIME)
+    if raw is not None and raw.strip():
+        return raw.strip() == RUNTIME_CODEX_CLOUD
+    here = Path(__file__).resolve()
+    for candidate in here.parents:
+        if (candidate / "skills" / "journal" / "tools" / "vault_guard.py").is_file():
+            return (candidate / MARKER_NAME).is_file()
+    return False
+
+
+def is_code_repo(path: Path) -> bool:
+    """True when path is this information-flow checkout or a directory inside it."""
+    try:
+        current = path.expanduser().resolve()
+    except OSError:
+        return False
+    if current.is_file():
+        current = current.parent
+    for candidate in (current, *current.parents):
+        if (candidate / "scripts" / "package_journal_pack.py").is_file() and (
+            candidate / "skills" / "journal" / "SKILL.md"
+        ).is_file():
+            return True
+    return False
+
+
+def _owner_repo(path: str) -> str | None:
+    trimmed = path.rstrip("/")
+    if trimmed.endswith(".git"):
+        trimmed = trimmed[:-4]
+    if not trimmed.startswith("/"):
+        return None
+    owner, sep, repo = trimmed[1:].partition("/")
+    if not sep or not owner or not repo or "/" in repo:
+        return None
+    if any(char in owner + repo for char in _BAD_USERINFO):
+        return None
+    return f"{owner}/{repo}".lower()
+
+
+def _userinfo_ok(netloc: str) -> bool:
+    if "@" not in netloc:
+        return True
+    if netloc.count("@") != 1:
+        return False
+    userinfo = netloc.split("@", 1)[0]
+    return not any(char in userinfo for char in _BAD_USERINFO)
+
+
+def _slug_scp(text: str) -> str | None:
+    """git@github.com:owner/repo, with the same userinfo limits as https."""
+    if "://" in text or text.count("@") != 1 or any(char in text for char in "?#\\"):
+        return None
+    userinfo, rest = text.split("@", 1)
+    if not userinfo or any(char in userinfo for char in _BAD_USERINFO):
+        return None
+    host, sep, path = rest.partition(":")
+    if sep != ":" or host.lower() != "github.com" or not path or path.startswith("/"):
+        return None
+    return _owner_repo("/" + path)
+
+
+def slug_of(value: str) -> str | None:
+    """Return owner/repo for a github.com https or ssh URL. Anything else is None.
+
+    Userinfo may carry an access token. It may not contain / ? # @ or backslash.
+    A query or fragment is rejected, so a host hidden before '?' or '#' is not github.com.
+    """
+    text = value.strip()
+    if not text:
+        return None
+    if "://" not in text:
+        return _slug_scp(text)
+    try:
+        parts = urlsplit(text)
+    except ValueError:
+        return None
+    if parts.scheme.lower() not in {"https", "ssh"}:
+        return None
+    if parts.query or parts.fragment:
+        return None
+    if parts.hostname != "github.com" or not _userinfo_ok(parts.netloc):
+        return None
+    return _owner_repo(parts.path)
+
+
+def _git(vault: Path, args: list[str]) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    env["GCM_INTERACTIVE"] = "Never"
+    return subprocess.run(
+        ["git", "-C", str(vault), *args],
+        capture_output=True,
+        text=True,
+        timeout=15,
+        env=env,
+        check=False,
+    )
+
+
+def _remote_urls(vault: Path, name: str, *, push: bool) -> list[str] | None:
+    args = ["remote", "get-url"]
+    if push:
+        args.append("--push")
+    args.extend(["--all", name])
+    proc = _git(vault, args)
+    urls = [line.strip() for line in (proc.stdout or "").splitlines() if line.strip()]
+    if proc.returncode != 0 or not urls:
+        return None
+    return urls
+
+
+def _remote_rejection(vault: Path, code: bool) -> tuple[str, str] | None:
+    listed = _git(vault, ["remote"])
+    names = [line.strip() for line in (listed.stdout or "").splitlines() if line.strip()]
+    if listed.returncode != 0:
+        names = []
+    if "origin" not in names:
+        if code:
+            return "refused", CODE_REPO_REFUSAL
+        return "refused", OTHER_REFUSAL
+    public = False
+    mismatch = False
+    for name in names:
+        for push in (False, True):
+            urls = _remote_urls(vault, name, push=push)
+            if urls is None:
+                mismatch = True
+                continue
+            for url in urls:
+                slug = slug_of(url)
+                repo = slug.split("/", 1)[1] if slug is not None else ""
+                if repo in DENIED_REPO_NAMES:
+                    public = True
+                elif slug != DEFAULT_VAULT_REMOTE:
+                    mismatch = True
+    if public:
+        return "refused", PUBLIC_REPO_REFUSAL
+    if code:
+        return "refused", CODE_REPO_REFUSAL
+    if mismatch:
+        return "refused", OTHER_REFUSAL
+    return None
+
+
+def rejection(vault: Path) -> tuple[str, str] | None:
+    """None when a write may proceed. Otherwise (status, message)."""
+    code = is_code_repo(vault)
+    if not vault.exists() or not vault.is_dir():
+        if code:
+            return "refused", CODE_REPO_REFUSAL
+        return "unavailable", "vault missing; write refused"
+    try:
+        return _remote_rejection(vault, code)
+    except FileNotFoundError:
+        if code:
+            return "refused", CODE_REPO_REFUSAL
+        return "unavailable", GIT_MISSING
+    except subprocess.TimeoutExpired:
+        if code:
+            return "refused", CODE_REPO_REFUSAL
+        return "unavailable", GIT_MISSING

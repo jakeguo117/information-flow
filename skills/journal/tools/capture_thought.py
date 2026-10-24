@@ -72,8 +72,29 @@ def _failure_code(status: str | None) -> int:
     return EXIT_REFUSED
 
 
+def _codex_cloud_saved(result: dict[str, Any]) -> bool:
+    if result.get("runtime") == "codex-cloud" and result.get("status") == "success":
+        return True
+    nested = result.get("publish")
+    return (
+        isinstance(nested, dict)
+        and nested.get("runtime") == "codex-cloud"
+        and nested.get("status") == "success"
+    )
+
+
 def _saved_or_not(result: dict[str, Any], verbatim: str) -> int:
-    """Success only when this call pushed the file."""
+    """Success only when this call pushed the file, or Codex Cloud left it for a PR."""
+    if _codex_cloud_saved(result):
+        payload = dict(result)
+        nested = result.get("publish")
+        if isinstance(nested, dict):
+            payload["runtime"] = nested.get("runtime")
+            payload["message"] = nested.get("message")
+            payload["status"] = nested.get("status")
+        payload["verbatim"] = verbatim
+        payload["pushed"] = False
+        return emit(payload, EXIT_SAVED)
     if result.get("status") == "success" and result.get("pushed") is True:
         payload = dict(result)
         payload["verbatim"] = verbatim
