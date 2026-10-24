@@ -2,7 +2,7 @@
 
 schema_version = ideas-0.1
 
-依据是 Drive「02_数据规则与开发验收_V2.0_Draft」§2 Idea 行（file id `11gFwzKUxHsQ5_KSk3NFXcM_5vaB-QbJwrq5hk71XBIQ`）：核心表达、来源/上下文、主题、性质、确认状态、验证状态、适用场景/限制、关系、使用反馈与历史。同节通用字段一并落下。§3 的关系类型见下方「关系」。流程参考「01_工作流与功能需求_V2.0_Draft」§9 Ideas（file id `1hb1FPt00IoaXNGpUBQTeWgzerHQP5gfmXoJp6l74je0`）。两份都还是 Draft。本文件只定 ideas-0.1 的字段和写入约束。落盘工具是 T35，不在本包。
+依据是 Drive「02_数据规则与开发验收_V2.0_Draft」§2 Idea 行（file id `11gFwzKUxHsQ5_KSk3NFXcM_5vaB-QbJwrq5hk71XBIQ`）：核心表达、来源/上下文、主题、性质、确认状态、验证状态、适用场景/限制、关系、使用反馈与历史。同节通用字段一并落下。§3 的关系类型见下方「关系」。流程参考「01_工作流与功能需求_V2.0_Draft」§9 Ideas（file id `1hb1FPt00IoaXNGpUBQTeWgzerHQP5gfmXoJp6l74je0`）。两份都还是 Draft。本文件只定 ideas-0.1 的字段和写入约束。落盘工具是 T35，即 `skills/ideas/tools/write_idea.py`。
 
 一条 Idea 一个节点。对象 ID 稳定，改标题或改表达都不改 ID。观点写在这里，`nature` 为 `judgment`，不另开 Viewpoints。确认这句表达，和这句是否得到验证，是两个字段。
 
@@ -49,7 +49,7 @@ Jake 确认记录是 `history` 里的一条，同时满足：`by` 为 `jake`，`
 
 ### AC10
 
-`origin` 为 `ai_extension`，且没有 Jake 确认记录时，`confirmation_state` 不得为 `confirmed`。将来 `skills/ideas/tools/write_idea.py` 遇到这种写入必须拒绝，退出码非 0，不创建文件，也不改已有文件。
+`origin` 为 `ai_extension`，且没有 Jake 确认记录时，`confirmation_state` 不得为 `confirmed`。`skills/ideas/tools/write_idea.py` 遇到这种写入会拒绝，退出码非 0，不创建文件，也不改已有文件。
 
 同一条写入可以把 Jake 确认记录放进 `history` 再把当前状态写成 `confirmed`。`origin` 仍是 `ai_extension`，不改成 `jake`。AI 延伸在确认前的状态是 `candidate`。
 
@@ -133,7 +133,7 @@ Jake 确认记录是 `history` 里的一条，同时满足：`by` 为 `jake`，`
 
 ### 写入前的操作分类
 
-Draft 01 §9 / 开工包 T35 的六种操作。本包只写对应关系，不实现工具。操作名不是第八种关系类型。
+Draft 01 §9 / 开工包 T35 的六种操作。本文件只写对应关系，工具见 `skills/ideas/tools/write_idea.py`。操作名不是第八种关系类型。
 
 | 操作 | history `op` | 节点与关系 |
 |---|---|---|
@@ -172,7 +172,7 @@ history 每一条是写入之后的快照，创建那一次也在里面。最后
 
 目录：调用方指定时，只能是上面五个目录名。未指定时，用 `topics` 的整项去对（strip，大小写不敏感）：`content`／`内容` → `Content`，`insurance`／`保险` → `Insurance`，`life`／`生活` → `Life`，`tech`／`技术` → `Tech`，`trading`／`交易` → `Trading`。正好对上一个目录就用它。对上零个或多于一个，用 `Life/`。
 
-本包不写这个文件。落盘将走 `skills/ideas/tools/write_idea.py`（T35）。本技能不在 `scripts/sync_digitalbrain_skills.py` 的 allowlist 里（那是 T38）。
+不手写这个文件，落盘走 `skills/ideas/tools/write_idea.py`（T35）。`scripts/sync_digitalbrain_skills.py` 的 allowlist 只有 `ideas/SKILL.md`，`references/` 和 `tools/` 没有同步到 DigitalBrain（那是 T38）。
 
 ## 检索
 
@@ -180,9 +180,9 @@ history 每一条是写入之后的快照，创建那一次也在里面。最后
 
 被别的节点 `supersedes` 指向的 `idea_id`，检索时当历史；不回写它的 `status`。图上有连线不等于关系已经验证。
 
-## 将来写入时应拒绝
+## 写入时拒绝
 
-T35 实现。本包没有 `write_idea.py`。拒绝时退出码非 0，目标文件一个字节不动。AC-Fidelity 不在下面这份枚举里：来源原话不在节点上，组 payload 时就要拦住，见上文 AC-Fidelity。下面这些仍然拒绝：
+由 `write_idea.py`（T35）执行，测试在 `skills/ideas/tools/test_ideas.py`。拒绝时退出码非 0，目标文件一个字节不动。AC-Fidelity 不在下面这份枚举里：来源原话不在节点上，组 payload 时就要拦住，见上文 AC-Fidelity。下面这些仍然拒绝：
 
 - `schema_version` 不是 `ideas-0.1`，或 `type` 不是 `idea`
 - `expression` 或 `idea_id` strip 后为空；第一次写入的 `idea_id` 与公式不一致；之后重算 `idea_id`

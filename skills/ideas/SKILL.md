@@ -7,7 +7,7 @@ description: "提炼想法。Jake 说「提炼想法」，或周记/反思收束
 
 给 Jake 自己用。字段、枚举、AC10、AC-Fidelity 和七种关系见 `references/schema.md`。选取与改写的细则见 `references/fidelity.md`。`schema_version` 字面量是 `ideas-0.1`。时区 Asia/Hong_Kong。
 
-规则源在 information-flow。本包不改 DigitalBrain 里已有的 Ideas 笔记。落盘将走 `skills/ideas/tools/write_idea.py`（T35），现在只定义字段与流程。
+规则源在 information-flow。本包不改 DigitalBrain 里已有的 Ideas 笔记。落盘走 `skills/ideas/tools/write_idea.py`（T35，已在本仓，有单测），用法见下文「4. 确认前不落盘」。
 
 ## 什么时候用
 
@@ -70,14 +70,14 @@ description: "提炼想法。Jake 说「提炼想法」，或周记/反思收束
 他选定之前不写文件。选定之后也不要手写 Markdown 绕过工具。
 
 ```bash
-python3 skills/ideas/tools/write_idea.py
+python3 skills/ideas/tools/write_idea.py write --vault <DigitalBrain 路径> --payload <节点 JSON 文件>
 ```
 
-这个工具是 T35，本包没有，也没有命令行参数可调用。工具还没落地时，停在已确认的字段草稿上，告诉他这次没有写入。
+这个工具是 T35。payload 是一个 ideas-0.1 节点的 JSON；同一节点重写用 `retry`，加 `--dry-run` 只看路径不写。它只在他选定之后由你手动运行：没有 workflow、定时任务或别的脚本调用它，DigitalBrain 的 skill 副本里也没有它（`scripts/sync_digitalbrain_skills.py` 只同步本文件，见 T38）。当前环境找不到这个工具或它拒绝写入时，停在已确认的字段草稿上，告诉他这次没有写入。
 
 ### AC10
 
-`origin` 为 `ai_extension`，且没有 Jake 确认记录时，`confirmation_state` 不得为 `confirmed`。将来 `write_idea.py` 应拒绝这种写入。记录的形状以 schema 为准：写在该 `idea_id` 的 `history` 里，`by` 为 `jake`，表达与当前 `expression` 一致。只在聊天里说过、没有进入记录的，不算已确认。
+`origin` 为 `ai_extension`，且没有 Jake 确认记录时，`confirmation_state` 不得为 `confirmed`。`write_idea.py` 会拒绝这种写入。记录的形状以 schema 为准：写在该 `idea_id` 的 `history` 里，`by` 为 `jake`，表达与当前 `expression` 一致。只在聊天里说过、没有进入记录的，不算已确认。
 
 ### AC-Fidelity
 
