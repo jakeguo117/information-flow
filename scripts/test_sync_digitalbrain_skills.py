@@ -177,6 +177,7 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 ".cursor/skills/content/references/content-record.md",
                 ".cursor/skills/content/tools/trace_content.py",
                 ".cursor/skills/content-core/SKILL.md",
+                ".cursor/skills/content-core/references/exemplars.md",
                 ".cursor/skills/content-x/SKILL.md",
                 ".cursor/skills/content-x-ops/SKILL.md",
                 ".cursor/skills/content-xhs/SKILL.md",
@@ -202,6 +203,7 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
         self.assertIn("content/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("content/references/content-record.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("content-core/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("content-core/references/exemplars.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("content-x/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("content-x-ops/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("content-visual/SKILL.md", sync.SKILL_RELATIVE_PATHS)
@@ -271,6 +273,27 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 "content/SKILL.md",
                 "content/references/content-record.md",
                 "content/tools/trace_content.py",
+            },
+        )
+        self.assertEqual(files, listed)
+
+    def test_every_content_core_file_is_allowlisted(self) -> None:
+        """Files under skills/content-core must be copied. Sync does not glob."""
+        files = {
+            str(path.relative_to(sync.SKILLS_DIR))
+            for path in (sync.SKILLS_DIR / "content-core").rglob("*")
+            if path.is_file()
+        }
+        listed = {
+            relative
+            for relative in sync.SKILL_RELATIVE_PATHS
+            if relative.startswith("content-core/")
+        }
+        self.assertEqual(
+            files,
+            {
+                "content-core/SKILL.md",
+                "content-core/references/exemplars.md",
             },
         )
         self.assertEqual(files, listed)
@@ -560,7 +583,7 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertIn("可嵌本人已发帖当证据", x_skill)
         self.assertIn("用可核验文件/数据做分析", x_skill)
         self.assertIn("论证靠段落推进", x_skill)
-        self.assertIn("几乎每节加粗关键洞察", x_skill)
+        self.assertIn("加粗只加证据句", x_skill)
         self.assertIn("结尾给 takeaway + 一两句收束", x_skill)
         self.assertIn("去填充、大声读", x_skill)
         self.assertIn("不定死砍 20–30%", x_skill)
@@ -568,6 +591,23 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertIn("结尾求转发/分享", x_skill)
         self.assertIn("标题百分比式钩子", x_skill)
         self.assertIn("本轮只要 X：只交 X", x_skill)
+        self.assertIn("读者会问的问题、话题或真实自白", x_skill)
+        self.assertIn("论证和收尾可以直接对读者说「你」", x_skill)
+        self.assertIn("优先用列表或编号", x_skill)
+        self.assertIn("你现在就可以试", x_skill)
+        self.assertIn("BREAKDOWN", x_skill)
+        self.assertIn("01-articles-guide", x_skill)
+        self.assertNotIn("全文最多一处", x_skill)
+        self.assertNotIn("小标题是判断句", x_skill)
+        self.assertIn("论证骨架三栏", core)
+        self.assertIn("证据或读者疑问空着，这张卡不能交", core)
+        self.assertIn("论证图", core)
+        self.assertIn("小标题朗读测", core)
+        self.assertIn("模型写的方向卡分论点、小标题和其他卡面句，他回过「行」也不豁免", core)
+        self.assertIn("skills/content-core/references/exemplars.md", core)
+        self.assertIn("同一终稿 sha", core)
+        self.assertIn("你现在就可以试", core)
+        self.assertNotIn("小标题是判断句", core)
         ops = (sync.SKILLS_DIR / "content-x-ops" / "SKILL.md").read_text(encoding="utf-8")
         visual = (sync.SKILLS_DIR / "content-visual" / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("发前预告", ops)

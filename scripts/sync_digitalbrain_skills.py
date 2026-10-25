@@ -51,6 +51,7 @@ SKILL_RELATIVE_PATHS = (
     "content/references/content-record.md",
     "content/tools/trace_content.py",
     "content-core/SKILL.md",
+    "content-core/references/exemplars.md",
     "content-x/SKILL.md",
     "content-x-ops/SKILL.md",
     "content-xhs/SKILL.md",
