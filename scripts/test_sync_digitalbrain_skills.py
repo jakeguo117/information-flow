@@ -583,7 +583,7 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertIn("可嵌本人已发帖当证据", x_skill)
         self.assertIn("用可核验文件/数据做分析", x_skill)
         self.assertIn("论证靠段落推进", x_skill)
-        self.assertIn("几乎每节加粗关键洞察", x_skill)
+        self.assertIn("加粗只加证据句", x_skill)
         self.assertIn("结尾给 takeaway + 一两句收束", x_skill)
         self.assertIn("去填充、大声读", x_skill)
         self.assertIn("不定死砍 20–30%", x_skill)
