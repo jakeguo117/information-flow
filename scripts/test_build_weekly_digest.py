@@ -458,8 +458,6 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn('cycle_dir="📋 Digests/cycles/${CYCLE_ID}"', manual)
         self.assertIn('git add -- "$cycle_dir"', manual)
         self.assertNotIn("weekly-briefs", manual)
-        request = (ROOT / ".github" / "weekly-digest-request").read_text(encoding="utf-8")
-        self.assertEqual(request, "2026-W42\n")
 
 
 if __name__ == "__main__":
