@@ -17,7 +17,7 @@ description: "已停用。做内容、选题、写帖、发布包或 /content �
 4. 小红书：内容写手加载 `skills/content-xhs/SKILL.md`（只小红书，或整周包 / 三版交齐里的小红书）
 5. 公众号：公众号编辑加载 `skills/content-wechat/SKILL.md`（从 X 定稿转换，或整周包 / 三版交齐里的公众号）
 
-运营五条由 X 运营加载 content-x-ops。写长文和跑运营可以分线程，一次只做一类。编辑审稿仍是编辑（非作者），不写死 bot。
+运营五条由 X 运营加载 content-x-ops。写长文和跑运营可以分线程，一次只做一类。采访加载 `skills/interview/SKILL.md`。成稿编辑加载 `skills/editor/SKILL.md`（其中必加载 humanizer-zh）。编辑审稿仍是编辑（非作者），不写死 bot。
 
 canvas-design 不是第四个内容主技能。平台技能只补画幅和中文回退。
 

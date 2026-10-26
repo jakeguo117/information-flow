@@ -1,0 +1,32 @@
+# NOTICE
+
+本目录是 information-flow 的唯一去 AI 味技能。底本是 op7418/Humanizer-zh，并摘入、并入另外两份同为 MIT 的材料。三份许可证全文分别在 `LICENSE`、`LICENSE-jiji262`、`LICENSE-qu-ai-wei`。
+
+## Humanizer-zh（底本）
+
+- 仓库：https://github.com/op7418/Humanizer-zh
+- 文件：https://github.com/op7418/Humanizer-zh/blob/f4518a8eab97b8bfebc66a89d34320a89bef6930/SKILL.md
+- Commit：`f4518a8eab97b8bfebc66a89d34320a89bef6930`
+- 许可证：MIT
+- Copyright (c) 2026 歸藏
+- 上游该提交的文件列表里没有 NOTICE。本文件是本仓库加的归属说明。
+- `SKILL.md` 的 A–F 模式在该提交上改编：标题和小标题改为可以改、应当改；其余模式保留。
+
+## humanizer-chinese（三段摘录）
+
+- 仓库：https://github.com/jiji262/humanizer-chinese
+- 文件：https://github.com/jiji262/humanizer-chinese/blob/1d6c08e10fbfe0e1b36ac784834451c6aae0a92c/SKILL.md
+- Commit：`1d6c08e10fbfe0e1b36ac784834451c6aae0a92c`
+- 许可证：已打开该仓库根目录 `LICENSE`，正文是 MIT。GitHub API `license.spdx_id` 同为 MIT。
+- Copyright (c) 2025 Siqi Chen
+- Copyright (c) 2026 jiji262 (Chinese localization)
+- 摘入且未改字的只有三段：§21 小标题过度包装与编号泛滥、§23 人造金句与断句造势、防过度纠偏（装人味是新的 AI 味）。
+
+## qu-ai-wei（并入后删除原目录）
+
+- 仓库：https://github.com/LifelongLazyLearner/qu-ai-wei
+- Commit：`1d32e803f091ec90808a69683ebf49e8a970a5e7`
+- 许可证：MIT
+- Copyright (c) 2026 @LifelongLazyLearner
+- 本仓库原先整份收录在 `skills/qu-ai-wei/`（SKILL.md、LICENSE、SOURCE.md、references 六份）。现已删除该目录，避免和本技能并列成第二套去 AI 味规则。
+- 并入本技能的是操作约束：凭证门检、仲裁、授权与停手、普通模式的审稿输出区块。模式细目以 Humanizer-zh 的 A–F 和上面的三段摘录为准，不另附原 pattern catalog。
