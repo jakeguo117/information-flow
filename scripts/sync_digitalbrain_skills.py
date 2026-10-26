@@ -68,6 +68,7 @@ SKILL_RELATIVE_PATHS = (
     "humanizer-zh/SOURCE.md",
     "interview/SKILL.md",
     "editor/SKILL.md",
+    "editor/references/x-longform-11.md",
 )
 
 MARK_START = "<!-- information-flow:digest-route:start -->"

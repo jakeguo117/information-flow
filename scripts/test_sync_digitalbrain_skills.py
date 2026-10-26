@@ -194,6 +194,7 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 ".cursor/skills/humanizer-zh/SOURCE.md",
                 ".cursor/skills/interview/SKILL.md",
                 ".cursor/skills/editor/SKILL.md",
+                ".cursor/skills/editor/references/x-longform-11.md",
                 "AGENTS.md",
             ],
         )
@@ -216,6 +217,7 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
         self.assertIn("humanizer-zh/SOURCE.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("interview/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("editor/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("editor/references/x-longform-11.md", sync.SKILL_RELATIVE_PATHS)
         self.assertNotIn("qu-ai-wei/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertNotIn(
             ".cursor/skills/facts/SKILL.md",
@@ -341,7 +343,7 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 "humanizer-zh/SOURCE.md",
             },
             "interview": {"interview/SKILL.md"},
-            "editor": {"editor/SKILL.md"},
+            "editor": {"editor/SKILL.md", "editor/references/x-longform-11.md"},
         }
         for prefix, want in expected.items():
             files = {
