@@ -186,15 +186,14 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 ".cursor/skills/canvas-design/SKILL.md",
                 ".cursor/skills/canvas-design/LICENSE.txt",
                 ".cursor/skills/canvas-design/SOURCE.md",
-                ".cursor/skills/qu-ai-wei/SKILL.md",
-                ".cursor/skills/qu-ai-wei/LICENSE",
-                ".cursor/skills/qu-ai-wei/SOURCE.md",
-                ".cursor/skills/qu-ai-wei/references/pattern-catalog.md",
-                ".cursor/skills/qu-ai-wei/references/editing-boundaries.md",
-                ".cursor/skills/qu-ai-wei/references/examples.md",
-                ".cursor/skills/qu-ai-wei/references/platform-patterns.md",
-                ".cursor/skills/qu-ai-wei/references/brand-voice.md",
-                ".cursor/skills/qu-ai-wei/references/whitelists.md",
+                ".cursor/skills/humanizer-zh/SKILL.md",
+                ".cursor/skills/humanizer-zh/LICENSE",
+                ".cursor/skills/humanizer-zh/LICENSE-jiji262",
+                ".cursor/skills/humanizer-zh/LICENSE-qu-ai-wei",
+                ".cursor/skills/humanizer-zh/NOTICE",
+                ".cursor/skills/humanizer-zh/SOURCE.md",
+                ".cursor/skills/interview/SKILL.md",
+                ".cursor/skills/editor/SKILL.md",
                 "AGENTS.md",
             ],
         )
@@ -212,10 +211,12 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
         self.assertIn("canvas-design/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("canvas-design/LICENSE.txt", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("canvas-design/SOURCE.md", sync.SKILL_RELATIVE_PATHS)
-        self.assertIn("qu-ai-wei/SKILL.md", sync.SKILL_RELATIVE_PATHS)
-        self.assertIn("qu-ai-wei/LICENSE", sync.SKILL_RELATIVE_PATHS)
-        self.assertIn("qu-ai-wei/SOURCE.md", sync.SKILL_RELATIVE_PATHS)
-        self.assertIn("qu-ai-wei/references/pattern-catalog.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("humanizer-zh/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("humanizer-zh/LICENSE", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("humanizer-zh/SOURCE.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("interview/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("editor/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertNotIn("qu-ai-wei/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertNotIn(
             ".cursor/skills/facts/SKILL.md",
             sync.commit_paths(Path("/tmp/unused")),
@@ -323,36 +324,38 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
         )
         self.assertEqual(files, listed)
 
-    def test_every_qu_ai_wei_file_is_allowlisted(self) -> None:
-        """Files under skills/qu-ai-wei must be copied. Sync does not glob.
+    def test_qu_ai_wei_removed_and_replacement_skills_allowlisted(self) -> None:
+        """qu-ai-wei is gone. humanizer-zh, interview, and editor are copied whole.
 
-        The vendored skill, license, source note, and references are the whole tree.
+        Sync does not glob. A file under these trees that is missing from
+        SKILL_RELATIVE_PATHS never reaches DigitalBrain.
         """
-        files = {
-            str(path.relative_to(sync.SKILLS_DIR))
-            for path in (sync.SKILLS_DIR / "qu-ai-wei").rglob("*")
-            if path.is_file()
-        }
-        listed = {
-            relative
-            for relative in sync.SKILL_RELATIVE_PATHS
-            if relative.startswith("qu-ai-wei/")
-        }
-        self.assertEqual(
-            files,
-            {
-                "qu-ai-wei/SKILL.md",
-                "qu-ai-wei/LICENSE",
-                "qu-ai-wei/SOURCE.md",
-                "qu-ai-wei/references/pattern-catalog.md",
-                "qu-ai-wei/references/editing-boundaries.md",
-                "qu-ai-wei/references/examples.md",
-                "qu-ai-wei/references/platform-patterns.md",
-                "qu-ai-wei/references/brand-voice.md",
-                "qu-ai-wei/references/whitelists.md",
+        self.assertFalse((sync.SKILLS_DIR / "qu-ai-wei").exists())
+        expected = {
+            "humanizer-zh": {
+                "humanizer-zh/SKILL.md",
+                "humanizer-zh/LICENSE",
+                "humanizer-zh/LICENSE-jiji262",
+                "humanizer-zh/LICENSE-qu-ai-wei",
+                "humanizer-zh/NOTICE",
+                "humanizer-zh/SOURCE.md",
             },
-        )
-        self.assertEqual(files, listed)
+            "interview": {"interview/SKILL.md"},
+            "editor": {"editor/SKILL.md"},
+        }
+        for prefix, want in expected.items():
+            files = {
+                str(path.relative_to(sync.SKILLS_DIR))
+                for path in (sync.SKILLS_DIR / prefix).rglob("*")
+                if path.is_file()
+            }
+            listed = {
+                relative
+                for relative in sync.SKILL_RELATIVE_PATHS
+                if relative.startswith(prefix + "/")
+            }
+            self.assertEqual(files, want)
+            self.assertEqual(files, listed)
 
     def test_allowlist_adds_ideas_and_facts_without_deleting_vault_copies(self) -> None:
         """ideas/SKILL.md is copied; facts/SKILL.md stays allowlisted until its source exists.
