@@ -91,6 +91,10 @@ python3 skills/ideas/tools/write_idea.py write --vault <DigitalBrain 路径> --p
 
 禁止改、删、重命名旧笔记、`MOC.md`、`README.md`。不新建主题目录。新格式文件与旧文件名并存。
 
+## 待合
+
+内容侧 ② 流程长文选题（只扩已验证资产成流程文）等内容写手 mergeable copy。合入前不另起平行选题流，不在本技能写选题卡。交给 content 的 `expression` 仍按上文。
+
 ## 不要做
 
 - 不写 `📖 Cognition/`、Facts、`📝 Journal/`

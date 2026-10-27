@@ -30,6 +30,10 @@ X 的写法在 `skills/content-x/SKILL.md`（X 运营加载。先采访，骨架
 - 配图：内容视觉。三渠道共用图按渠道裁（X 5:2；公众号封面 2.35:1、分享图 1:1；小红书按平台比例）。同 topic 只交一份配图需求包，写明各渠道画幅：X 作者交，小红书作者补页序，公众号编辑补公众号行。加载 content-visual。出图前先加载 canvas-design。
 - 编辑审稿：编辑（非作者）。不写死是哪一个 bot。
 
+### 待合 · 内容侧 ①②③
+
+① 包装三件套文案／检查表、② 流程长文选题、③ CTA 闭环，等内容写手 mergeable copy。本技能不预写这三条，也不因此让内容写手写 X 正文。合入前不另起平行选题流。封面出图在 content-visual。② 若改选题入口，跟 ideas 一起看。③ 的去向链接、转化位跟 content-x-ops 对齐，不代写进母稿。
+
 字段、枚举、发布包、正文指纹和批准形状见 `skills/content/references/content-record.md`。`schema_version` 字面量是 `content-0.1`。时区 Asia/Hong_Kong，与上海时间同一钟面。
 
 ## 何时加载

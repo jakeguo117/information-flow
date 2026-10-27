@@ -1,6 +1,6 @@
 ---
 name: content-x
-description: "X 运营写 X 长文母稿（X、X Article、X 长文或 X 短帖）。必须先加载 content-core，再只加载本技能。X 运营先当采访者：采访完＋骨架填满（F1–F7 全勾）＋Jake 认可之前，不写长文正文（含提纲式正文）。出图前加载 canvas-design。同一写作上下文禁止 Skill load content-xhs 或 content-wechat。内容写手和公众号编辑不写母稿、不加载本技能。中文长文约 3000 字，口语叙事，交 X Articles 阅读页：5:2 封面，正文 1–3 张全宽真图。短帖可以不配图。不代发。"
+description: "X 运营写 X 长文母稿（X、X Article、X 长文或 X 短帖）。必须先加载 content-core，再只加载本技能。X 运营先当采访者：采访完＋骨架填满（F1–F7 全勾）＋Jake 认可之前，不写长文正文（含提纲式正文）。出图前加载 canvas-design。同一写作上下文禁止 Skill load content-xhs 或 content-wechat。内容写手和公众号编辑不写母稿、不加载本技能。中文长文约 3000 字，口语叙事，交 X Articles 阅读页：5:2 封面，正文 1–3 张全宽真图。短帖可以不配图。不代发。包装三件套文案、流程长文选题、CTA 闭环待内容写手 copy，本技能不预写。内容写手仍不写母稿。"
 ---
 
 # content-x
@@ -93,7 +93,7 @@ content-core 里和本节冲突的旧排版不是硬门槛，不拿来退掉下�
 
 canvas-design 没有 5:2，也没有中文字体。本仓库不附带 `canvas-fonts/`。需要拉丁展示字体时按 `skills/canvas-design/SOURCE.md` 的同一 SHA 另取，不拿来排中文。
 
-- 画幅：交付的封面和全宽正文图是 5:2。生成前先定画幅。工具没有 5:2 时，可以先出 16:9，再裁成 5:2。五层 prompt、安全区和其余出图条见 `skills/content-visual/SKILL.md`。
+- 画幅：交付的封面和全宽正文图是 5:2。生成前先定画幅。工具没有 5:2 时，可以先出 16:9，再裁成 5:2。五层 prompt、安全区和其余出图条见 `skills/content-visual/SKILL.md`。X Article 封面若按包装三件套出图，封面角色和 brief 见该技能「X Article 包装三件套 · 封面」。
 - 中文：Noto Sans CJK、Source Han Sans，或系统里已有的 CJK。
 - 安全区：字和图离开四边；标题放在画面中部，不靠会被裁掉的两端。
 - 协调：画面、背景、字体是同一套；背景不必是蓝。三者不协调就重做。
@@ -112,3 +112,9 @@ canvas-design 没有 5:2，也没有中文字体。本仓库不附带 `canvas-fo
 本轮只要 X：只交 X。小红书版或公众号版未写，不得因此拦住这张卡，也不得为了补那两版去加载 `content-xhs` 或 `content-wechat`。
 
 整周多渠道包或明确三版交齐：三张卡（一渠道一张）同一批交统一出口；小红书版或公众号版未齐，这一批先不交。
+
+## 待合 · 内容侧文案
+
+① 包装三件套文案／检查表、② 流程长文选题、③ CTA 闭环，等内容写手 mergeable copy。本技能不预写这三条。内容写手仍不写 X 正文、不加载本技能。
+
+封面出图见 `skills/content-visual/SKILL.md`「X Article 包装三件套 · 封面」。引用再分发和沉睡号复活见 `skills/content-x-ops/SKILL.md`。② 的选题钩子在 content-core 与 ideas，合入前不另起平行选题流。
