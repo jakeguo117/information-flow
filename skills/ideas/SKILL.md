@@ -93,7 +93,7 @@ python3 skills/ideas/tools/write_idea.py write --vault <DigitalBrain 路径> --p
 
 ## 待合
 
-内容侧 ② 流程长文选题（只扩已验证资产成流程文）等内容写手 mergeable copy。合入前不另起平行选题流，不在本技能写选题卡。交给 content 的 `expression` 仍按上文。
+流程长文选题的滤镜在 `skills/content-x-process-topic/SKILL.md`。组合原料仍从本技能已确认的 `expression` 来。不另起平行选题流。本技能不写选题卡。
 
 ## 不要做
 

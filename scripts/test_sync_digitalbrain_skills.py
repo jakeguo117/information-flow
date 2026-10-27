@@ -180,6 +180,9 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 ".cursor/skills/content-core/references/exemplars.md",
                 ".cursor/skills/content-x/SKILL.md",
                 ".cursor/skills/content-x-ops/SKILL.md",
+                ".cursor/skills/content-x-article-packaging/SKILL.md",
+                ".cursor/skills/content-x-process-topic/SKILL.md",
+                ".cursor/skills/content-x-cta-loop/SKILL.md",
                 ".cursor/skills/content-xhs/SKILL.md",
                 ".cursor/skills/content-wechat/SKILL.md",
                 ".cursor/skills/content-visual/SKILL.md",
@@ -206,6 +209,9 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
         self.assertIn("content-core/references/exemplars.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("content-x/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("content-x-ops/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("content-x-article-packaging/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("content-x-process-topic/SKILL.md", sync.SKILL_RELATIVE_PATHS)
+        self.assertIn("content-x-cta-loop/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("content-visual/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("content-xhs/SKILL.md", sync.SKILL_RELATIVE_PATHS)
         self.assertIn("content-wechat/SKILL.md", sync.SKILL_RELATIVE_PATHS)
@@ -627,6 +633,17 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertIn("账号非沉睡时，暂不作首期例行复活计划", ops)
         self.assertIn("不代发小红书", ops)
         self.assertIn("不实现自动发帖", ops)
+        packaging = (sync.SKILLS_DIR / "content-x-article-packaging" / "SKILL.md").read_text(encoding="utf-8")
+        topic = (sync.SKILLS_DIR / "content-x-process-topic" / "SKILL.md").read_text(encoding="utf-8")
+        cta = (sync.SKILLS_DIR / "content-x-cta-loop" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("外人一眼能说清三者各解决什么", packaging)
+        self.assertIn("封面只有 brief、无本岗出图", packaging)
+        self.assertIn("能复述「你怎么想／怎么做」", topic)
+        self.assertIn("不另起与 Ideas 组合流平行的第二套选题台账", topic)
+        self.assertIn("读完有明确动作", cta)
+        self.assertIn("无去向且无「待对齐」标注 → 不合格", cta)
+        for body in (packaging, topic, cta):
+            self.assertNotIn("/workspace", body)
         self.assertIn("五层 prompt", visual)
         self.assertIn("## 10. X Article 包装三件套 · 封面", visual)
         self.assertIn("卖梦想", visual)

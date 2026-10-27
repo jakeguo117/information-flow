@@ -1,13 +1,13 @@
 ---
 name: content-x
-description: "X 运营写 X 长文母稿（X、X Article、X 长文或 X 短帖）。必须先加载 content-core，再只加载本技能。X 运营先当采访者：采访完＋骨架填满（F1–F7 全勾）＋Jake 认可之前，不写长文正文（含提纲式正文）。出图前加载 canvas-design。同一写作上下文禁止 Skill load content-xhs 或 content-wechat。内容写手和公众号编辑不写母稿、不加载本技能。中文长文约 3000 字，口语叙事，交 X Articles 阅读页：5:2 封面，正文 1–3 张全宽真图。短帖可以不配图。不代发。包装三件套文案、流程长文选题、CTA 闭环待内容写手 copy，本技能不预写。内容写手仍不写母稿。"
+description: "内容写手写 X 长文 basement（X、X Article、X 长文或 X 短帖）。必须先加载 content-core，再加载本技能。①包装 content-x-article-packaging，②选题 content-x-process-topic，③CTA content-x-cta-loop。采访完＋骨架填满（F1–F7 全勾）＋Jake 认可之前，不写长文正文（含提纲式正文）。出图前加载 canvas-design。同一写作上下文禁止 Skill load content-xhs 或 content-wechat。写手不写小红书。公众号编辑不写母稿、不加载本技能。发帖、引用再分发、沉睡号复活走 content-x-ops。中文长文约 3000 字，口语叙事，交 X Articles 阅读页：5:2 封面，正文 1–3 张全宽真图。短帖可以不配图。不代发。"
 ---
 
 # content-x
 
 写 X、X Article、X 长文或 X 短帖。这里只写平台版式和写法。敏感、逻辑链、禁 Journal 原话、图源、不代发，都在 content-core，不在这里复述。一次交齐三版的适用范围在 content-core：只要 X 时不适用。
 
-谁加载：X 运营。先当采访者，骨架闸门过了再写 X 长文母稿。与 content-core 一起用，再只加载本技能。内容写手和公众号编辑不写母稿，不加载本技能。X 配图仍由内容视觉按 content-visual。运营五条另见 content-x-ops，可与写长文分线程，一次只做一类。
+谁加载：内容写手。先当采访者，骨架闸门过了再写 X 长文 basement。与 content-core 一起用，再加载本技能。①②③见 content-x-article-packaging、content-x-process-topic、content-x-cta-loop。公众号编辑不写母稿，不加载本技能。写手不写小红书。X 配图仍由内容视觉按 content-visual。发帖、引用再分发、沉睡号复活见 content-x-ops，可与写长文分线程，一次只做一类。
 
 ## 骨架闸门
 
@@ -17,7 +17,7 @@ description: "X 运营写 X 长文母稿（X、X Article、X 长文或 X 短帖�
 
 ## 第一步
 
-任务是写 X、X Article、X 长文或 X 短帖时，由 X 运营加载。加载顺序只有：`skills/content-core/SKILL.md` →（要出封面或配图才加载 `skills/canvas-design/SKILL.md`）→ 本技能。禁止在这一轮、这一写作上下文里 Skill load `content-xhs` 或 `content-wechat`。内容写手和公众号编辑不进入这一轮。
+任务是写 X、X Article、X 长文或 X 短帖时，由内容写手加载，写 basement。加载顺序只有：`skills/content-core/SKILL.md` →（要出封面或配图才加载 `skills/canvas-design/SKILL.md`）→ 本技能。禁止在这一轮、这一写作上下文里 Skill load `content-xhs` 或 `content-wechat`。公众号编辑不进入这一轮。①②③不在本技能复述。
 
 必须先加载 `skills/content-core/SKILL.md`。未加载 core，不得写，不得交卡。采访未完、F1–F7 未全勾、或 Jake 未说可开写，不得写，不得交卡。未过闸门禁止写正文，包括提纲式正文。
 
@@ -25,7 +25,7 @@ description: "X 运营写 X 长文母稿（X、X Article、X 长文或 X 短帖�
 
 X 样例只按本技能写。不用小红书或公众号稿改写成 X 样例。X 样例同样禁止加载 content-xhs 或 content-wechat。
 
-整周多渠道发布包，或他明确要三版交齐：那不是上面这条只要 X 的加载。X 这一版仍只加载 content-core 和本技能，不加载 content-xhs 或 content-wechat。本岗先过骨架闸门，写成 X 定稿。小红书由内容写手在定稿之后加载 content-xhs。公众号由公众号编辑按 content-wechat 从这版 X 定稿转换。本技能仍只负责 X 版式。
+整周多渠道发布包，或他明确要三版交齐：那不是上面这条只要 X 的加载。X 这一版仍只加载 content-core 和本技能，不加载 content-xhs 或 content-wechat。本岗先过骨架闸门，写成 X 定稿。写手不写小红书。公众号由公众号编辑按 content-wechat 从这版 X 定稿转换。本技能仍只负责 X 版式。发帖走 content-x-ops。
 
 出图规则在 `skills/content-visual/SKILL.md`（内容视觉）。出图前仍先加载 canvas-design。运营骨架在 `skills/content-x-ops/SKILL.md`（也是 X 运营；写长文和跑运营可以分线程，一次只做一类）。这两处都不是 content-xhs，也不是 content-wechat。同 topic 的配图需求包由本岗交一份，写明公众号、小红书画幅。
 
@@ -113,8 +113,11 @@ canvas-design 没有 5:2，也没有中文字体。本仓库不附带 `canvas-fo
 
 整周多渠道包或明确三版交齐：三张卡（一渠道一张）同一批交统一出口；小红书版或公众号版未齐，这一批先不交。
 
-## 待合 · 内容侧文案
+## 内容侧 ①②③
 
-① 包装三件套文案／检查表、② 流程长文选题、③ CTA 闭环，等内容写手 mergeable copy。本技能不预写这三条。内容写手仍不写 X 正文、不加载本技能。
+本技能写 X 版式和正文。三条不在这里复述。
 
-封面出图见 `skills/content-visual/SKILL.md`「X Article 包装三件套 · 封面」。引用再分发和沉睡号复活见 `skills/content-x-ops/SKILL.md`。② 的选题钩子在 content-core 与 ideas，合入前不另起平行选题流。
+- ② 选题：`skills/content-x-process-topic/SKILL.md`
+- ① 包装：`skills/content-x-article-packaging/SKILL.md`。封面出图见 `skills/content-visual/SKILL.md`「X Article 包装三件套 · 封面」。
+- ③ CTA：`skills/content-x-cta-loop/SKILL.md`
+- 发帖、引用再分发、沉睡号复活：`skills/content-x-ops/SKILL.md`

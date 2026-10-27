@@ -1,13 +1,13 @@
 ---
 name: content-xhs
-description: "内容写手只写小红书。必须先加载 content-core。出图前加载 canvas-design。不写 X 长文，不写公众号，不加载 content-x 或 content-wechat。不另起选题，不另写底稿；从小红书展开只在 X 定稿之后，按定稿的中心压缩。短 caption 加 3:4 纸纹衬线页码卡片。文案是同一条逻辑链的压缩版。不代发。"
+description: "小红书版式。必须先加载 content-core。出图前加载 canvas-design。内容写手不写小红书正文、caption、卡面；X 长文 basement 走 content-core + content-x，不加载本技能写 X。短 caption 加 3:4 纸纹衬线页码卡片。文案是同一条逻辑链的压缩版。不代发。"
 ---
 
 # content-xhs
 
 写小红书。这里只写卡片和短文案。敏感、逻辑链、禁 Journal 原话、图源、一次交齐、不代发，都在 content-core。
 
-谁加载：内容写手。只小红书。先 content-core，再本技能。不写 X 长文，不写公众号，不加载 content-x 或 content-wechat。本周 idea 组合由这一岗从已确认的 idea 池提出（A+B+C、A+B 或单独 A）。小红书正文不从单篇 idea 另起底稿。
+谁加载：内容写手不写小红书正文、caption、卡面，也不用本技能写 X 长文。X basement 走 content-core + content-x。本文件只留小红书版式。不写公众号。
 
 只写 X、X Article、X 长文或 X 短帖的那一轮不加载本技能。
 
