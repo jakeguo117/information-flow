@@ -1,6 +1,6 @@
 ---
 name: content-x-cta-loop
-description: "内容写手在 X 长文接近定稿（骨架已过 F、正文近终稿）时加载：写文末自然下一步 CTA（系列文／lead magnet／newsletter／约 call）；高意向可读高客单 CTA。去向 URL／转化位与 X 运营对齐后写入，未齐可标「待对齐」。禁止求赞求转求评（与 content-x／OCR 一致）。不代发；不写小红书／公众号。须先或并行加载 content-core；正文写法另循 content-x。"
+description: "内容写手在 X 长文正文近终稿时加载：写文末 CTA 文案（系列文／lead magnet／newsletter／约 call）。顺序是 takeaway →（可选试一句）→ CTA 段 → punchline 仍是全文最后一句。去向 URL／转化位与渠道运营对齐，未齐可标「待对齐」。禁止求赞求转求评。不代发；不写小红书／公众号。须先或并行加载 content-core；正文写法另循 content-x。谁干什么：写手＝选题②＋包装 brief①＋basement／母稿＋CTA 文案③；视觉＝出图；渠道运营＝落版／叠字／发帖；冷读＝内容审计。"
 ---
 # 状态：Draft PR 可合稿｜先不进 main｜来源 Benjamin Chan 纸面固化｜2026-10-27
 
@@ -8,7 +8,9 @@ description: "内容写手在 X 长文接近定稿（骨架已过 F、正文近�
 
 CTA 闭环。读完长文的人是 **hyper-warm**：文末必须有自然下一步；无去向＝荒谬（原文口径）。CTA 文案归写手；链接／转化位与 X 运营对齐；发帖归 X 运营。
 
-**谁加载**：内容写手（basement 近定稿时）。
+**谁加载**：内容写手（正文近定稿时）。X 运营不再写母稿，也不写这条 CTA 文案。
+
+**谁干什么**：写手＝选题②＋包装 brief①＋basement／母稿＋CTA 文案③；视觉＝出图；渠道运营＝落版／叠字／发帖；冷读＝内容审计。
 
 **来源**（机制对照，非硬 KPI）：https://x.com/i/article/2100174331804540928 ；镜像 https://haowenji.com/articles/x-2100174331804540928 ；帖 https://x.com/ItsMeBenChan/status/2114698558712774840 。纸面内容侧草案。作者宣称倍率不当 CTA 验收数字。
 
@@ -35,7 +37,8 @@ CTA 闭环。读完长文的人是 **hyper-warm**：文末必须有自然下一�
    - 读完长文＝高意向（hyper-warm）→ 可用更高客单 CTA（约 call／产品），但仍须与文中机制／承诺一致，不硬塞无关售卖。
    - 文中只讲到「可跟做的一步」却未铺垫高客单 → 先用 lead magnet／系列文，不跳变。
 3. **写文末 CTA 段**：
-   - 口语、短、接在 takeaway／收束之后（版式仍循 content-x：不提问求回复、不求转发／分享）。
+   - 位置固定：takeaway →（可选试一句）→ CTA 段 → punchline。punchline 仍是全文最后一句。CTA 段不放到 punchline 后面。
+   - 口语、短。不提问求回复、不求转发／分享。
    - 写清读者点下去会得到什么；动作明确（读／领／订／约）。
 4. **去向对齐**：
    - URL／转化位与 X 运营对齐后写入定稿。
@@ -44,7 +47,8 @@ CTA 闭环。读完长文的人是 **hyper-warm**：文末必须有自然下一�
    - 不求赞、求转、求评、求回复凑互动。
    - 不把「留言我说」当唯一 CTA。
 6. **检查表**：
-   - [ ] 文末有且只有清晰的自然下一步（可并列，但主动作一个）
+   - [ ] 文末顺序是 takeaway →（可选试一句）→ CTA 段 → punchline，punchline 仍是全文最后一句
+   - [ ] 文末有清晰的自然下一步（可并列，但主动作一个）
    - [ ] 与文中承诺一致，无跳变硬卖
    - [ ] 去向已对齐或已标「待对齐」
    - [ ] 无求赞／求转／求评
@@ -78,5 +82,5 @@ CTA 闭环。读完长文的人是 **hyper-warm**：文末必须有自然下一�
 
 - **须先或可并行**加载 `content-core`。
 - 正文写法另循 `content-x`；禁求互动与 content-x／OCR 一致。
-- 顺序：选题 `content-x-process-topic` → 包装 `content-x-article-packaging` → content-x 正文 → **本 skill**。
+- 加载顺序：选题② → 采访／骨架 → Jake 认可 → 包装① → content-x 正文 → **本 skill**。
 - 去向对齐可与 X 运营／content-x-ops 接口，但不加载运营五条来写正文；一次一类或写清顺序。

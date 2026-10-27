@@ -7,7 +7,7 @@ description: "小红书版式。必须先加载 content-core。出图前加载 c
 
 写小红书。这里只写卡片和短文案。敏感、逻辑链、禁 Journal 原话、图源、一次交齐、不代发，都在 content-core。
 
-谁加载：内容写手不写小红书正文、caption、卡面，也不用本技能写 X 长文。X basement 走 content-core + content-x。本文件只留小红书版式。不写公众号。
+谁加载：内容写手不写小红书正文、caption、卡面，也不用本技能写 X 长文。X 长文底稿／母稿由写手加载 content-core → content-x 来写。X 运营不再写母稿。小红书落版／叠字归该渠道运营。本文件只留小红书版式。不写公众号。
 
 只写 X、X Article、X 长文或 X 短帖的那一轮不加载本技能。
 

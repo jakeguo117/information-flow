@@ -1,6 +1,6 @@
 ---
 name: content-x-process-topic
-description: "内容写手在账号未成名／要立专业感、或本周要定 X 长文选题时加载。只把已验证资产（热帖、案例、SOP、lead magnet、已认可 Idea 组合里可核验经历）扩成「读者能体验的过程」文选题，非纯观点堆砌。本 skill 是选题卡的流程文滤镜：组合原料仍从 Ideas（A+B+C 等），过本滤镜后才进采访／骨架 F1–F7 与 basement。不代发；不写小红书／公众号；不从零硬写无资产长文。须先或并行加载 content-core；正文另循 content-x。"
+description: "内容写手在账号未成名／要立专业感、或本周要定 X 长文选题时加载。只把已验证资产（热帖、案例、SOP、lead magnet、已认可 Idea 组合里可核验经历）扩成「读者能体验的过程」文选题，非纯观点堆砌。本 skill 是选题卡的流程文滤镜：组合原料仍从 Ideas（A+B+C 等），过本滤镜后才进采访／骨架 F1–F7。Jake 认可之后才包装和 basement。不代发；不写小红书／公众号；不从零硬写无资产长文。须先或并行加载 content-core；正文另循 content-x。谁干什么：写手＝选题②＋包装 brief①＋basement／母稿＋CTA 文案③；视觉＝出图；渠道运营＝落版／叠字／发帖；冷读＝内容审计。"
 ---
 # 状态：Draft PR 可合稿｜先不进 main｜来源 Benjamin Chan 纸面固化｜2026-10-27
 
@@ -8,7 +8,9 @@ description: "内容写手在账号未成名／要立专业感、或本周要定
 
 流程长文选题。未成名或要立专业感时，优先写 **process articles**：让读者体验「你怎么想／怎么做」，不是观点清单堆砌。
 
-**谁加载**：内容写手。组合选题原料仍走 Ideas；本 skill 只做「能否做成流程文」的滤镜，通过后才进采访／骨架与 X basement。
+**谁加载**：内容写手。组合选题原料仍走 Ideas；本 skill 只做「能否做成流程文」的滤镜，通过后才进采访／骨架。X 长文底稿／母稿仍由写手在 Jake 认可后经 content-x 写。X 运营不再写母稿。
+
+**谁干什么**：写手＝选题②＋包装 brief①＋basement／母稿＋CTA 文案③；视觉＝出图；渠道运营＝落版／叠字／发帖；冷读＝内容审计。
 
 **来源**（机制对照，非硬 KPI）：https://x.com/i/article/2100174331804540928 ；镜像 https://haowenji.com/articles/x-2100174331804540928 ；帖 https://x.com/ItsMeBenChan/status/2114698558712774840 。纸面内容侧草案同目录。作者宣称倍率不当选题验收数字。
 
@@ -68,5 +70,5 @@ description: "内容写手在账号未成名／要立专业感、或本周要定
 
 - **须先或可并行**加载 `content-core`。
 - 正文另循 `content-x`；本 skill 只到选题卡。
-- 链条：本 skill →（采访／骨架／方向卡）→ `content-x-article-packaging` → content-x 正文 → `content-x-cta-loop`。
+- 加载顺序：选题②（本 skill）→ 采访／骨架 → Jake 认可 → `content-x-article-packaging` → content-x 正文 → `content-x-cta-loop`。
 - 一次一类或写清顺序；可与 content-x 同任务链。

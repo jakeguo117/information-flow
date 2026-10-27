@@ -1,6 +1,6 @@
 ---
 name: content-core
-description: "内容 foundation（ideology 与表达底线）。写 X、小红书或公众号之前必须先加载。anti-AI-slop；长文要 deeper thought；X 行文更深并保留 1–3 张逻辑链配图；小红书必须有 visual aid；公众号第一段写一个真实场景。整周多渠道包或明确三版交齐才一次交齐三版；任务只要写 X、X Article、X 长文或 X 短帖时只加载 content-x，禁止同轮 Skill load content-xhs 或 content-wechat；禁 Journal 原话；选题是本周 idea 组合（A+B+C / A+B / 单独 A），不是一篇 idea 一篇文；内容写手就该组合做选题与采访，闸门过后经 content-x 写 X 长文 basement；写正文前须采访完＋骨架填满（F1–F7 全勾）＋Jake 认可；冷读在成稿后；正文先列段落因果链，不写流水账；交卡从中心思想写起，并写明我们的看法；正文沿主线展开；敏感五类；不代发。出封面、配图或卡片前必须加载 canvas-design。采访怎么问只加载 interview；成稿怎么编只加载 editor，editor 必加载 humanizer-zh。平台版式在 content-x、content-xhs、content-wechat。谁加载：X 长文 basement 由内容写手经 content-core + content-x 成文；①包装走 content-x-article-packaging，②选题走 content-x-process-topic，③CTA 走 content-x-cta-loop；发帖、引用再分发、沉睡号复活走 content-x-ops；封面出图走 content-visual；写手不写小红书正文、caption、卡面；公众号是公众号编辑（content-wechat，从 X 定稿转换，不另写新稿）；三渠道图是内容视觉，按渠道裁；编辑审稿是编辑（非作者），不写死 bot。"
+description: "内容 foundation（ideology 与表达底线）。写 X、小红书或公众号之前必须先加载。anti-AI-slop；长文要 deeper thought；X 行文更深并保留 1–3 张逻辑链配图；小红书必须有 visual aid；公众号第一段写一个真实场景。整周多渠道包或明确三版交齐才一次交齐三版；任务只要写 X、X Article、X 长文或 X 短帖时只加载 content-x，禁止同轮 Skill load content-xhs 或 content-wechat；禁 Journal 原话；选题是本周 idea 组合（A+B+C / A+B / 单独 A），不是一篇 idea 一篇文；内容写手就该组合做选题与采访，闸门过后经 content-x 写 X 长文 basement；写正文前须采访完＋骨架填满（F1–F7 全勾）＋Jake 认可；冷读在成稿后；正文先列段落因果链，不写流水账；交卡从中心思想写起，并写明我们的看法；正文沿主线展开；敏感五类；不代发。出封面、配图或卡片前必须加载 canvas-design。采访怎么问只加载 interview；成稿怎么编只加载 editor，editor 必加载 humanizer-zh。平台版式在 content-x、content-xhs、content-wechat。谁干什么：写手＝选题②＋包装 brief①＋basement／母稿＋CTA 文案③；视觉＝出图；渠道运营＝落版／叠字／发帖；冷读＝内容审计。X 长文底稿／母稿由内容写手加载 content-core → content-x 来写。X 运营不再写母稿。发帖、引用再分发、复活计划、渠道落版仍归运营（content-x-ops）。写手不写小红书正文、caption、卡面。公众号编辑从 X 定稿转换，不另写新稿。"
 ---
 
 # content-core
@@ -23,19 +23,23 @@ X 的写法在 `skills/content-x/SKILL.md`（内容写手写 X 长文 basement�
 
 ## 谁加载
 
-- X 长文 basement、X Article、X 短帖：内容写手。成文经 content-core + content-x。①②③分别加载 content-x-article-packaging、content-x-process-topic、content-x-cta-loop。采访时再加载 interview。闸门过后写稿时再加载 editor。不加载 content-xhs、content-wechat。采访完、F1–F7 全勾、Jake 认可之后才写正文。发帖走 content-x-ops。X 母稿的冷读、销项和去 AI 味由编辑（非作者）做，而且只在成稿之后；编辑加载 editor，不另写一套去 AI 味。冷读只用 editor 第 4 步「排」，加上第 6 步「查」的第 1–3 项和第 6–8 项；核对骨架和采访原话的第 1 步「准备」、第 6 步第 4 项「追溯检验」和第 5 项「M6 原味检验」，以及第 4 步 W9、M5、W12、W13 和默认顺序第 3–5 条里『是不是他讲过、他答过、他说过、有没有答过反方』的核对，第 6 步第 1 项里『小标题顺序是否跟采访题号一样』的核对，第 6 步第 6 项里『有没有编第一人称经历』的核实，留到销项时对照「我」判断出处表和第 1 步的材料索引，不在冷读里做。冷读做 W12／W13 时只看成稿结构（有没有一个论点、节里有没有「为什么／例子／对读者」、结尾是不是完整一句），不核对是不是他讲过。冷读只看结构有没有起、变、落，疑点列进报告。谁担任按团队分工定，在审稿报告上写明。
-- 运营五条，以及发帖、引用再分发、沉睡号复活：X 运营。加载 content-x-ops。写长文和做运营可以分线程，一次只做一类。
-- 小红书：内容写手不写小红书正文、caption、卡面。版式仍在 content-xhs。X 长文不走这一条。
+- X 长文 basement、X Article、X 短帖：内容写手。成文经 content-core + content-x。①②③分别加载 content-x-article-packaging、content-x-process-topic、content-x-cta-loop。采访时再加载 interview。闸门过后写稿时再加载 editor。不加载 content-xhs、content-wechat。采访完、F1–F7 全勾、Jake 认可之后才写正文。发帖走 content-x-ops。X 母稿的冷读、销项和去 AI 味由内容审计（非作者）做，而且只在成稿之后；内容审计加载 editor，不另写一套去 AI 味。冷读只用 editor 第 4 步「排」，加上第 6 步「查」的第 1–3 项和第 6–8 项；核对骨架和采访原话的第 1 步「准备」、第 6 步第 4 项「追溯检验」和第 5 项「M6 原味检验」，以及第 4 步 W9、M5、W12、W13 和默认顺序第 3–5 条里『是不是他讲过、他答过、他说过、有没有答过反方』的核对，第 6 步第 1 项里『小标题顺序是否跟采访题号一样』的核对，第 6 步第 6 项里『有没有编第一人称经历』的核实，留到销项时对照「我」判断出处表和第 1 步的材料索引，不在冷读里做。冷读做 W12／W13 时只看成稿结构（有没有一个论点、节里有没有「为什么／例子／对读者」、结尾是不是完整一句），不核对是不是他讲过。冷读只看结构有没有起、变、落，疑点列进报告。担任人是内容审计，在审稿报告上写明。
+- 发帖、引用再分发、沉睡号复活、渠道落版：渠道运营。X 这一路加载 content-x-ops。X 运营不再写母稿。一次只做一类。
+- 小红书：内容写手不写小红书正文、caption、卡面，也不只靠小红书技能写 X。X 母稿走 content-core → content-x。小红书落版归该渠道运营。版式仍在 content-xhs。
 - 公众号：公众号编辑。加载 content-wechat，从 X 定稿转换。不另写新稿，不换中心思想，不另起选题。
 - 配图：内容视觉。三渠道共用图按渠道裁（X 5:2；公众号封面 2.35:1、分享图 1:1；小红书按平台比例）。同 topic 只交一份配图需求包，写明各渠道画幅：X 作者交，小红书作者补页序，公众号编辑补公众号行。加载 content-visual。出图前先加载 canvas-design。
-- 编辑审稿：编辑（非作者）。不写死是哪一个 bot。
+- 冷读：内容审计（非作者）。不写死是哪一个 bot。
 
 ### 内容侧 ①②③
 
+谁干什么：写手＝选题②＋包装 brief①＋basement／母稿＋CTA 文案③；视觉＝出图；渠道运营＝落版／叠字／发帖；冷读＝内容审计。
+
+加载顺序：选题② → 采访／骨架 → Jake 认可 → 包装① → 正文 → CTA③。
+
 - ② 选题：`skills/content-x-process-topic/SKILL.md`。组合原料仍是本周 idea 组合。不另起平行选题流。
-- ① 包装：`skills/content-x-article-packaging/SKILL.md`。封面 brief 交内容视觉，出图在 content-visual。
-- ③ CTA：`skills/content-x-cta-loop/SKILL.md`。去向链接、转化位与 content-x-ops 对齐。
-- X 长文成文仍经 content-core + content-x。发帖走 content-x-ops。
+- ① 包装：`skills/content-x-article-packaging/SKILL.md`。封面 brief 和卖点短句交内容视觉。落版／叠不叠字由渠道运营定。
+- ③ CTA：`skills/content-x-cta-loop/SKILL.md`。去向链接、转化位与渠道运营对齐。
+- X 长文底稿／母稿由内容写手经 content-core → content-x 写。X 运营不再写母稿。
 
 字段、枚举、发布包、正文指纹和批准形状见 `skills/content/references/content-record.md`。`schema_version` 字面量是 `content-0.1`。时区 Asia/Hong_Kong，与上海时间同一钟面。
 
@@ -47,7 +51,7 @@ X 的写法在 `skills/content-x/SKILL.md`（内容写手写 X 长文 basement�
 
 任务是整周多渠道发布包，或他明确要三版交齐：他说「做内容」「选题」「写帖」「发布包」或 `/content`，以及作者出这一周的草稿，只要不是上一条的只要 X，都算这一包。X 版由内容写手在 content-core 之后加载 content-x，先过骨架闸门再写 basement。写手不写小红书。公众号由公众号编辑加载 content-wechat，从 X 定稿转换。写手写 X 时不加载 content-wechat。生成任何封面、配图、插图、卡片或版式之前，必须先加载并遵守 `skills/canvas-design/SKILL.md`。一次交齐三版是三个渠道的审批卡都交齐，一个渠道一张，三张卡都交团队统一出口（现为 PM·总协调）转他。没有 X 定稿，不写另外两版。不出图的草稿不必先加载 canvas-design；一旦出图，必须先补上 canvas-design，再出图。缺任一版，不得交卡。
 
-加载顺序（只要 X，内容写手写 basement）：content-core → canvas-design（仅出图之前）→ content-x。①②③按 content-x-process-topic → content-x-article-packaging → 正文 → content-x-cta-loop。
+加载顺序（只要 X，内容写手写 basement／母稿）：选题② → 采访／骨架 → Jake 认可 → 包装① → 正文（content-core → canvas-design（仅出图之前）→ content-x）→ CTA③。X 运营不写这一路的母稿。
 
 加载顺序（小红书版式）：content-core → canvas-design（仅出图之前）→ content-xhs。内容写手不写小红书正文。不拿这条去写 X。
 

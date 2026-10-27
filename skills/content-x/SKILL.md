@@ -1,13 +1,13 @@
 ---
 name: content-x
-description: "内容写手写 X 长文 basement（X、X Article、X 长文或 X 短帖）。必须先加载 content-core，再加载本技能。①包装 content-x-article-packaging，②选题 content-x-process-topic，③CTA content-x-cta-loop。采访完＋骨架填满（F1–F7 全勾）＋Jake 认可之前，不写长文正文（含提纲式正文）。出图前加载 canvas-design。同一写作上下文禁止 Skill load content-xhs 或 content-wechat。写手不写小红书。公众号编辑不写母稿、不加载本技能。发帖、引用再分发、沉睡号复活走 content-x-ops。中文长文约 3000 字，口语叙事，交 X Articles 阅读页：5:2 封面，正文 1–3 张全宽真图。短帖可以不配图。不代发。"
+description: "内容写手写 X 长文底稿／母稿（X、X Article、X 长文或 X 短帖）。必须先加载 content-core，再加载本技能。X 运营不再写母稿。加载顺序：选题② → 采访／骨架 → Jake 认可 → 包装① → 正文 → CTA③。采访完＋骨架填满（F1–F7 全勾）＋Jake 认可之前，不写长文正文（含提纲式正文）。出图前加载 canvas-design。同一写作上下文禁止 Skill load content-xhs 或 content-wechat。写手不写小红书。公众号编辑不加载本技能重写母稿。发帖、引用再分发、复活计划、渠道落版走 content-x-ops。中文长文约 3000 字，口语叙事，交 X Articles 阅读页：5:2 封面，正文 1–3 张全宽真图。短帖可以不配图。不代发。谁干什么：写手＝选题②＋包装 brief①＋basement／母稿＋CTA 文案③；视觉＝出图；渠道运营＝落版／叠字／发帖；冷读＝内容审计。"
 ---
 
 # content-x
 
 写 X、X Article、X 长文或 X 短帖。这里只写平台版式和写法。敏感、逻辑链、禁 Journal 原话、图源、不代发，都在 content-core，不在这里复述。一次交齐三版的适用范围在 content-core：只要 X 时不适用。
 
-谁加载：内容写手。先当采访者，骨架闸门过了再写 X 长文 basement。与 content-core 一起用，再加载本技能。①②③见 content-x-article-packaging、content-x-process-topic、content-x-cta-loop。公众号编辑不写母稿，不加载本技能。写手不写小红书。X 配图仍由内容视觉按 content-visual。发帖、引用再分发、沉睡号复活见 content-x-ops，可与写长文分线程，一次只做一类。
+谁加载：内容写手。先当采访者，骨架闸门过了再写 X 长文底稿／母稿。与 content-core 一起用，再加载本技能。X 运营不再写母稿。谁干什么：写手＝选题②＋包装 brief①＋basement／母稿＋CTA 文案③；视觉＝出图；渠道运营＝落版／叠字／发帖；冷读＝内容审计。加载顺序：选题② → 采访／骨架 → Jake 认可 → 包装① → 正文 → CTA③。公众号编辑不加载本技能重写母稿。写手不写小红书。X 配图仍由内容视觉按 content-visual。发帖、引用再分发、复活计划、渠道落版见 content-x-ops，与写母稿分线程，一次只做一类。
 
 ## 骨架闸门
 
@@ -49,7 +49,7 @@ content-core 里和本节冲突的旧排版不是硬门槛，不拿来退掉下�
 - 用可核验文件/数据做分析。文件或数据要能核对：链接和日期，或点名的文件。可以点名自己的工具和目录，可以写真实计数。不发明数字。仍禁客户资料、周记原文、具体日期。不得把这条收成所有数字和名字都不写。
 - 论证靠段落推进，段与段是因为／所以／但是／于是（见 content-core 生成流程第 5 步）。并列的数据和操作步骤优先用列表或编号。不拿列表代替论证，也不在文末附可以照抄的清单。列表靠主论点把各条串起来。How to：并列步骤可以用列表，每步一行也只写它推动的判断，步骤名和产出不单独成行当提纲，用叙述口气，不把步骤写成对读者的祈使句。段落里先写为什么、串回中心，再用什么、产出什么和例子收在后面，不把「做什么、用什么、产出什么」写成这一节的主体。步骤只取写法回填里有仓内出处、且直接支撑中心的，不编；分论点之间仍靠段落推进，不拆成 Step 骨架。为什么和判断的字数要明显多于脚本名和产出物。
 - 加粗只加证据句：加粗只加已经写在正文里的证据句（文件名、截图、真实计数、改前改后、外部案例或点名出处）。不另写金句。没有证据句的节不加粗，不要求每节都有加粗。位置跟着证据走，不固定放在节末。加粗禁用对仗句式：「不是…而是」「X不等于Y」「…才…」。
-- 结尾给 takeaway + 一两句收束。不要目录式总结。takeaway 落在中心的深一层，不停在工具层。收束按 editor W14：回扣开头，全文最后一句是 punchline。可以有一句「你现在就可以试」，只此一句，见 content-core「节奏」；这一句只写读者能照做的那一步，放在 punchline 之前，不当全文最后一句，也不写成求回复、求转发、求关注这类求互动。
+- 结尾给 takeaway + 一两句收束。不要目录式总结。takeaway 落在中心的深一层，不停在工具层。收束按 editor W14：回扣开头，全文最后一句是 punchline。可以有一句「你现在就可以试」，只此一句，见 content-core「节奏」；这一句只写读者能照做的那一步，放在 punchline 之前，不当全文最后一句，也不写成求回复、求转发、求关注这类求互动。CTA 段的位置：takeaway →（可选试一句）→ CTA 段 → punchline 仍是全文最后一句。CTA 文案见 content-x-cta-loop。
 - 写手交稿前轻检查：去填充、大声读。不定死砍 20–30%。
 
 不要：
@@ -115,9 +115,13 @@ canvas-design 没有 5:2，也没有中文字体。本仓库不附带 `canvas-fo
 
 ## 内容侧 ①②③
 
-本技能写 X 版式和正文。三条不在这里复述。
+本技能由内容写手写 X 长文底稿／母稿。X 运营不再写母稿。
+
+谁干什么：写手＝选题②＋包装 brief①＋basement／母稿＋CTA 文案③；视觉＝出图；渠道运营＝落版／叠字／发帖；冷读＝内容审计。
+
+加载顺序：选题② → 采访／骨架 → Jake 认可 → 包装① → 正文 → CTA③。
 
 - ② 选题：`skills/content-x-process-topic/SKILL.md`
-- ① 包装：`skills/content-x-article-packaging/SKILL.md`。封面出图见 `skills/content-visual/SKILL.md`「X Article 包装三件套 · 封面」。
+- ① 包装：`skills/content-x-article-packaging/SKILL.md`。封面出图见 `skills/content-visual/SKILL.md`「X Article 包装三件套 · 封面」。落版／叠不叠字由渠道运营定。
 - ③ CTA：`skills/content-x-cta-loop/SKILL.md`
-- 发帖、引用再分发、沉睡号复活：`skills/content-x-ops/SKILL.md`
+- 发帖、引用再分发、复活计划、渠道落版：`skills/content-x-ops/SKILL.md`

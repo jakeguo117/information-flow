@@ -1,6 +1,6 @@
 ---
 name: content
-description: "已停用。做内容、选题、写帖、发布包或 /content 时，先加载 content-core；出图前加载 canvas-design。任务只要写 X、X Article、X 长文或 X 短帖时，由内容写手再加载 content-x 写 basement，禁止同轮 Skill load content-xhs 或 content-wechat。①②③走 content-x-process-topic、content-x-article-packaging、content-x-cta-loop。写手不写小红书。公众号由公众号编辑加载 content-wechat，从 X 定稿转换。发帖、引用再分发、沉睡号复活走 content-x-ops。配图由内容视觉按渠道裁。本技能不再生产正文。"
+description: "已停用。做内容、选题、写帖、发布包或 /content 时，先加载 content-core；出图前加载 canvas-design。X 长文底稿／母稿由内容写手加载 content-core → content-x 来写。X 运营不再写母稿。禁止同轮 Skill load content-xhs 或 content-wechat。加载顺序：选题② → 采访／骨架 → Jake 认可 → 包装① → 正文 → CTA③。写手不写小红书。公众号由公众号编辑加载 content-wechat，从 X 定稿转换。发帖、引用再分发、复活计划、渠道落版走 content-x-ops。配图由内容视觉按渠道裁。本技能不再生产正文。谁干什么：写手＝选题②＋包装 brief①＋basement／母稿＋CTA 文案③；视觉＝出图；渠道运营＝落版／叠字／发帖；冷读＝内容审计。"
 ---
 
 # content（已停用）
