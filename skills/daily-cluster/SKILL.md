@@ -36,7 +36,7 @@ ChatGPT 里的平日归堆。例程原文在下面，原句不删。只有标了
 
 ## （ChatGPT 适配）深挖
 
-上段第 4 条「深挖讨论加载 `socratic-discuss`」原句保留，不删。ChatGPT 里加载本包 `skills/socratic-discuss/SKILL.md`（中立客观、不为怼而怼）。
+上段第 4 条「深挖讨论加载 `socratic-discuss`」原句保留，不删。ChatGPT 里加载本包 `skills/socratic-discuss/SKILL.md`（中立客观、不为怼而怼）。共享技能库里的那份是源头。
 
 ## （ChatGPT 适配·定时）
 
@@ -44,17 +44,17 @@ ChatGPT 里的平日归堆。例程原文在下面，原句不删。只有标了
 
 ## 参考
 
-## C. 七类口径（Jake 2026-10-27 定）
+### C. 七类口径（Jake 2026-10-27 定）
 按主题归堆，不再一条条散聊；空类不出现；@bot 未聊过的置顶单独成块。7 类（顺序固定）：
 1. 宏观  2. 交易  3. 内容与个人品牌  4. 用 AI 做事  5. 做事业／变现  6. 团队与工作法  7. 人生方向／个人想法
 
-## D. plan 标签（Jake 2026-10-28 ~16:45／~17:12 定）
+### D. plan 标签（Jake 2026-10-28 ~16:45／~17:12 定）
 - 有执行步骤的未来打算打 `plan`（例：房产置换）；纯观点／分析走 idea。
 - 周六 skill 可扫 plan 进度，plan 不写进 Ideas；不开第四类库。
 - Notion 可执行计划清单由资料管理员写；归堆方只报 cluster 链接＋一句下一步。
 - 另：Jake ~17:42 定周六 skill 也从本周 journal＋digest 提炼 plan（PR #73 在改，未合）。
 
-## E. full detail（Jake 2026-10-28 ~12:55 定）
+### E. full detail（Jake 2026-10-28 ~12:55 定）
 写消化／摘要／任何浓缩输出不删减：保留数字、日期、人名、原话、推理步骤；禁止为好读压缩。
 
 ## 文件格式
@@ -93,7 +93,7 @@ Vault 目录（按这个顺序认，认到就停），与 journal skill 相同�
 
 （新定口径，与 21:00 例程同句）
 
-当天＝香港时间当日 00:00 到运行时刻。新增＝这段时间内提交进 `📥 Inbox/` 各来源子夹（X-Bookmarks、WeRead、Snipd、YouTube-Likes、Instagram-Saves）的新文件，以及当天新写的随手记 thought；以 GitHub 提交时间为准（按路径列当天提交）。不以 `📥 Inbox/_index/` 为准（该索引最后一条停在 2026-10-22，已不跟新料）。未聊过＝此前 7 天 `📋 Digests/cluster/` 文件里没出现过该条标题或链接；未聊过的 @bot 不限当天。读不全时写明读到 N／共 M 条和漏掉的文件名，不编。
+当天＝香港时间当日 00:00 到运行时刻。新增＝这段时间内提交进 `📥 Inbox/` 各来源子夹（X-Bookmarks、WeRead、Snipd、YouTube-Likes、Instagram-Saves）的新文件，以及当天新写的随手记 thought；以 GitHub 提交时间为准（按路径列当天提交）。不以 `📥 Inbox/_index/` 为准（该索引最后一条停在 2026-10-22，已不跟新料）。未聊过＝此前 7 天只看 `📋 Digests/cluster/` 主文件（不看 `-gpt`），主文件里没出现过该条标题或链接；未聊过的 @bot 不限当天。读不全时写明读到 N／共 M 条和漏掉的文件名，不编。
 
 ## 落盘
 

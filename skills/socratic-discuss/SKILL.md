@@ -98,4 +98,3 @@ Not a multi-agent debate orchestrator; not a code-review interrogate; not a lect
 - [ ] 对方是否带走至少一条 **学习启发**？
 
 若「客观／说对了就说对」缺席、或读起来像处处硬怼 → 本回合失败，下一回合改回中立分析；不要用更软的附和、也不要用更硬的对抗来「修好气氛」。
-来源 sha256: e1e4f68aaead7d4d2a5b3cea414c44bdd5ececc81e8386bd695772d316c0fda2

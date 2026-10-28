@@ -33,7 +33,7 @@ Jake 2026-10-28 批的方案纸 v2 用本技能做每周提炼。方案纸原文
 
 本周按 Asia/Hong_Kong，周一 00:00 到周日 23:59。
 
-1. 本周 `📋 Digests/cluster/` 下的 `YYYY-MM-DD.md` 与 `YYYY-MM-DD_DD.md`。
+1. 本周 `📋 Digests/cluster/` 下的 `YYYY-MM-DD.md` 与 `YYYY-MM-DD_DD.md`。不读 `*-gpt.md`，只读这些主 cluster 文件。
 2. 本周 `📝 Journal/{YYYY-MM-DD}*.md`。这是 ChatGPT Work 写好并已落入 DigitalBrain 的日期篇。盘上没有该文件就跳过。
 
 `📝 Journal/想法/` 的随手记不是主扫。没有 cluster、也没有符合的 Journal 文件：停。不要编 Resources 或 Ideas。不要改去 `📋 Digests/daily/`，不要改去 `📋 Digests/cycles/`。

@@ -23,7 +23,7 @@ NEW_RULE = (
     "当天＝香港时间当日 00:00 到运行时刻。新增＝这段时间内提交进 `📥 Inbox/` 各来源子夹"
     "（X-Bookmarks、WeRead、Snipd、YouTube-Likes、Instagram-Saves）的新文件，以及当天新写的随手记 thought；"
     "以 GitHub 提交时间为准（按路径列当天提交）。不以 `📥 Inbox/_index/` 为准（该索引最后一条停在 2026-10-22，已不跟新料）。"
-    "未聊过＝此前 7 天 `📋 Digests/cluster/` 文件里没出现过该条标题或链接；未聊过的 @bot 不限当天。"
+    "未聊过＝此前 7 天只看 `📋 Digests/cluster/` 主文件（不看 `-gpt`），主文件里没出现过该条标题或链接；未聊过的 @bot 不限当天。"
     "读不全时写明读到 N／共 M 条和漏掉的文件名，不编。"
 )
 
@@ -103,9 +103,13 @@ class SkillTextTests(unittest.TestCase):
 
     def test_socratic_skill_matches_source_hash(self) -> None:
         raw = (ROOT / "skills" / "socratic-discuss" / "SKILL.md").read_bytes()
-        note = f"来源 sha256: {SOCRATIC_SHA}\n".encode()
-        self.assertTrue(raw.endswith(note))
-        self.assertEqual(hashlib.sha256(raw[: -len(note)]).hexdigest(), SOCRATIC_SHA)
+        self.assertEqual(hashlib.sha256(raw).hexdigest(), SOCRATIC_SHA)
+
+    def test_saturday_extract_skips_gpt_cluster_files(self) -> None:
+        text = (ROOT / "skills" / "discuss-to-resources-ideas" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("不读 `*-gpt.md`", text)
+        self.assertIn("只读这些主 cluster 文件", text)
+        self.assertIn("📋 Digests/cluster/YYYY-MM-DD.md", text)
 
 
 class NormalModeTests(unittest.TestCase):
