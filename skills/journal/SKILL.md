@@ -1,22 +1,23 @@
 ---
 name: journal
-description: "写周记、周记、weekly journal。用户说「写周记」「周记」或 /journal 时使用。先在后台读最近 2–3 篇周记和未解问题（不输出），然后第一段列出周四汇总快照（`📋 Digests/cycles/{cycle_id}/r{n}.md`）的全部条目，按主题分组，一行一条，每条带 `D-` 编号和状态；待归类条目照样列出，不能省略。在这之前不要摘要、不要提问。没有周四汇总快照就说还没有，不要凭记忆写周记。旧周记里的状态不能当作本周事实说。客户说可以写之前不落盘。「记一下：」「想法：」或 /thought 只做随手记。"
+description: "写周记、周记、weekly journal。用户说「写周记」「周记」或 /journal 时使用。先读最近 3–4 篇周记做 recap（未收的线、发生过什么、已点名的项目；旧状态不当作本周事实），再用本会话的 Notion 连接看正在推进、待办池和可执行计划清单（读不到就说一声，不编），然后讨论。不读 digest、cluster 或周四快照。客户说可以写之前不落盘。「记一下：」「想法：」或 /thought 只做随手记。"
 ---
 
 # journal
 
 给 Jake 自己用。最终形状见 `references/setup.md`。读文件顺序见 `references/weekly-brief.md`。随手记的文件布局、消化清单和自动推送见 `references/thoughts.md`。不要救 Hermes。不要抓 Snipd/YouTube/WeRead 原文。不要跑 intake 脚本，除非他明确说本周 intake 缺了要补。
 
-## 写周记的第一段输出
+## 写周记的第一步
 
-说「写周记」「周记」或 `/journal` 之后，先在后台读最近 2–3 篇周记和未解问题（不输出）。然后**第一段输出必须列出周四汇总快照的全部条目**，在任何摘要、呼应或提问之前：
+说「写周记」「周记」或 `/journal` 之后，先做下面两件事，再跟 Jake 讨论。写周记不读 digest，不读 `📋 Digests/cluster/`，不读周四快照 `📋 Digests/cycles/{cycle_id}/r{n}.md`，也不读周 digest（含 `📋 Digests/{YYYY-Wnn}/digest.md` 和 `📋 Digests/weekly-briefs/`）。不要列 `D-` 条目。没有快照也不停，不要改去读 `📋 Digests/daily/` 或旧路径。
 
-- 打开 `📋 Digests/cycles/{cycle_id}/r{n}.md`。`cycle_id` 是本周周四（Asia/Hong_Kong）的 `cy-YYYYMMDD`。同一个 cycle 里取编号最大的 `r{n}.md`（n 按整数比）。
-- 按主题分组，一行一条。每条带文件里的 `D-` 编号（如 `D-cy-20261015-01`）和该行的状态，再加这一句话。条数和编号与这份快照里的条目一致，一条都不能少，也不能并成一段话。
-- 「待归类」里的条目照样列出，不能省略。主题小节和「待归类」里的每一个 `D-` 行都要出现；不要因为某条也写在快照后面的小节里就把它漏掉。
-- 这一段写完之前，不要摘要，不要提问，不要复述旧周记。旧周记里的状态不能当作本周事实说。
-- 这个 cycle 没有快照：第一句就是「本周没有周四汇总快照」，不要凭记忆编周记条目。不要改开别的 `cycle_id`，不要改开 `📋 Digests/daily/`，不要改开旧的 `📋 Digests/{YYYY-Wnn}/digest.md` 或 `📋 Digests/weekly-briefs/`。
-- 周四 `weekly-digest.yml` schedule 已停。`📋 Digests/cycles/` 只作归档，没有快照不要生成。平日归堆是 `📋 Digests/cluster/YYYY-MM-DD.md`（多日 `YYYY-MM-DD_DD.md`）。想法梳理落盘。归堆推库＝Cloud Agent 推 `jakeguo117/obsidian-digitalbrain`，不是 information-flow Actions，也不是本技能。落盘当下不跑 `discuss-to-resources-ideas`。不碰、不接管历史 `📋 Digests/daily/`。takeaway 已 offline，本 PR 不另挂停排程。
+（a）读 `📝 Journal/` 最近几周的周记，按文件名取最新的 3–4 篇，给 Jake 一段 recap：还没收的线、发生过什么、已经点名的项目。旧周记里的状态不能当作本周事实说。
+
+（b）用本会话里的 Notion 连接看最近在做什么：正在推进的项、待办池、可执行计划清单。Notion 读不到就用一句话说明，然后只按（a）继续；不要编 Notion 里的内容。
+
+（c）再跟 Jake 讨论。
+
+平日归堆不是本技能。不写 `📋 Digests/cluster/`，不碰 `📋 Digests/daily/`，不为了周记生成 `📋 Digests/cycles/`。落盘当下不跑 `discuss-to-resources-ideas`。周四 `weekly-digest.yml` schedule 已停，快照只作归档。takeaway 已 offline，本 PR 不另挂停排程。
 
 ## 随手记
 
@@ -52,13 +53,15 @@ Vault 目录（按这个顺序认，认到就停）：
 2. 当前工作区根目录，若有 `📝 Journal/`（Cursor 云端 clone 的 GitHub DigitalBrain）
 3. 否则停下来问 Jake，不要猜路径
 
-按 `references/weekly-brief.md` 读。顺序只有这三步，和那份文件一致：
+按 `references/weekly-brief.md` 读。顺序和那份文件一致：
 
-① 旧周记 2–3 篇。`📝 Journal/` 最近 2–3 篇（按文件名倒序）。学口气、未收的线、已经点名的老项目。不把正文写入 DigitalBrain memory。只打开那些周记里已经出现的 `🚀 Projects/` / `📖 Resources/` wikilink（老项目、很小的线）。不要扫整个项目目录来「补这周」。**旧周记里的状态不能当作本周事实说。** 未解问题是这些篇里还悬着的线。这一步在后台读，第一段不输出。
+① 旧周记 3–4 篇。`📝 Journal/` 按文件名倒序取最新的 3–4 篇。学口气。给 Jake 一段 recap：还没收的线、发生过什么、已经点名的项目。不把正文写入 DigitalBrain memory。只打开那些周记里已经出现的 `🚀 Projects/` / `📖 Resources/` wikilink（老项目、很小的线）。不要扫整个项目目录来「补这周」。**旧周记里的状态不能当作本周事实说。** 未解问题是这些篇里还悬着的线。这一步的 recap 说给 Jake，是写周记的第一段。
 
-② 周四汇总快照 `📋 Digests/cycles/{cycle_id}/r{n}.md`。**自己认周。** `cycle_id` 是本周周四（Asia/Hong_Kong）的 `cy-YYYYMMDD`。不要问他是哪一周。同一个 cycle 里取编号最大的 `r{n}.md`（n 按整数比）。不回落到另一周：这个 cycle 没有快照，就说「本周没有周四汇总快照」。不要改开别的 `cycle_id`，不要改开 `📋 Digests/daily/`，不要改开旧的 `📋 Digests/{YYYY-Wnn}/digest.md` 或 `📋 Digests/weekly-briefs/`，也不要按周去读 intake。不要自己编条目。写周记时不要生成这份快照，也不要手写占位。周四 schedule 已停，这份快照只作归档。平日归堆 `📋 Digests/cluster/` 不代替这份快照，本技能也不写 cluster。
+② Notion。用本会话里的 Notion 连接看最近在做什么：正在推进的项、待办池、可执行计划清单。Notion 读不到就用一句话说明，然后只按 ① 继续；不要编 Notion 里的内容。
 
-③ 未消化想法。再跑 `capture_thought.py list-open`。它返回的是全部未消化想法，不限本周。未消化 = `📝 Journal/想法/` 里的想法文件，减去任何消化清单里出现过的 id。清单里标成「看过未展开」的不再出现。想法文件和消化清单都不是周记条目。想法是燃料，不整段贴进周记，也不改原话。
+③ 讨论时才看未消化想法。再跑 `capture_thought.py list-open`。它返回的是全部未消化想法，不限本周。未消化 = `📝 Journal/想法/` 里的想法文件，减去任何消化清单里出现过的 id。清单里标成「看过未展开」的不再出现。想法文件和消化清单都不是周记条目。想法是燃料，不整段贴进周记，也不改原话。这不是第一步，也不代替 recap。
+
+不读 digest，不读 `📋 Digests/cluster/`，不读周四快照 `📋 Digests/cycles/{cycle_id}/r{n}.md`，也不读周 digest。不要改开 `📋 Digests/daily/`、旧路径 `📋 Digests/{YYYY-Wnn}/digest.md` 或 `📋 Digests/weekly-briefs/`。不要自己编条目，也不要为了周记生成快照。
 
 缺文件时不要自己去抓源。摄入是 `intake` skill，每天 21:00 跑。周记 Connections 链已经进 `📖 Resources/` 的卡片，不再拦一道入库。
 
@@ -66,27 +69,26 @@ Vault 目录（按这个顺序认，认到就停）：
 
 ### 2. 讨论（写之前必须来回）
 
-第一段之前只在后台读，不输出。第一段是周四汇总快照的全部条目。不要整周 appendix。顺序：
+第一段是上面「写周记的第一步」的 recap，加上 Notion 那几项（或一句 Notion 读不到）。不要整周 appendix。顺序：
 
-0. **后台读最近 2–3 篇周记和未解问题，不输出。** 旧周记里的状态不能当作本周事实说。
-1. **第一段输出按上面「写周记的第一段输出」。** 在这之前不要摘要、不要提问、不要复述旧周记。这个 cycle 没有快照就说「本周没有周四汇总快照」，不要自己编，照常往下走。讨论完成文的内容写进同一篇周记。快照不要手抄进正文。写周记时不要生成这份快照，也不要手写占位。
-2. 听他这周的画像。他说「这周就这些」或明确讲完之前，不要用快照或未消化想法解释他。
-3. 再拿 `list-open` 的未消化想法去找 **呼应**。对不上的略过。想法是燃料，不整段贴进周记，也不改原话。
-4. 对上之后再往下挖。一次不要堆很多题。讨论时记下每条想法是「展开」还是「看过未展开」。没被展开的也要记下，以后不再捞。
-5. **客户说「可以写 / 写吧 / OK 写」之前，不落盘。** 他说「写周记」只是开始讨论，不是授权出文。
+0. **按「写周记的第一步」给 recap，并看 Notion。** 旧周记里的状态不能当作本周事实说。Notion 读不到就说一声，不编。
+1. 听他这周的画像。他说「这周就这些」或明确讲完之前，不要用 recap 或未消化想法解释他。
+2. 再拿 `list-open` 的未消化想法去找 **呼应**。对不上的略过。想法是燃料，不整段贴进周记，也不改原话。
+3. 对上之后再往下挖。一次不要堆很多题。讨论时记下每条想法是「展开」还是「看过未展开」。没被展开的也要记下，以后不再捞。
+4. **客户说「可以写 / 写吧 / OK 写」之前，不落盘。** 他说「写周记」只是开始讨论，不是授权出文。
 
-禁止：没讨论就写完整篇；定时任务代写；他这周的事还没说完就开始用快照或想法解释他；把旧周记里的状态说成本周事实。不自动 git push 周记。
+禁止：没讨论就写完整篇；定时任务代写；他这周的事还没说完就开始用 recap 或想法解释他；把旧周记里的状态说成本周事实。不自动 git push 周记。不读 digest、cluster 或周四快照来填这一段。
 
 ### 3. 落盘
 
 只在他说可以写之后。持久写入只走工具，不要手写文件绕过确认：
 
 ```bash
-python3 skills/journal/tools/write_journal.py save --vault "$VAULT" --approval FILE --digest-snapshot <digest_id>@r<n>
-python3 skills/journal/tools/write_journal.py retry --vault "$VAULT" --approval FILE --digest-snapshot <digest_id>@r<n>
+python3 skills/journal/tools/write_journal.py save --vault "$VAULT" --approval FILE
+python3 skills/journal/tools/write_journal.py retry --vault "$VAULT" --approval FILE
 ```
 
-本周周四快照实际打开时，`save` / `retry` 一律带 `--digest-snapshot <digest_id>@r<n>`。`digest_id` 用该快照 frontmatter 的 `digest_id`（`dg-{cycle_id}`），`r<n>` 用实际打开的修订，例如 `dg-cy-20261015@r2`。没有这份快照时不带这个参数。不要再传 `--append-digest`，也不要附旧的周 digest 路径。
+当前写周记不读快照，`save` / `retry` 不带 `--digest-snapshot`。这个参数仍可接受，只给旧调用记下 `digest_id` / `snapshot_revision` / `input_ids_sha256`。不要传 `--append-digest`，也不要附旧的周 digest 路径。
 
 `FILE` 是这一次的 JSON。`confirmed` 必须是 true，并且 `phrase` 必须正好是 `可以写`、`写吧` 或 `OK 写`。「写周记」只是开始讨论，不是这句短语。不符合时工具返回 `refused`，写入数为 0，不创建 `📝 Journal/`。同一 `event_id` 重复送达只保留 1 份；内容不一致则 `conflict`，不覆盖。`retry` 在磁盘已有相同内容时直接读回，不另写一篇。工具不写 `📖 Cognition/`，不 `git commit` / `git push`。周记文件本身仍不自动 push。
 
@@ -113,9 +115,9 @@ tags:
   - journal
 title: "周记 {N} — {Jake 口气的一句}"
 event_id: {这一次保存的事件 id}
-digest_id: {dg-cy-YYYYMMDD；有快照时由工具写入}
-snapshot_revision: {正整数；有快照时由工具写入}
-input_ids_sha256: {sha256 hex；有快照时由工具写入}
+digest_id: {仅旧调用传入 --digest-snapshot 时由工具写入}
+snapshot_revision: {仅旧调用传入 --digest-snapshot 时由工具写入}
+input_ids_sha256: {仅旧调用传入 --digest-snapshot 时由工具写入}
 ---
 
 # 周记 {N} — {同上}
@@ -130,7 +132,7 @@ input_ids_sha256: {sha256 hex；有快照时由工具写入}
 **Previous / 上一篇:** [[{上一篇文件名不含 .md}]]
 ```
 
-正文由上面的 `write_journal.py` 落盘，不要另用文件工具绕过它。不要把周记正文 `git commit` / `git push`，除非 Jake 这轮明确说 push。想法文件和消化清单只走 `capture_thought.py publish`。不要把周记正文写入 DigitalBrain memory。模板里的 `event_id` 由工具写入 frontmatter，用来识别同一次保存。有快照时，工具同时写入 `digest_id`、`snapshot_revision`、`input_ids_sha256`；没有快照时这三行不带。
+正文由上面的 `write_journal.py` 落盘，不要另用文件工具绕过它。不要把周记正文 `git commit` / `git push`，除非 Jake 这轮明确说 push。想法文件和消化清单只走 `capture_thought.py publish`。不要把周记正文写入 DigitalBrain memory。模板里的 `event_id` 由工具写入 frontmatter，用来识别同一次保存。当前流程不传 `--digest-snapshot`，`digest_id`、`snapshot_revision`、`input_ids_sha256` 这三行不带。旧调用若传入，工具仍写入。
 
 ### 4. 给他看
 
@@ -143,7 +145,7 @@ input_ids_sha256: {sha256 hex；有快照时由工具写入}
 ## 不要做
 
 - 不要为了「补这周发生了什么」去扫 Journal 以外的私人目录。只跟旧周记已经出现的 wikilink 打开项目 / 卡片
-- 不要同步 Notion
+- 不要把周记同步进 Notion。读 Notion 只为看正在推进、待办池和可执行计划清单；读不到就说一声，不编
 - 不要把 Claude/Codex/Hermes 那几份旧 skill 一并改掉
 - 不要用已删除的公开仓 `jakeguo117/journal-skill`；只跟 information-flow
 - 不要把普通聊天记成想法。不要改、不要删 `📝 Journal/想法/` 里已有的文件

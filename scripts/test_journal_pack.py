@@ -283,7 +283,7 @@ class PackageTests(unittest.TestCase):
                 self.assertEqual(hashlib.sha256(info).hexdigest(), item["sha256"])
                 self.assertEqual(hashlib.sha256((ROOT / item["path"]).read_bytes()).hexdigest(), item["sha256"])
             version = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
-            self.assertEqual(version, "0.1.4")
+            self.assertEqual(version, "0.1.6")
             self.assertEqual(manifest["plugin_version_field"], version)
 
     def test_chatgpt_upload_zip_matches_uploaded_layout(self) -> None:
@@ -302,15 +302,26 @@ class PackageTests(unittest.TestCase):
             self.assertIn("skills/journal/tools/capture_thought.py", names)
             self.assertIn("skills/journal/references/thoughts.md", names)
             self.assertIn("skills/cognition/tools/write_cognition.py", names)
+            self.assertIn("skills/daily-cluster/SKILL.md", names)
+            self.assertIn("skills/daily-cluster/tools/write_cluster.py", names)
+            self.assertIn("skills/socratic-discuss/SKILL.md", names)
+            self.assertEqual(
+                archive.read("skills/journal/SKILL.md"),
+                (ROOT / "skills" / "journal" / "SKILL.md").read_bytes(),
+            )
+            self.assertIn("写周记的第一步", archive.read("skills/journal/SKILL.md").decode("utf-8"))
             self.assertNotIn("packaging/chatgpt-upload/root-plugin.json", names)
             blob = "\n".join(names)
             for part in package_journal_pack.FORBIDDEN_PARTS:
                 self.assertNotIn(part, blob)
             version = package_journal_pack.plugin_version()
-            self.assertEqual(version, "0.1.4")
+            self.assertEqual(version, "0.1.6")
             for entry in ("plugin.json", ".codex-plugin/plugin.json"):
                 meta = json.loads(archive.read(entry))
                 self.assertEqual(meta["version"], version)
+                self.assertIn("归堆", meta["description"])
+                interface = meta.get("interface") or meta["extensions"]["com.openai"]["interface"]
+                self.assertIn("归堆", interface["defaultPrompt"])
                 info = archive.getinfo(entry)
                 self.assertEqual(info.date_time, (1980, 1, 1, 0, 0, 0))
                 self.assertEqual(info.compress_type, zipfile.ZIP_DEFLATED)

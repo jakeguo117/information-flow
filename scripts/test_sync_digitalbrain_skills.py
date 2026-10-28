@@ -524,7 +524,11 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertIn("呼应", text)
         self.assertIn("可以写 / 写吧 / OK 写", text)
         self.assertIn("客户说「可以写 / 写吧 / OK 写」之前，不落盘", text)
-        self.assertIn("自己认周", text)
+        self.assertIn("写周记的第一步", text)
+        self.assertIn("3–4", text)
+        self.assertIn("Notion", text)
+        self.assertNotIn("自己认周", text)
+        self.assertNotIn("本周没有周四汇总快照", text)
         self.assertIn("不写 `📖 Cognition/`", text)
         self.assertNotIn("W38 有什么", text)
 

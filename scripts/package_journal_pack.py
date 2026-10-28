@@ -67,6 +67,8 @@ CHATGPT_FILES = (
 CHATGPT_TREES = (
     "skills/cognition",
     "skills/journal",
+    "skills/daily-cluster",
+    "skills/socratic-discuss",
     "tests/synthetic/journal_pack",
 )
 ZIP_DATE = (1980, 1, 1, 0, 0, 0)

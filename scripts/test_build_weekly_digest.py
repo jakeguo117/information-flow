@@ -374,54 +374,53 @@ class SkillContractTests(unittest.TestCase):
     def test_read_order_matches_discussion_step(self) -> None:
         skill = (ROOT / "skills" / "journal" / "SKILL.md").read_text(encoding="utf-8")
         brief = (ROOT / "skills" / "journal" / "references" / "weekly-brief.md").read_text(encoding="utf-8")
+        setup = (ROOT / "skills" / "journal" / "references" / "setup.md").read_text(encoding="utf-8")
         snapshot = "📋 Digests/cycles/{cycle_id}/r{n}.md"
         old_week = "📋 Digests/{YYYY-Wnn}/digest.md"
         weekly_briefs = "📋 Digests/weekly-briefs/"
-        for text in (skill, brief):
-            self.assertIn(snapshot, text)
-            self.assertIn(old_week, text)
-            self.assertNotIn("📋 Digests/weekly-briefs/{YYYY-Wnn}.md", text)
-            self.assertNotIn("📋 Digests/weekly-briefs/{YYYY-Wnn}/digest.md", text)
+        for text in (skill, brief, setup):
+            self.assertIn("3–4", text)
+            self.assertIn("正在推进", text)
+            self.assertIn("待办池", text)
+            self.assertIn("可执行计划清单", text)
+            self.assertIn("Notion", text)
+            self.assertNotIn("第一段输出必须列出周四汇总快照", text)
+            self.assertNotIn("本周没有周四汇总快照", text)
+            self.assertNotIn("第一段列出这份周四快照", text)
             self.assertNotIn("T-2026W42-a", text)
-            start = 0
-            found = 0
-            while True:
-                at = text.find(weekly_briefs, start)
-                if at < 0:
-                    break
-                found += 1
-                window = text[max(0, at - 160) : at]
-                self.assertTrue("不要改开" in window or "旧路径" in window, window)
-                start = at + len(weekly_briefs)
-            self.assertGreater(found, 0)
         reading = skill.split("### 1. 读输入", 1)[1].split("### 2.", 1)[0]
-        self.assertLess(reading.index("① 旧周记"), reading.index(snapshot))
-        self.assertLess(reading.index(snapshot), reading.index(weekly_briefs))
-        self.assertLess(reading.index("不要改开"), reading.index(weekly_briefs))
+        self.assertLess(reading.index("① 旧周记"), reading.index("② Notion"))
+        self.assertIn("不读", reading)
+        self.assertIn(snapshot, reading)
+        self.assertIn("📋 Digests/cluster/", reading)
         self.assertIn(old_week, reading)
+        self.assertIn(weekly_briefs, reading)
         order = brief.split("## 读取顺序", 1)[1].split("## 禁止当输入", 1)[0]
-        self.assertLess(order.index("① 旧周记"), order.index(snapshot))
-        self.assertLess(order.index(snapshot), order.index(weekly_briefs))
-        self.assertLess(order.index("不要改开"), order.index(weekly_briefs))
+        self.assertIn("① 旧周记 3–4 篇", order)
+        self.assertIn("Notion", order)
+        self.assertNotIn(snapshot, order)
         banned = brief.split("## 禁止当输入", 1)[1]
         self.assertIn("旧路径", banned)
         self.assertIn(old_week, banned)
         self.assertIn(weekly_briefs, banned)
+        self.assertIn(snapshot, banned)
+        self.assertIn("📋 Digests/cluster/", banned)
         discussion = skill.split("### 2. 讨论", 1)[1].split("### 3.", 1)[0]
-        self.assertIn("写周记的第一段输出", discussion)
-        self.assertIn("本周没有周四汇总快照", discussion)
+        self.assertIn("写周记的第一步", discussion)
+        self.assertNotIn("本周没有周四汇总快照", discussion)
         self.assertNotIn("weekly-briefs/{YYYY-Wnn}", discussion)
         description = skill.split("description:", 1)[1].split("\n", 1)[0]
         self.assertIn("写周记", description)
         self.assertTrue(description.strip().strip('"').startswith("写周记"))
-        self.assertIn("一行一条", description)
-        self.assertIn(snapshot, description)
+        self.assertIn("3–4", description)
+        self.assertNotIn("一行一条", description)
+        self.assertNotIn(snapshot, description)
         body = skill.split("---", 2)[-1]
-        self.assertLess(body.index("## 写周记的第一段输出"), body.index("## 随手记"))
-        self.assertIn("一行一条", body.split("## 随手记", 1)[0])
-        first = body.split("## 写周记的第一段输出", 1)[1].split("## 随手记", 1)[0]
-        self.assertIn(snapshot, first)
-        self.assertLess(first.index("不要改开"), first.index(weekly_briefs))
+        self.assertLess(body.index("## 写周记的第一步"), body.index("## 随手记"))
+        first = body.split("## 写周记的第一步", 1)[1].split("## 随手记", 1)[0]
+        self.assertIn("recap", first)
+        self.assertNotIn("一行一条", first)
+        self.assertNotIn("本周没有周四汇总快照", first)
         cognition = (ROOT / "skills" / "cognition" / "SKILL.md").read_text(encoding="utf-8")
         cognition_description = cognition.split("description:", 1)[1].split("\n", 1)[0]
         self.assertNotIn("写周记", cognition_description)
