@@ -1,12 +1,15 @@
 name: weekly-digest
 
-# Thursday Asia/Hong_Kong (J03=A). One job; the cron hour or workflow_dispatch picks the stage.
-#   08:00 process_batch.py    UTC cron 0 0 * * 4
-#   20:00 build_digest_v2.py  UTC cron 0 12 * * 4
+# Thursday cycle auto-run is stopped (Jake 2026-10-28 方案纸 v2).
+# Historical 📋 Digests/cycles/ stays archive. This workflow does not write
+# 📋 Digests/cluster/ or 📋 Digests/daily/. Cluster files are pushed by a
+# Cloud Agent to jakeguo117/obsidian-digitalbrain, not by this Action.
+# on.schedule is removed. workflow_dispatch is emergency only.
 # workflow_dispatch inputs:
 #   stage: process | digest
 #   cycle_id: cy-YYYYMMDD for a Thursday in Asia/Hong_Kong. Any other value fails the job.
-# A schedule run uses that Thursday's date in Asia/Hong_Kong. A start that is not Thursday there fails closed.
+# A schedule event, if one is ever delivered, still fail-closes unless that
+# instant is Thursday in Asia/Hong_Kong. There is no standing cron.
 # A missing index directory, or a missing/empty inputs.jsonl, logs 索引未建，跳过 and skips setup, the scripts, and commit. The job stays green.
 
 permissions:
@@ -17,9 +20,6 @@ concurrency:
   cancel-in-progress: false
 
 on:
-  schedule:
-    - cron: "0 0 * * 4"
-    - cron: "0 12 * * 4"
   workflow_dispatch:
     inputs:
       stage:

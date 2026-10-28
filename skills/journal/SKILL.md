@@ -16,6 +16,7 @@ description: "写周记、周记、weekly journal。用户说「写周记」「�
 - 「待归类」里的条目照样列出，不能省略。主题小节和「待归类」里的每一个 `D-` 行都要出现；不要因为某条也写在快照后面的小节里就把它漏掉。
 - 这一段写完之前，不要摘要，不要提问，不要复述旧周记。旧周记里的状态不能当作本周事实说。
 - 这个 cycle 没有快照：第一句就是「本周没有周四汇总快照」，不要凭记忆编周记条目。不要改开别的 `cycle_id`，不要改开 `📋 Digests/daily/`，不要改开旧的 `📋 Digests/{YYYY-Wnn}/digest.md` 或 `📋 Digests/weekly-briefs/`。
+- 周四 `weekly-digest.yml` schedule 已停。`📋 Digests/cycles/` 只作归档，没有快照不要生成。平日归堆是 `📋 Digests/cluster/YYYY-MM-DD.md`（多日 `YYYY-MM-DD_DD.md`）。想法梳理落盘。归堆推库＝Cloud Agent 推 `jakeguo117/obsidian-digitalbrain`，不是 information-flow Actions，也不是本技能。落盘当下不跑 `discuss-to-resources-ideas`。不碰、不接管历史 `📋 Digests/daily/`。takeaway 已 offline，本 PR 不另挂停排程。
 
 ## 随手记
 
@@ -55,7 +56,7 @@ Vault 目录（按这个顺序认，认到就停）：
 
 ① 旧周记 2–3 篇。`📝 Journal/` 最近 2–3 篇（按文件名倒序）。学口气、未收的线、已经点名的老项目。不把正文写入 DigitalBrain memory。只打开那些周记里已经出现的 `🚀 Projects/` / `📖 Resources/` wikilink（老项目、很小的线）。不要扫整个项目目录来「补这周」。**旧周记里的状态不能当作本周事实说。** 未解问题是这些篇里还悬着的线。这一步在后台读，第一段不输出。
 
-② 周四汇总快照 `📋 Digests/cycles/{cycle_id}/r{n}.md`。**自己认周。** `cycle_id` 是本周周四（Asia/Hong_Kong）的 `cy-YYYYMMDD`。不要问他是哪一周。同一个 cycle 里取编号最大的 `r{n}.md`（n 按整数比）。不回落到另一周：这个 cycle 没有快照，就说「本周没有周四汇总快照」。不要改开别的 `cycle_id`，不要改开 `📋 Digests/daily/`，不要改开旧的 `📋 Digests/{YYYY-Wnn}/digest.md` 或 `📋 Digests/weekly-briefs/`，也不要按周去读 intake。不要自己编条目。写周记时不要生成这份快照，也不要手写占位。
+② 周四汇总快照 `📋 Digests/cycles/{cycle_id}/r{n}.md`。**自己认周。** `cycle_id` 是本周周四（Asia/Hong_Kong）的 `cy-YYYYMMDD`。不要问他是哪一周。同一个 cycle 里取编号最大的 `r{n}.md`（n 按整数比）。不回落到另一周：这个 cycle 没有快照，就说「本周没有周四汇总快照」。不要改开别的 `cycle_id`，不要改开 `📋 Digests/daily/`，不要改开旧的 `📋 Digests/{YYYY-Wnn}/digest.md` 或 `📋 Digests/weekly-briefs/`，也不要按周去读 intake。不要自己编条目。写周记时不要生成这份快照，也不要手写占位。周四 schedule 已停，这份快照只作归档。平日归堆 `📋 Digests/cluster/` 不代替这份快照，本技能也不写 cluster。
 
 ③ 未消化想法。再跑 `capture_thought.py list-open`。它返回的是全部未消化想法，不限本周。未消化 = `📝 Journal/想法/` 里的想法文件，减去任何消化清单里出现过的 id。清单里标成「看过未展开」的不再出现。想法文件和消化清单都不是周记条目。想法是燃料，不整段贴进周记，也不改原话。
 
@@ -137,7 +138,7 @@ input_ids_sha256: {sha256 hex；有快照时由工具写入}
 
 ### 5. 写完之后交给 cognition propose
 
-周记已经落盘，或一次反思已经明确收束之后，可以交给 `cognition` skill 做 propose（0–3 条，0 也合法）。**Journal 不写 `📖 Cognition/`。** 接受、改写、校验、落盘只走 cognition tools。
+周记已经落盘，或一次反思已经明确收束之后，可以交给 `cognition` skill 做 propose（0–3 条，0 也合法）。**Journal 不写 `📖 Cognition/`。** 接受、改写、校验、落盘只走 cognition tools。这次 propose 不是每周提炼。落盘当下不跑 `discuss-to-resources-ideas`。周四 digest 接受不再写每周 Resources。周六由想法梳理扫本周 `📋 Digests/cluster/` 和已落盘的 `📝 Journal/{YYYY-MM-DD}*.md`。
 
 ## 不要做
 
@@ -147,3 +148,4 @@ input_ids_sha256: {sha256 hex；有快照时由工具写入}
 - 不要用已删除的公开仓 `jakeguo117/journal-skill`；只跟 information-flow
 - 不要把普通聊天记成想法。不要改、不要删 `📝 Journal/想法/` 里已有的文件
 - 不要把想法或消化清单当成周记条目。不要把想法分流进 Ideas / Experiments
+- 不要在周记或随手记落盘当下跑 `discuss-to-resources-ideas`。不要写 `📋 Digests/cluster/`，也不要改 `📋 Digests/daily/`

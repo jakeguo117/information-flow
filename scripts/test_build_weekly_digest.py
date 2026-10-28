@@ -440,16 +440,10 @@ class SkillContractTests(unittest.TestCase):
         self.assertNotIn("pull_request:", manual)
         self.assertNotIn("--force", manual)
         self.assertIn("${{ secrets.DIGITALBRAIN_TOKEN }}", manual)
-        # Thursday snapshot schedule: HKT 08:00 process, HKT 20:00 digest.
+        # Thursday auto-run is stopped. Emergency dispatch still resolves a Thursday cycle.
+        self.assertNotIn("\n  schedule:", manual)
         crons = re.findall(r'^\s*- cron: "([^"]+)"', manual, re.MULTILINE)
-        self.assertEqual(sorted(crons), ["0 0 * * 4", "0 12 * * 4"])
-        hkt = set()
-        for cron in crons:
-            minute, hour, dom, month, dow = cron.split()
-            self.assertEqual((minute, dom, month, dow), ("0", "*", "*", "4"))
-            self.assertLess(int(hour) + 8, 24)  # same Thursday in Asia/Hong_Kong
-            hkt.add(int(hour) + 8)
-        self.assertEqual(hkt, {8, 20})
+        self.assertEqual(crons, [])
         resolve = manual.split("- name: Resolve stage and cycle id", 1)[1].split("- name:", 1)[0]
         self.assertRegex(resolve, r'schedule == "0 0 \* \* 4":\s*\n\s*stage = "process"')
         self.assertRegex(resolve, r'schedule == "0 12 \* \* 4":\s*\n\s*stage = "digest"')

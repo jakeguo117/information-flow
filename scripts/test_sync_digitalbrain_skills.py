@@ -173,6 +173,7 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 ".cursor/skills/cognition/tools/retrieve_cognition.py",
                 ".cursor/skills/cognition/tools/write_cognition.py",
                 ".cursor/skills/ideas/SKILL.md",
+                ".cursor/skills/discuss-to-resources-ideas/SKILL.md",
                 ".cursor/skills/content/SKILL.md",
                 ".cursor/skills/content/references/content-record.md",
                 ".cursor/skills/content/tools/trace_content.py",
@@ -461,14 +462,26 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertIn("cy-", text)
         self.assertIn("周四快照", text)
         self.assertIn("📋 Digests/daily/", text)
+        self.assertIn("📋 Digests/cluster/", text)
+        self.assertIn("discuss-to-resources-ideas", text)
         self.assertIn("Jake 接受之前", text)
         self.assertIn("不是 Evidence", text)
+        self.assertIn("takeaway 已 offline，本 PR 不另挂停排程", text)
         self.assertNotIn("intake.md", text)
         self.assertNotIn("最多两个概念", text)
         self.assertNotIn("Asia/Shanghai", text)
         route = (sync.SKILLS_DIR / "digitalbrain-agents-route.md").read_text(encoding="utf-8")
         self.assertIn("/digest", route)
         self.assertIn("📋 Digests/daily/", route)
+        self.assertIn("📋 Digests/cluster/", route)
+        self.assertIn("discuss-to-resources-ideas", route)
+        self.assertIn("takeaway 已 offline，本 PR 不另挂停排程", route)
+        skill = (sync.SKILLS_DIR / "discuss-to-resources-ideas" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("📋 Digests/cluster/YYYY-MM-DD.md", skill)
+        self.assertIn("jakeguo117/obsidian-digitalbrain", skill)
+        self.assertIn("Cloud Agent", skill)
+        self.assertIn("takeaway 已 offline，本 PR 不另挂停排程", skill)
+        self.assertNotIn("归堆落盘路径＝`📋 Digests/daily/", skill)
         self.assertNotIn("W38 有什么", route)
         self.assertNotIn("week 38", route)
         self.assertIn("相关认知", route)

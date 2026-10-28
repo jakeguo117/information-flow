@@ -46,6 +46,7 @@ EXPECTED_FILES = {
     "📝 Journal/想法/digests/.gitkeep",
     "💡 Ideas/README.md",
     "📋 Digests/README.md",
+    "📋 Digests/cluster/README.md",
     "📋 Digests/cycles/.gitkeep",
     "📖 Cognition/README.md",
 }

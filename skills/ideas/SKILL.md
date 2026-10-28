@@ -95,6 +95,12 @@ python3 skills/ideas/tools/write_idea.py write --vault <DigitalBrain 路径> --p
 
 流程长文选题的滤镜在 `skills/content-x-process-topic/SKILL.md`。组合原料仍从本技能已确认的 `expression` 来。不另起平行选题流。本技能不写选题卡。
 
+## 周六交接
+
+每周 Resources／Ideas／Cognition 提炼不走周四 digest 接受后写来源卡。周六由想法梳理加载 `discuss-to-resources-ideas`，只扫本周 `📋 Digests/cluster/` 与已落盘的 `📝 Journal/{YYYY-MM-DD}*.md`。点头之后的 Idea 仍只走 `write_idea.py`。平日 cluster 或 Journal 落盘当下不跑那个技能，也不跑本技能去批量入库。
+
+归堆文件是 `📋 Digests/cluster/YYYY-MM-DD.md`（多日 `YYYY-MM-DD_DD.md`）。归堆推库＝Cloud Agent 推 `jakeguo117/obsidian-digitalbrain`，不是 information-flow Actions。本技能不接这条推送。不接管历史 `📋 Digests/daily/`。takeaway 已 offline，本 PR 不另挂停排程。`scripts/daily_takeaway.py` 留作 dead code，不在这里删除。
+
 ## 不要做
 
 - 不写 `📖 Cognition/`、Facts、`📝 Journal/`
