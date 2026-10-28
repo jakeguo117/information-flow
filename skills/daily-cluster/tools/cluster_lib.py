@@ -39,6 +39,13 @@ EXISTS_MESSAGE = "已存在，不覆盖"
 DAILY_MESSAGE = "拒绝写入 📋 Digests/daily"
 MAIN_MESSAGE = "scheduled mode refuses the main file"
 NORMAL_MAIN_MESSAGE = "normal mode refuses the main file"
+GPT_ONLY_MESSAGE = "dual-run accepts only -gpt files"
+INTAKE_MESSAGE = "body must include 读到 N／共 M"
+MISSED_MESSAGE = "N≠M 时必须列出漏掉的文件名"
+SCHEDULED_VAULT_MESSAGE = "vault missing; scheduled run did not write"
+INTAKE_RE = re.compile(r"读到\s*(\d+)／共\s*(\d+)")
+MISSED_RE = re.compile(r"漏掉的文件名[:：]\s*([^\n。]+)")
+BOT_PREFIX = "> 已聊 @bot："
 
 
 def fingerprint(text: str) -> str:
@@ -105,7 +112,42 @@ def assert_cluster_relative(relative: str) -> str:
         raise ValueError("cluster path must be 📋 Digests/cluster/YYYY-MM-DD.md")
     if NAME_RE.fullmatch(path.name) is None:
         raise ValueError("cluster filename must be YYYY-MM-DD.md or YYYY-MM-DD_DD.md")
+    if not path.name.endswith("-gpt.md"):
+        raise ValueError(GPT_ONLY_MESSAGE)
     return posix
+
+
+def discussed_bot_items(text: str) -> list[str]:
+    """Items on ``> 已聊 @bot：`` lines. Other mentions in the body do not count."""
+    items: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith(BOT_PREFIX):
+            continue
+        rest = stripped[len(BOT_PREFIX) :]
+        for part in rest.split("；"):
+            part = part.strip()
+            if part and part not in {"…", "..."}:
+                items.append(part)
+    return items
+
+
+def _missed_filenames(body: str) -> list[str]:
+    match = MISSED_RE.search(body)
+    if match is None:
+        return []
+    return [part.strip() for part in re.split(r"[、,，]", match.group(1)) if part.strip()]
+
+
+def _validate_intake_count(body: str) -> None:
+    found = INTAKE_RE.findall(body)
+    if not found:
+        raise ValueError(INTAKE_MESSAGE)
+    missed = _missed_filenames(body)
+    for raw_n, raw_m in found:
+        seen, total = int(raw_n), int(raw_m)
+        if seen != total and len(missed) < abs(total - seen):
+            raise ValueError(MISSED_MESSAGE)
 
 
 def _validate_body(date: str, body: str) -> None:
@@ -116,14 +158,16 @@ def _validate_body(date: str, body: str) -> None:
     lines = body.splitlines()
     if not lines or lines[0] != f"# Digests cluster · {date}":
         raise ValueError("first line must be # Digests cluster · YYYY-MM-DD")
-    quotes = [line for line in lines if line.startswith(">")]
-    if len(quotes) != 1:
-        raise ValueError("cluster file needs exactly one > quote line")
-    quote_at = lines.index(quotes[0])
-    if quote_at == 0 or any(line.strip() for line in lines[1:quote_at]):
+    index = 1
+    while index < len(lines) and lines[index].strip() == "":
+        index += 1
+    if index >= len(lines) or not lines[index].startswith(">"):
         raise ValueError("quote line must follow the title")
-    if not any(line.startswith("## ") for line in lines[quote_at + 1 :]):
+    while index < len(lines) and lines[index].startswith(">"):
+        index += 1
+    if not any(line.startswith("## ") for line in lines[index:]):
         raise ValueError("cluster file needs ## sections")
+    _validate_intake_count(body)
 
 
 def _vault(vault: Path) -> Path:
@@ -201,6 +245,8 @@ def perform(
             "cluster save requires confirmed=true and phrase 可以写, 写吧, or OK 写",
         )
     if not vault.is_dir():
+        if scheduled:
+            return _fail("unavailable", SCHEDULED_VAULT_MESSAGE)
         return _fail("unavailable", "vault missing; cluster will not be written elsewhere")
     try:
         _vault(vault)

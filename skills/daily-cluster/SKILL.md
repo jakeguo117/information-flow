@@ -59,20 +59,26 @@ ChatGPT 里的平日归堆。例程原文在下面，原句不删。只有标了
 
 ## 文件格式
 
-没有 YAML frontmatter。`write_cluster.py` 不会加 frontmatter。首行、一行引语、`##` 分节照 `📋 Digests/cluster/2026-10-28.md` 的样子。那一篇是通话产物、按话题分了 13 节；以后按七类，空类不出现。未聊过的 @bot 用置顶块 `## @bot`。有执行步骤的未来打算在该条子料上标 `plan`。
+没有 YAML frontmatter。`write_cluster.py` 不会加 frontmatter。首行之后是一组连续的 `>` 引语（可以多行，中间不空行），然后 `##` 分节。正文里另起的 `>` 引用块不算这组文首引语。样子照 2026-10-28 的 Part 3（`# Part 3 · 21:00 每天消化` 那一组三行引语）。以后按七类，空类不出现。未聊过的 @bot 用置顶块 `## @bot`。有执行步骤的未来打算在该条子料上标 `plan`。
 
 ```markdown
 # Digests cluster · YYYY-MM-DD
 
-> 想法梳理 · 平日归堆 · HKT
+> 取料口径：HKT 当日 00:00 到运行时刻。读到 N／共 M 个提交（`短sha` HH:MM），涉及 K 个文件；当天为空的来源写在这行。
+> 已聊 @bot：<划线原文开头或微信读书链接>；…
+> plan 标签：没有则写无。
 
 ## @bot
 
-未聊过的微信读书 @bot。已聊过的不放。没有则整节不出现。
+未聊过的微信读书 @bot。已聊过的只写在上面的 `> 已聊 @bot` 行，这里不重复。没有则整节不出现。
 
 ## 宏观
 
 来源、在说什么、为什么值得聊。
+
+正文里的引用另起一块，不计入文首连续引语。
+
+> 正文引用。
 
 ## 交易
 ```
@@ -85,15 +91,19 @@ Vault 目录（按这个顺序认，认到就停），与 journal skill 相同�
 
 1. `$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain` 若存在且有 `📝 Journal/`
 2. 当前工作区根目录，若有 `📝 Journal/`（Cursor 云端 clone 的 GitHub DigitalBrain）
-3. 否则停下来问 Jake，不要猜路径
+3. 否则停下来问 Jake，不要猜路径。这一步只给对话模式。定时任务找不到 vault 就不写，结果里写明 vault missing，不要停下来问 Jake。
 
-仓是 `jakeguo117/obsidian-digitalbrain`。在认到的 vault 里打开 `📥 Inbox/` 下这些来源子夹：`X-Bookmarks`、`WeRead`、`Snipd`、`YouTube-Likes`、`Instagram-Saves`，以及 `📝 Journal/想法/` 里的随手记。哪些算香港当日新增，只按下一节。读不全时写明漏了哪些，不要编。
+仓是 `jakeguo117/obsidian-digitalbrain`。在认到的 vault 里打开 `📥 Inbox/` 下这些来源子夹：`X-Bookmarks`、`WeRead`、`Snipd`、`YouTube-Likes`、`Instagram-Saves`，以及 `📝 Journal/想法/` 里的随手记。哪些算香港当日新增，只按下一节。列提交必须翻页直到空页（GitHub 默认每页 30）。每次归堆在文首写一行取料口径：时间窗、读到 N／共 M 个提交（每个短 sha 加香港时间）、涉及的文件数、当天为空的来源。正文没有「读到 N／共 M」就不写。N 不等于 M 时要写「漏掉的文件名：」，用「、」隔开，列出的个数不少于 |M−N|，否则不写。
 
 ## 当天新增怎么判
 
 （新定口径，与 21:00 例程同句）
 
-当天＝香港时间当日 00:00 到运行时刻。新增＝这段时间内提交进 `📥 Inbox/` 各来源子夹（X-Bookmarks、WeRead、Snipd、YouTube-Likes、Instagram-Saves）的新文件，以及当天新写的随手记 thought；以 GitHub 提交时间为准（按路径列当天提交）。不以 `📥 Inbox/_index/` 为准（该索引最后一条停在 2026-10-22，已不跟新料）。未聊过＝此前 7 天只看 `📋 Digests/cluster/` 主文件（不看 `-gpt`），主文件里没出现过该条标题或链接；未聊过的 @bot 不限当天。读不全时写明读到 N／共 M 条和漏掉的文件名，不编。
+（与 21:00 例程同句）当天新增＝香港时间当日 00:00 到运行时刻内，提交进 `📥 Inbox/` 各来源子夹（X-Bookmarks、WeRead、Snipd、YouTube-Likes、Instagram-Saves）的新文件，或当天提交里被改动文件中当天新增的部分（划线 ⏱ 时间落在香港当日为准，读提交 diff 即可）；Snipd 同理；以及当天新写的随手记 thought；以 GitHub 提交时间为准（按路径列当天提交），不以 `📥 Inbox/_index/` 为准（该索引最后一条停在 2026-10-22，已不跟新料）。
+
+（与 21:00 例程同句）@bot 聊过与否只看此前 7 天加当天 `📋 Digests/cluster/` 正本（不看 `-gpt`）里的一行 `> 已聊 @bot：<划线原文开头或微信读书链接>；…`，白天聊过的也写入该行；该行有这条划线原文开头或微信读书链接即算聊过，不靠正文里是否出现过标题或链接；未聊过的 @bot 不限当天。
+
+非 @bot 的未聊过＝此前 7 天正本里没出现过该条标题或链接。
 
 ## 落盘
 
