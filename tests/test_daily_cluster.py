@@ -99,7 +99,13 @@ class SkillTextTests(unittest.TestCase):
         self.assertIn("## （ChatGPT 适配）深挖", text)
         self.assertIn("## （ChatGPT 适配·定时）", text)
         self.assertIn("先给全文→点头→落盘→再问深挖", text)
-        self.assertIn("周六提炼只读主文件", text)
+        self.assertIn(
+            "双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼只读正本；切换之后的做法另行更新。",
+            text,
+        )
+        self.assertNotIn("今天已归过", text)
+        self.assertNotIn("看见当天主文件已经在", text)
+        self.assertNotIn("交互模式写主文件", text)
 
     def test_socratic_skill_matches_source_hash(self) -> None:
         raw = (ROOT / "skills" / "socratic-discuss" / "SKILL.md").read_bytes()
@@ -123,7 +129,7 @@ class NormalModeTests(unittest.TestCase):
                 self.assertEqual(data["files_written"], 0)
                 self.assertFalse((vault / "📋 Digests").exists())
 
-    def test_confirm_writes_main_file_without_frontmatter(self) -> None:
+    def test_confirm_writes_gpt_file_without_frontmatter(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             vault = Path(raw)
             payload = approval()
@@ -131,40 +137,39 @@ class NormalModeTests(unittest.TestCase):
             self.assertEqual(rc, 0, data)
             self.assertEqual(data["files_written"], 1)
             path = Path(data["path"])
-            self.assertEqual(path.name, "2026-10-28.md")
+            self.assertEqual(path.name, "2026-10-28-gpt.md")
             text = path.read_text(encoding="utf-8")
             self.assertEqual(text, payload["body"])
             self.assertTrue(text.startswith("# Digests cluster · 2026-10-28\n"))
             self.assertFalse(text.startswith("---"))
+            self.assertFalse((vault / "📋 Digests" / "cluster" / "2026-10-28.md").exists())
             self.assertFalse((vault / "📋 Digests" / "daily").exists())
 
-    def test_duplicate_delivery_keeps_one_file(self) -> None:
+    def test_confirm_accepts_matching_gpt_path(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             vault = Path(raw)
-            payload = approval()
-            first = save(vault, payload)[1]
-            before = Path(first["path"]).read_bytes()
-            for _ in range(2):
-                rc, data = save(vault, payload)
-                self.assertEqual(rc, 0, data)
-                self.assertEqual(data["files_written"], 0)
-                self.assertTrue(data["already_persisted"])
-            files = list((vault / "📋 Digests" / "cluster").glob("*.md"))
-            self.assertEqual(len(files), 1)
-            self.assertEqual(files[0].read_bytes(), before)
+            payload = approval(path="📋 Digests/cluster/2026-10-28-gpt.md")
+            rc, data = save(vault, payload)
+            self.assertEqual(rc, 0, data)
+            self.assertEqual(Path(data["path"]).name, "2026-10-28-gpt.md")
+            self.assertFalse((vault / "📋 Digests" / "cluster" / "2026-10-28.md").exists())
 
-    def test_existing_different_body_is_not_overwritten(self) -> None:
+    def test_existing_gpt_file_is_not_overwritten(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             vault = Path(raw)
             rc, data = save(vault, approval())
             self.assertEqual(rc, 0, data)
             path = Path(data["path"])
             before = path.read_bytes()
-            rc, again = save(vault, approval(line="另一份，不应覆盖。"))
-            self.assertEqual(rc, 2, again)
-            self.assertEqual(again["message"], "今天已归")
-            self.assertEqual(again["files_written"], 0)
-            self.assertEqual(path.read_bytes(), before)
+            for line in ("一条合成子料。", "另一份，不应覆盖。"):
+                rc, again = save(vault, approval(line=line))
+                self.assertEqual(rc, 2, again)
+                self.assertEqual(again["status"], "refused")
+                self.assertIn("已存在", again["message"])
+                self.assertEqual(again["files_written"], 0)
+                self.assertEqual(path.read_bytes(), before)
+            files = list((vault / "📋 Digests" / "cluster").glob("*.md"))
+            self.assertEqual([item.name for item in files], ["2026-10-28-gpt.md"])
 
     def test_daily_path_is_refused(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
@@ -176,12 +181,13 @@ class NormalModeTests(unittest.TestCase):
             self.assertFalse((vault / "📋 Digests" / "daily").exists())
             self.assertFalse((vault / "📋 Digests" / "cluster").exists())
 
-    def test_normal_mode_refuses_gpt_filename(self) -> None:
+    def test_normal_mode_refuses_main_file(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             vault = Path(raw)
-            rc, data = save(vault, approval(path="📋 Digests/cluster/2026-10-28-gpt.md"))
+            rc, data = save(vault, approval(path="📋 Digests/cluster/2026-10-28.md"))
             self.assertEqual(rc, 2, data)
-            self.assertIn("not -gpt", data["message"])
+            self.assertEqual(data["status"], "refused")
+            self.assertIn("main file", data["message"])
             self.assertEqual(data["files_written"], 0)
             self.assertFalse((vault / "📋 Digests" / "cluster").exists())
 
@@ -192,8 +198,9 @@ class NormalModeTests(unittest.TestCase):
             rc, data = save(vault, payload)
             self.assertEqual(rc, 0, data)
             path = Path(data["path"])
-            self.assertEqual(path.name, "2026-10-26_27.md")
+            self.assertEqual(path.name, "2026-10-26_27-gpt.md")
             self.assertTrue(path.read_text(encoding="utf-8").startswith("# Digests cluster · 2026-10-26\n"))
+            self.assertFalse((vault / "📋 Digests" / "cluster" / "2026-10-26_27.md").exists())
 
 
 class ScheduledModeTests(unittest.TestCase):
@@ -297,13 +304,13 @@ class PublishTests(unittest.TestCase):
                     "--vault",
                     str(vault),
                     "--path",
-                    "📋 Digests/cluster/2026-10-28.md",
+                    "📋 Digests/cluster/2026-10-28-gpt.md",
                 ]
             )
             self.assertEqual(rc, 0, published)
             self.assertTrue(published["pushed"])
             message = subprocess.check_output(["git", "log", "-1", "--format=%s"], cwd=vault, text=True).strip()
-            self.assertEqual(message, "cluster: 2026-10-28")
+            self.assertEqual(message, "cluster: 2026-10-28-gpt")
             rc, contents = run_json(
                 [
                     sys.executable,
@@ -312,7 +319,7 @@ class PublishTests(unittest.TestCase):
                     "--vault",
                     str(vault),
                     "--path",
-                    "📋 Digests/cluster/2026-10-28.md",
+                    "📋 Digests/cluster/2026-10-28-gpt.md",
                 ]
             )
             self.assertEqual(rc, 2, contents)
@@ -326,7 +333,7 @@ class PublishTests(unittest.TestCase):
                     "--vault",
                     str(vault),
                     "--path",
-                    "📋 Digests/cluster/2026-10-28.md",
+                    "📋 Digests/cluster/2026-10-28-gpt.md",
                 ]
             )
             self.assertEqual(rc, 2, second)

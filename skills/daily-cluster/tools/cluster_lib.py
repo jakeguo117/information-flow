@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Create-only weekday cluster files for the ChatGPT daily-cluster skill.
 
-Normal saves require the same confirmation phrases as write_journal and write
-``📋 Digests/cluster/YYYY-MM-DD.md`` (multi-day ``YYYY-MM-DD_DD.md``).
-Scheduled saves skip that phrase and may only create the ``-gpt`` sibling.
-Neither mode overwrites, and neither writes ``📋 Digests/daily``.
+During the dual run, both conversational and scheduled saves write only
+``📋 Digests/cluster/YYYY-MM-DD-gpt.md`` (multi-day ``YYYY-MM-DD_DD-gpt.md``).
+Conversational saves still require the journal confirmation phrases.
+Scheduled saves skip that phrase. If the ``-gpt`` file already exists,
+a conversational save refuses and a scheduled save reports skipped.
+Neither mode overwrites, and neither writes the main file or ``📋 Digests/daily``.
 """
 
 from __future__ import annotations
@@ -33,10 +35,10 @@ NAME_RE = re.compile(
     r"^(?P<date>\d{4}-\d{2}-\d{2})(?:_(?P<span>\d{2}))?(?P<gpt>-gpt)?\.md$"
 )
 SKIP_MESSAGE = "skipped: already exists"
-ALREADY_MESSAGE = "今天已归"
+EXISTS_MESSAGE = "已存在，不覆盖"
 DAILY_MESSAGE = "拒绝写入 📋 Digests/daily"
 MAIN_MESSAGE = "scheduled mode refuses the main file"
-GPT_MESSAGE = "normal mode writes the main file, not -gpt"
+NORMAL_MAIN_MESSAGE = "normal mode refuses the main file"
 
 
 def fingerprint(text: str) -> str:
@@ -60,10 +62,13 @@ def _is_daily(path: str) -> bool:
 
 
 def checked_filename(date: str, span_end: str | None, scheduled: bool) -> str:
+    """Both modes write the -gpt name. ``scheduled`` does not change it."""
+    if scheduled not in (True, False):
+        raise ValueError("scheduled must be true or false")
     if not isinstance(date, str) or DATE_RE.fullmatch(date) is None:
         raise ValueError("date must be YYYY-MM-DD")
     start = datetime.date.fromisoformat(date)
-    suffix = "-gpt" if scheduled else ""
+    suffix = "-gpt"
     if span_end is None or span_end == "":
         return f"{start.isoformat()}{suffix}.md"
     if not isinstance(span_end, str) or SPAN_RE.fullmatch(span_end) is None:
@@ -206,19 +211,20 @@ def perform(
         filename = checked_filename(date, str(span) if span != "" else None, scheduled)
         relative = relative_for(filename)
         if isinstance(given, str) and given.replace("\\", "/") != relative:
-            if scheduled and not given.endswith("-gpt.md"):
-                raise ValueError(MAIN_MESSAGE)
-            if not scheduled and given.endswith("-gpt.md"):
-                raise ValueError(GPT_MESSAGE)
+            given_name = Path(given.replace("\\", "/")).name
+            if not given_name.endswith("-gpt.md"):
+                raise ValueError(MAIN_MESSAGE if scheduled else NORMAL_MAIN_MESSAGE)
             raise ValueError("path does not match the cluster filename for this date")
-        if scheduled and not filename.endswith("-gpt.md"):
-            raise ValueError(MAIN_MESSAGE)
-        if not scheduled and filename.endswith("-gpt.md"):
-            raise ValueError(GPT_MESSAGE)
+        if not filename.endswith("-gpt.md"):
+            raise ValueError(MAIN_MESSAGE if scheduled else NORMAL_MAIN_MESSAGE)
         _reject_symlink_parents(vault)
     except ValueError as exc:
         message = str(exc)
-        status = "refused" if message in {DAILY_MESSAGE, MAIN_MESSAGE, GPT_MESSAGE} else "validation_error"
+        status = (
+            "refused"
+            if message in {DAILY_MESSAGE, MAIN_MESSAGE, NORMAL_MAIN_MESSAGE}
+            else "validation_error"
+        )
         return _fail(status, message)
     except OSError as exc:
         return _fail("unavailable", str(exc))
@@ -244,29 +250,19 @@ def perform(
     if not isinstance(expected, str) or expected != actual:
         return _fail("stale_approval", "approval payload_sha256 does not match the cluster body")
     if target.exists() or target.is_symlink():
-        try:
-            existing = target.read_text(encoding="utf-8") if target.is_file() and not target.is_symlink() else None
-        except (OSError, UnicodeError) as exc:
-            return _fail("unavailable", str(exc))
-        if existing == body:
+        if scheduled and target.is_file() and not target.is_symlink():
             return {
-                "status": "success",
-                "already_persisted": True,
-                "message": "重复送达，只留一份",
+                "status": "skipped",
+                "message": SKIP_MESSAGE,
                 "path": str(target),
                 "relative": relative,
-                "fingerprint": fingerprint(existing),
                 "files_written": 0,
             }, True
-        return _fail("refused", ALREADY_MESSAGE, path=str(target), relative=relative)
+        return _fail("refused", EXISTS_MESSAGE, path=str(target), relative=relative)
     try:
         _create_exclusive(target, body)
         readback = target.read_text(encoding="utf-8")
     except FileExistsError:
-        try:
-            existing = target.read_text(encoding="utf-8")
-        except (OSError, UnicodeError) as exc:
-            return _fail("unavailable", str(exc))
         if scheduled:
             return {
                 "status": "skipped",
@@ -275,17 +271,7 @@ def perform(
                 "relative": relative,
                 "files_written": 0,
             }, True
-        if existing == body:
-            return {
-                "status": "success",
-                "already_persisted": True,
-                "message": "重复送达，只留一份",
-                "path": str(target),
-                "relative": relative,
-                "fingerprint": fingerprint(existing),
-                "files_written": 0,
-            }, True
-        return _fail("refused", ALREADY_MESSAGE, path=str(target), relative=relative)
+        return _fail("refused", EXISTS_MESSAGE, path=str(target), relative=relative)
     except OSError as exc:
         return _fail("unavailable", f"write failed: {exc}")
     if readback != body or readback.startswith("---"):

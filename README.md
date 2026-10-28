@@ -40,7 +40,7 @@ python3 scripts/package_journal_pack.py --chatgpt-plugin
 
 The file is `dist/information-flow-plugin.zip`. `dist/` is not committed.
 
-平日归堆也可在这个 ChatGPT 插件里跑（`skills/daily-cluster`）：一天一份 `📋 Digests/cluster/YYYY-MM-DD.md`。双跑期间定时任务另写 `-gpt` 文件；每晚 21:00 想法梳理看见当天主文件已经在，就跳过，不再写第二份。
+平日归堆也可在这个 ChatGPT 插件里跑（`skills/daily-cluster`）。双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼只读正本；切换之后的做法另行更新。对话里的确认和定时任务都只新建 `📋 Digests/cluster/YYYY-MM-DD-gpt.md`（多日 `YYYY-MM-DD_DD-gpt.md`）。
 
 Obsidian Git on the iCloud vault is pull-only. Plugins and skill copies land in that working tree before `HEAD` moves, and Git then refuses the whole fast-forward. `scripts/reconcile_live_vault_untracked.py` (on branch `cursor/cognition-v1.1`, not in this tree) clears incoming paths whose bytes already match, then fast-forwards. launchd `com.jake.digitalbrain-reconcile` is the Mac job for that script. This tree's `push_intake_sources.sh` does not call it. Keep or pause that job before switching the checkout to `main`: `docs/onboarding/local-switchover.md`.
 

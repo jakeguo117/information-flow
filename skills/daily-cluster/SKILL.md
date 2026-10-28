@@ -1,6 +1,6 @@
 ---
 name: 每天消化
-description: "平日归堆。用户说「归堆」「每天消化」或 digest 时使用。先把全文给老板看，老板点头后才写入 cluster，一天一份。定时任务另写 -gpt 文件。"
+description: "平日归堆。用户说「归堆」「每天消化」或 digest 时使用。先把全文给老板看，老板点头后才写当天的 -gpt 文件。双跑期间不写正本。"
 ---
 
 # 每天消化
@@ -28,11 +28,11 @@ ChatGPT 里的平日归堆。例程原文在下面，原句不删。只有标了
 
 ## （ChatGPT 适配）落盘
 
-上段第 0 条原句保留，不删。ChatGPT 里不开 Cloud Agent，也不使用 env `f9d27efd-b1de-11f1-a3d8-362438fd9788`。落盘改用 `skills/daily-cluster/tools/write_cluster.py`。先把全文给老板看，老板点头才写。写入与推送方式和 journal 一样：确认之后才写文件（`write_journal.py` 那种短语白名单），推送走和 `thought_lib` 相同的发布（`publish` 只提交这一份新文件；或 `contents-body` 打出不含 `sha` 的 contents 创建体，由会话里的 GitHub 写工具发送；本工具不自己发 HTTP）。「先落盘再聊天」在 ChatGPT 版里改为：先给全文→点头→落盘→再问深挖。点头指确认短语正好是 `可以写`、`写吧` 或 `OK 写`（与周记白名单相同）。没点头不写。推送没成功就说没存上，不要说已经落盘。
+上段第 0 条原句保留，不删。ChatGPT 里不开 Cloud Agent，也不使用 env `f9d27efd-b1de-11f1-a3d8-362438fd9788`。落盘改用 `skills/daily-cluster/tools/write_cluster.py`。先把全文给老板看，老板点头才写。写入与推送方式和 journal 一样：确认之后才写文件（`write_journal.py` 那种短语白名单），推送走和 `thought_lib` 相同的发布（`publish` 只提交这一份新文件；或 `contents-body` 打出不含 `sha` 的 contents 创建体，由会话里的 GitHub 写工具发送；本工具不自己发 HTTP）。「先落盘再聊天」在 ChatGPT 版里改为：先给全文→点头→落盘→再问深挖。点头指确认短语正好是 `可以写`、`写吧` 或 `OK 写`（与周记白名单相同）。没点头不写。推送没成功就说没存上，不要说已经落盘。双跑期间这次写入只写 `-gpt`，不写正本。口径见「（ChatGPT 适配·定时）」。
 
 ## （ChatGPT 适配）plan 条
 
-上段 3a 与「结果交给谁」原句保留，不删。ChatGPT 里发不了队友消息。落盘后在聊天里列出当天 plan 条（cluster 路径＋一句下一步）。由每晚 21:00 想法梳理看到当天文件已存在时，代报资料管理员。一天只有一份：当天文件已存在就不再写，告诉老板今天已归过。没有 plan 条就不列。
+上段 3a 与「结果交给谁」原句保留，不删。ChatGPT 里发不了队友消息。落盘后在聊天里列出当天 plan 条（`-gpt` 路径＋一句下一步）。没有 plan 条就不列。
 
 ## （ChatGPT 适配）深挖
 
@@ -40,7 +40,7 @@ ChatGPT 里的平日归堆。例程原文在下面，原句不删。只有标了
 
 ## （ChatGPT 适配·定时）
 
-双跑期间，ChatGPT 定时任务用 `write_cluster.py save --scheduled`。Jake 说定时任务就是他的保存授权，这条路径不走交互确认短语。它只新建 `📋 Digests/cluster/YYYY-MM-DD-gpt.md`（多日 `YYYY-MM-DD_DD-gpt.md`）。不写没有 `-gpt` 的主文件，不写 `📋 Digests/daily/`，不覆盖。当天 `-gpt` 文件已在就退出并说明 `skipped: already exists`，不再写第二份。想法梳理的 21:00 仍写主文件 `YYYY-MM-DD.md`（多日 `YYYY-MM-DD_DD.md`）。周六提炼只读主文件，不读 `-gpt`。
+双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼只读正本；切换之后的做法另行更新。对话里 Jake 说 `可以写`、`写吧` 或 `OK 写` 之后，`write_cluster.py save` 也只新建 `📋 Digests/cluster/YYYY-MM-DD-gpt.md`（多日 `YYYY-MM-DD_DD-gpt.md`）。不写正本，不写 `📋 Digests/daily/`，不覆盖。`-gpt` 已经在就报错说明已存在，不覆盖。定时任务用 `write_cluster.py save --scheduled`。Jake 说定时任务就是他的保存授权，这条路径不走交互确认短语。它同样只新建这份 `-gpt`。当天 `-gpt` 已在则退出码 0，`skipped: already exists`，字节不动。
 
 ## 参考
 
@@ -77,7 +77,7 @@ ChatGPT 里的平日归堆。例程原文在下面，原句不删。只有标了
 ## 交易
 ```
 
-其余类只在有料时出现，顺序固定为：宏观、交易、内容与个人品牌、用 AI 做事、做事业／变现、团队与工作法、人生方向／个人想法。多日文件名是 `YYYY-MM-DD_DD.md`（例 `2026-10-26_27.md`），首行日期仍是起始日 `YYYY-MM-DD`。定时任务的文件名在扩展名前面加 `-gpt`。
+其余类只在有料时出现，顺序固定为：宏观、交易、内容与个人品牌、用 AI 做事、做事业／变现、团队与工作法、人生方向／个人想法。多日正本文件名是 `YYYY-MM-DD_DD.md`（例 `2026-10-26_27.md`），首行日期仍是起始日 `YYYY-MM-DD`。双跑期间 ChatGPT 写出的文件在扩展名前加 `-gpt`。
 
 ## 读 Inbox
 
@@ -102,14 +102,12 @@ Vault 目录（按这个顺序认，认到就停），与 journal skill 相同�
 ```bash
 python3 skills/daily-cluster/tools/write_cluster.py save --vault "$VAULT" --approval FILE
 python3 skills/daily-cluster/tools/write_cluster.py save --vault "$VAULT" --approval FILE --scheduled
-python3 skills/daily-cluster/tools/write_cluster.py publish --vault "$VAULT" --path '📋 Digests/cluster/YYYY-MM-DD.md'
-python3 skills/daily-cluster/tools/write_cluster.py contents-body --vault "$VAULT" --path '📋 Digests/cluster/YYYY-MM-DD.md'
+python3 skills/daily-cluster/tools/write_cluster.py publish --vault "$VAULT" --path '📋 Digests/cluster/YYYY-MM-DD-gpt.md'
+python3 skills/daily-cluster/tools/write_cluster.py contents-body --vault "$VAULT" --path '📋 Digests/cluster/YYYY-MM-DD-gpt.md'
 ```
 
-`FILE` 是 JSON：`date` 为 `YYYY-MM-DD`，多日再加 `span_end`（两位日，如 `27`），`body` 是不含 frontmatter 的全文，`payload_sha256` 是 `body` 的 sha256。交互模式还要 `confirmed: true` 和 `phrase` 正好是 `可以写`、`写吧` 或 `OK 写`。路径由工具写成 `📋 Digests/cluster/` 下对应文件名。交互模式写主文件；`--scheduled` 只写 `-gpt` 文件。
+`FILE` 是 JSON：`date` 为 `YYYY-MM-DD`，多日再加 `span_end`（两位日，如 `27`），`body` 是不含 frontmatter 的全文，`payload_sha256` 是 `body` 的 sha256。交互模式还要 `confirmed: true` 和 `phrase` 正好是 `可以写`、`写吧` 或 `OK 写`。路径由工具写成 `📋 Digests/cluster/` 下的 `-gpt` 文件名。对话模式和 `--scheduled` 都只写 `-gpt`，写正本会拒绝。
 
-交互模式：文件已在且内容不同，拒绝并报 `今天已归`，不覆盖。同一全文重复送达：不另写，只留一份。`--scheduled`：目标 `-gpt` 文件已在，退出码 0，`skipped: already exists`，字节不动。`path` 若指向 `📋 Digests/daily`：拒绝，写入数为 0。`--scheduled` 若要写没有 `-gpt` 的主文件：拒绝。
+对话模式：`-gpt` 文件已经在，报错说明已存在，不覆盖，不论正文是否相同。`--scheduled`：目标 `-gpt` 文件已在，退出码 0，`skipped: already exists`，字节不动。`path` 若指向 `📋 Digests/daily`：拒绝，写入数为 0。对话模式或 `--scheduled` 若要写没有 `-gpt` 的正本：拒绝。
 
-`save` 写出新文件之后才 `publish`。提交信息是 `cluster:` 加文件名去掉 `.md`（主文件即 `cluster: YYYY-MM-DD`，多日 `cluster: YYYY-MM-DD_DD`，定时 `cluster: YYYY-MM-DD-gpt`）。`publish` 只新增这一份，不修改、不删除、不覆盖 `main` 上已有文件，不强推。`contents-body` 只打印创建体（`message`、`content`、`branch`），没有 `sha`，也没有发出请求。文件已存在却要带 `sha` 的调用不要发，那是更新。两种发布都没成功就说没存上。
-
-一天只有一份主文件。当天主文件已存在就不再写主文件，告诉老板今天已归过。
+`save` 写出新文件之后才 `publish`。提交信息是 `cluster:` 加文件名去掉 `.md`（ChatGPT 这份即 `cluster: YYYY-MM-DD-gpt`，多日 `cluster: YYYY-MM-DD_DD-gpt`）。`publish` 只新增这一份，不修改、不删除、不覆盖 `main` 上已有文件，不强推。`contents-body` 只打印创建体（`message`、`content`、`branch`），没有 `sha`，也没有发出请求。文件已存在却要带 `sha` 的调用不要发，那是更新。两种发布都没成功就说没存上。

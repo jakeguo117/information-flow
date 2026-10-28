@@ -44,7 +44,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--scheduled",
         action="store_true",
-        help="scheduled task only: skip confirmation and write the -gpt file",
+        help="scheduled task: skip confirmation; still writes only the -gpt file",
     )
     args = parser.parse_args(argv)
     vault = Path(args.vault).expanduser()

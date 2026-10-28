@@ -31,15 +31,15 @@
   → 归堆推库不是这条 Action。历史 cycles 不删
 
 平日归堆
-  → 路径 📋 Digests/cluster/YYYY-MM-DD.md（多日 YYYY-MM-DD_DD.md）
-  → 想法梳理落盘
+  → 正本路径 📋 Digests/cluster/YYYY-MM-DD.md（多日 YYYY-MM-DD_DD.md），由想法梳理 21:00 写
+  → 双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼只读正本；切换之后的做法另行更新
   → 归堆推库＝Cloud Agent 推 jakeguo117/obsidian-digitalbrain
   → information-flow Actions 不写这份归堆，本文件不接推送接线
   → 落盘当下不跑 discuss-to-resources-ideas
 
 周六提炼
   → 想法梳理加载 discuss-to-resources-ideas
-  → 只扫本周 cluster 与 📝 Journal/{YYYY-MM-DD}*.md（文件不在盘上就跳过）
+  → 只扫本周 cluster 正本与 📝 Journal/{YYYY-MM-DD}*.md（文件不在盘上就跳过；不读 *-gpt.md）
   → Resources / Ideas / Cognition 互链；Ideas、Belief、Principle、Resources 正式入库仍要点头
   → 禁 concept→Evidence
 
