@@ -38,6 +38,8 @@ Jake 2026-10-28 批的方案纸 v2 用本技能做每周提炼。方案纸原文
 
 `📝 Journal/想法/` 的随手记不是主扫。没有 cluster、也没有符合的 Journal 文件：停。不要编 Resources 或 Ideas。不要改去 `📋 Digests/daily/`，不要改去 `📋 Digests/cycles/`。
 
+`📋 Digests/cluster/` 里带 `plan` 标签的条目（有执行步骤的未来打算）只读来报进度：列出本周每条 plan 做到哪一步、下一步是什么；不当 Resources、Ideas 或 Cognition 的原料。
+
 ## 输出
 
 复用现成写入工具，不另写一套。
@@ -48,6 +50,8 @@ Jake 2026-10-28 批的方案纸 v2 用本技能做每周提炼。方案纸原文
 | Ideas | `💡 Ideas/{Content,Insurance,Life,Tech,Trading}/idea-xxxxxxxxxxxx.md` | `skills/ideas/tools/write_idea.py` | 点头之后。判断用 `nature: judgment`。`source_refs` 写整段引用，指向本周 cluster 或 Journal，以及对应 Resources |
 | Cognition | `📖 Cognition/{Evidence,Beliefs,Principles}/` | `skills/cognition/tools/write_cognition.py` | Evidence 草稿沿用 cognition 现闸。Belief、Principle 须点头 |
 | Facts | 另轨，不并进这次提炼 | `skills/facts/tools/write_fact.py` | 本技能不改 Facts 的规则 |
+
+`plan` 标签不写 Ideas，只报进度；不为 plan 另开第四类库或新目录。
 
 ## 互链
 
@@ -71,3 +75,4 @@ Jake 2026-10-28 批的方案纸 v2 用本技能做每周提炼。方案纸原文
 - 不删除历史 `📋 Digests/cycles/`。
 - 不手写 Markdown 绕过 `write_idea.py` 或 `write_cognition.py`。
 - 工具找不到或拒绝写入时，停在已点头的草稿上，说明这次没有写入。
+- 不把带 `plan` 标签的条目写进 `💡 Ideas/`（也不调用 `write_idea.py` 写 plan），只报进度。
