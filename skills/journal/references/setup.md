@@ -1,6 +1,6 @@
 # Setup / Goals
 
-只给 Jake。V2.0 闭环是：平时收集 → 周四整理（process）→ 周四汇总（digest r{n}）→ 周五周记 → Ideas / 认知 / 内容。
+只给 Jake。周四 `weekly-digest.yml` schedule 已停。现行闭环是：平时收集 → 平日想法梳理把归堆落在 `📋 Digests/cluster/YYYY-MM-DD.md`（Cloud Agent 推 `jakeguo117/obsidian-digitalbrain`）→ 周六 `discuss-to-resources-ideas` 扫 cluster 与已落盘 Journal → Ideas / Cognition / Resources。历史 `📋 Digests/cycles/` 保留。takeaway 已 offline，本 PR 不另挂停排程。不接管历史 `📋 Digests/daily/`。
 
 当周 `intake.md` 不再追加，也不是讨论入口。
 
@@ -14,18 +14,34 @@
   → 开机/登录后 com.jake.intake-source-push 只推 📥 Inbox/Snipd/ 与 Inbox/WeRead 上 main
   → 电脑关着时这两路不会自己上 GitHub
 
-周四整理（process）
-  → 周四 08:00 Asia/Hong_Kong，process_batch.py
+周四整理（process）— schedule 已停，只留救急
+  → weekly-digest.yml 不再按周四自动跑
+  → workflow_dispatch 救急时仍可跑 process_batch.py
   → 写入 📋 Digests/cycles/{cycle_id}/batch.json
   → cycle_id 是当天 cy-YYYYMMDD（必须是周四）
   → 索引目录不在，或 inputs.jsonl 缺失/为空：跳过，不编批次
+  → 本 Action 不写 📋 Digests/cluster/，也不写 📋 Digests/daily/
 
-周四汇总（digest r{n}）
-  → 周四 20:00 Asia/Hong_Kong，build_digest_v2.py
-  → 写入 📋 Digests/cycles/{cycle_id}/r{n}.md
+周四汇总（digest r{n}）— schedule 已停，只留救急
+  → 不再在周四 20:00 自动跑 build_digest_v2.py
+  → 救急 dispatch 仍写入 📋 Digests/cycles/{cycle_id}/r{n}.md
   → 同一 cycle 里 n 递增；已有修订的字节不改
   → 索引未建时同样跳过，不编快照
-  → 直接 push obsidian-digitalbrain main（不经过 PR）
+  → 救急提交仍只覆盖该 cycle 与 index，并 push obsidian-digitalbrain main
+  → 归堆推库不是这条 Action。历史 cycles 不删
+
+平日归堆
+  → 路径 📋 Digests/cluster/YYYY-MM-DD.md（多日 YYYY-MM-DD_DD.md）
+  → 想法梳理落盘
+  → 归堆推库＝Cloud Agent 推 jakeguo117/obsidian-digitalbrain
+  → information-flow Actions 不写这份归堆，本文件不接推送接线
+  → 落盘当下不跑 discuss-to-resources-ideas
+
+周六提炼
+  → 想法梳理加载 discuss-to-resources-ideas
+  → 只扫本周 cluster 与 📝 Journal/{YYYY-MM-DD}*.md（文件不在盘上就跳过）
+  → Resources / Ideas / Cognition 互链；Ideas、Belief、Principle、Resources 正式入库仍要点头
+  → 禁 concept→Evidence
 
 周五周记
   → Jake 说「写周记」「周记」或 /journal。没有周五定时任务
@@ -38,10 +54,12 @@
   → 没有快照时不带这个参数
   → 📝 Journal/ 周记正文不自动 git push
   → 落盘后如有可复用判断，交给 cognition propose；周记自己不写 Cognition
+  → 落盘当下不跑 discuss-to-resources-ideas。周四接受不再写每周 Resources
 
 Ideas / 认知 / 内容
-  → 「看本周汇总」或 /digest：读最新周四快照。Jake 接受之前不写来源卡以外的东西；接受之后写 📖 Resources/ concept 页。不写 Journal / Cognition
-  → 「提炼想法」走 ideas 入口。仓库尚无 ideas/SKILL.md，规则源在 information-flow
+  → 「看本周汇总」或 /digest：只读归档里的周四快照。不把周四接受写成每周来源卡。不写 Journal / Cognition
+  → 周六 discuss-to-resources-ideas 才做 Resources／Ideas／Cognition。点头后的 Idea 走 write_idea.py
+  → 「提炼想法」走 ideas。规则源在 information-flow 的 skills/ideas/SKILL.md
   → 「相关认知」走 cognition retrieve。partial / unavailable 不许说成没有相关认知
   → 「记成事实」走 facts 入口。仓库尚无 facts/SKILL.md，规则源在 information-flow 的 skills/facts/
   → 来源卡、认知、事实都不是周记正文
@@ -60,7 +78,7 @@ Ideas / 认知 / 内容
   → 不写 Cognition，不进 Ideas / Experiments
 ```
 
-手机 = Cursor Cloud + GitHub `obsidian-digitalbrain` 的 `main`。周四快照必须已经在 `main`。没有 `📋 Digests/cycles/{cycle_id}/r{n}.md` 就停，不要改去日摘要或旧周路径。
+手机 = Cursor Cloud + GitHub `obsidian-digitalbrain` 的 `main`。没有周四快照不要改去 `📋 Digests/daily/` 或旧周路径，也不要为了周记生成新 cycle。归堆看 `📋 Digests/cluster/`。周六提炼不靠这份快照。
 
 Daily Briefing / Weekly Synthesis / Journal Briefs 不再作为输出。不硬凑空段。不自动 git push 周记。聊天里的 agent 不跑 YouTube / process / digest 脚本，也不把 token 写进 vault。
 
@@ -69,14 +87,14 @@ Daily Briefing / Weekly Synthesis / Journal Briefs 不再作为输出。不硬�
 | 块 | 状态 |
 |---|---|
 | Plugin | `information-flow` private GitHub |
-| 规则源 | `information-flow/skills/{journal,intake,digest,cognition}`。ideas / facts 尚无 SKILL.md，规则仍在本仓库 |
-| 仓库 skill（手机 Cloud） | DigitalBrain `.cursor/skills/{intake,digest,journal,cognition}/`，由 Actions 覆盖 |
+| 规则源 | `information-flow/skills/{journal,intake,digest,cognition,ideas,discuss-to-resources-ideas}`。facts 尚无 SKILL.md |
+| 仓库 skill（手机 Cloud） | DigitalBrain `.cursor/skills/` 由 Actions 覆盖。本变更不接归堆推送 |
 | AGENTS 硬路由 | DigitalBrain `AGENTS.md` 里 `information-flow:digest-route` 段，由 Actions 覆盖 |
-| 主文件 | 周四快照 `📋 Digests/cycles/{cycle_id}/r{n}.md`。周记在有快照时由工具写入 `digest_id` / `snapshot_revision` / `input_ids_sha256`。`📋 Digests/daily/` 与旧的 `📋 Digests/{YYYY-Wnn}/digest.md` 不是主文件 |
-| Actions | daily-intake 只收集 YouTube-Likes（07:30 Asia/Hong_Kong）。周四 08:00 process、20:00 digest 写 `📋 Digests/cycles/`。skill 变更另走 sync-digitalbrain-skills |
+| 主文件 | 平日归堆 `📋 Digests/cluster/YYYY-MM-DD.md`。周四快照 `📋 Digests/cycles/{cycle_id}/r{n}.md` 只作归档；周记在打开快照时仍写入 `digest_id` / `snapshot_revision` / `input_ids_sha256`。历史 `📋 Digests/daily/` 不接管。旧的 `📋 Digests/{YYYY-Wnn}/digest.md` 不是主文件 |
+| Actions | daily-intake 只收集 YouTube-Likes（07:30 Asia/Hong_Kong）。周四 process／digest 的 schedule 已停，`workflow_dispatch` 只作救急。归堆不由 information-flow Actions 写入。skill 变更另走 sync-digitalbrain-skills |
 | 本机 source push | `com.jake.intake-source-push`：登录 + 每 4 小时，只推 `📥 Inbox/Snipd/` 与 `Inbox/WeRead` |
 | Obsidian Git | `disablePush: true`，不整仓 push |
-| 日摘要文件 | 历史留盘，不是主流程，不再生成 |
+| 日摘要 / takeaway | takeaway 已 offline，本 PR 不另挂停排程。`scripts/daily_takeaway.py` 留作 dead code，不在本变更删除。历史 `📋 Digests/daily/` 文件不改 |
 | 公开 journal-skill | 已 private |
 
 information-flow 改 skill 后，合进 main 就会覆盖 DigitalBrain 副本；已写成的笔记不重写。

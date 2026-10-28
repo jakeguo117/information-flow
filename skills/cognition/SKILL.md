@@ -68,6 +68,14 @@ Evidence 的 validation 升降都要有持久依据，并追加 `## Validation H
 - 精确路径。禁止 `git add -A`。默认只写本地，**不自动 push** Cognition。commit/push 要另行明确授权。
 - 写 Cognition 不等于可以做外部调研、改无关文件、动下游项目。
 
+## 周六交接
+
+每周提炼不走周四 digest 接受后写 Resources。周六 `discuss-to-resources-ideas` 可以按本技能的闸提出 Cognition：Evidence 草稿沿用现闸，Belief／Principle 仍要这次点头，写入仍只走 `write_cognition.py`。平日 `📋 Digests/cluster/` 或 Journal 落盘当下不跑那个技能。
+
+归堆路径是 `📋 Digests/cluster/YYYY-MM-DD.md`。归堆推库＝Cloud Agent 推 `jakeguo117/obsidian-digitalbrain`，不是 information-flow Actions，也不是本技能。不接管历史 `📋 Digests/daily/`。takeaway 已 offline，本 PR 不另挂停排程。
+
+禁 concept→Evidence。intake 条目和 concept 卡不能直接当成 Evidence。
+
 ## 不要做
 
 - 不要把 intake 条目或 concept 卡片直接当成 Evidence

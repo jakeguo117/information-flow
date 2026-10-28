@@ -10,7 +10,7 @@ The information-flow code repository is a different folder. Keep this vault outs
 | `📥 Inbox/` | Source drops | Sync tools and you, per source | Cognition tools |
 | `📝 Journal/` | Notes you keep | Journal tools after you approve a save | Intake sync |
 | `💡 Ideas/` | Ideas under themes you create | You and the ideas skill, after you confirm | This template (no theme folders) |
-| `📋 Digests/` | Cycle digests | Digest tools | This template (no sample digests) |
+| `📋 Digests/` | Thursday `cycles/` archive, plus weekday 归堆 in `cluster/` | 想法梳理 writes `📋 Digests/cluster/YYYY-MM-DD.md`. A Cloud Agent pushes the private vault. Emergency digest dispatch may still write `cycles/`. | This template (no sample digests). It does not create or edit `📋 Digests/daily/`. takeaway 已 offline，本 PR 不另挂停排程 |
 | `📖 Cognition/` | Evidence, Beliefs, Principles | Cognition tools on an approved write | This template (no type folders yet) |
 
 `📖 Resources/` and `🚀 Projects/` are not created here.

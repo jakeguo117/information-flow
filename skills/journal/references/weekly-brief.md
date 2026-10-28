@@ -30,3 +30,7 @@
 - `📊 Journal Briefs/`（已停）
 - `📖 Cognition/`（写完周记之后的另一层，不是周记输入）
 - `📋 Digests/daily/`，以及旧路径 `📋 Digests/{YYYY-Wnn}/digest.md`、`📋 Digests/weekly-briefs/`
+
+## 交接
+
+周四 `weekly-digest.yml` schedule 已停。上面的周四快照只作归档，没有文件不要生成。平日归堆是 `📋 Digests/cluster/YYYY-MM-DD.md`（多日 `YYYY-MM-DD_DD.md`），想法梳理落盘，Cloud Agent 推 `jakeguo117/obsidian-digitalbrain`。周记落盘当下不跑 `discuss-to-resources-ideas`。周六才扫本周 cluster 和已落盘的 `📝 Journal/{YYYY-MM-DD}*.md`。不接管历史 `📋 Digests/daily/`。takeaway 已 offline，本 PR 不另挂停排程。

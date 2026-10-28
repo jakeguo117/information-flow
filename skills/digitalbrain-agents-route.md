@@ -5,15 +5,21 @@
 
 用户说「看本周汇总」「本周汇总」「本周 digest」或 `/digest`：
 
-1. 读最新一份周四快照 `📋 Digests/cycles/{cycle_id}/r{n}.md`。`cycle_id` 形如 `cy-YYYYMMDD`，这一天是周四（Asia/Hong_Kong）。在 `📋 Digests/cycles/` 里取日期最新的周四 cycle，再取编号最大的 `r{n}.md`（n 按整数比）。按主题列全量，带状态，保留快照里的 `D-` 编号。不要讨论昨天的日摘要。
-2. 没有这份快照就说明还没有。不要编条目。不要回落到 `📋 Digests/daily/`，不要回落到旧的 `📋 Digests/{YYYY-Wnn}/digest.md`，也不要打开 weekly-briefs。
-3. Jake 接受之前不写来源卡以外的东西。接受之后写成 `📖 Resources/` 已有领域目录下的 concept 页。`sources` 指回 Inbox 原文，更新 `index.md` 和 `log.md`，每页至少两个链接。不改类型。
+周四 `weekly-digest.yml` schedule 已停。`📋 Digests/cycles/` 只作归档。`/digest` 不生成新 cycle，也不把周四接受写成每周 Resources。
+
+1. 归档里若有周四快照 `📋 Digests/cycles/{cycle_id}/r{n}.md`，可以按主题列全量。`cycle_id` 形如 `cy-YYYYMMDD`，这一天是周四（Asia/Hong_Kong）。在 `📋 Digests/cycles/` 里取日期最新的周四 cycle，再取编号最大的 `r{n}.md`（n 按整数比）。带状态，保留快照里的 `D-` 编号。不要讨论昨天的日摘要。
+2. 没有这份快照就说明还没有。不要编条目。不要回落到 `📋 Digests/daily/`，不要回落到旧的 `📋 Digests/{YYYY-Wnn}/digest.md`，也不要打开 weekly-briefs。不要把 `📋 Digests/cluster/` 冒充周四快照。
+3. Jake 接受之前不写来源卡。`/digest` 不把接受之后的来源卡当作每周提炼。每周 Resources／Ideas／Cognition 由周六 `discuss-to-resources-ideas` 做。Resource 页不是 Evidence。
 4. 不写 `📝 Journal/`。不写 Cognition。Agent 发起的受管文件变更遵循当前 Global Governance / project policy：精确路径暂存，禁止 `git add -A`。只新增文件的提交（想法文件、消化清单）可以直接推 main；任何修改或删除都不直推 main，不强推。会修改已有文件的变更走 task branch 和 PR。PR 与 merge 服从当前授权和治理 gate。
+
+平日归堆落盘是 `📋 Digests/cluster/YYYY-MM-DD.md`（多日 `YYYY-MM-DD_DD.md`）。想法梳理写文件。归堆推库＝Cloud Agent 推 `jakeguo117/obsidian-digitalbrain`，不是 information-flow Actions 写 vault。这里不实现推送接线。不碰、不接管历史 `📋 Digests/daily/`。takeaway 已 offline，本 PR 不另挂停排程。
+
+周六想法梳理加载 `discuss-to-resources-ideas`：只扫本周 `📋 Digests/cluster/` 与已落盘的 `📝 Journal/{YYYY-MM-DD}*.md`。平日落盘当下不跑。
 
 用户说「写周记」「周记」或 `/journal`：
 
 - 后台先读最近 2–3 篇旧周记和未解问题（不输出）。旧周记里的状态不能当作本周事实说。
-- 然后第一段列出本周周四快照 `📋 Digests/cycles/{cycle_id}/r{n}.md` 的全部 `D-` 条目，含待归类。一行一条，带编号和该行状态。`cycle_id` 是本周周四（Asia/Hong_Kong）的 `cy-YYYYMMDD`，取编号最大的修订。没有快照就说「本周没有周四汇总快照」，不要凭记忆编，不要回落到 `📋 Digests/daily/`、旧的 `📋 Digests/{YYYY-Wnn}/digest.md` 或 weekly-briefs。
+- 然后第一段列出本周周四快照 `📋 Digests/cycles/{cycle_id}/r{n}.md` 的全部 `D-` 条目，含待归类。一行一条，带编号和该行状态。`cycle_id` 是本周周四（Asia/Hong_Kong）的 `cy-YYYYMMDD`，取编号最大的修订。没有快照就说「本周没有周四汇总快照」，不要凭记忆编，不要回落到 `📋 Digests/daily/`、旧的 `📋 Digests/{YYYY-Wnn}/digest.md` 或 weekly-briefs。周四 schedule 已停，cycles 只作归档，不要为了周记生成新 cycle。平日归堆是 `📋 Digests/cluster/YYYY-MM-DD.md`，不是本路由写的。周记落盘当下不跑 `discuss-to-resources-ideas`。
 - 不把整份汇总贴进周记。自己认周。
 - 客户说「可以写 / 写吧 / OK 写」之前，不要写 `📝 Journal/`。持久写入只走 `.cursor/skills/journal/tools/write_journal.py`。本周快照实际打开时，保存用 `--digest-snapshot <digest_id>@r<n>`，不要 `--append-digest`。不写 Cognition。Journal 仍不自动 push。
 
@@ -37,7 +43,8 @@
 
 用户说「提炼想法」：
 
-- 走 ideas / 提炼想法入口。仓库尚无 `ideas/SKILL.md`。规则源在 information-flow。这里不规定文件布局、字段或落盘步骤。
+- 走 `ideas`。确认前不落盘。落盘用 `skills/ideas/tools/write_idea.py`。规则源在 information-flow。
+- 每周批量提炼不在周四 digest 接受时写 Resources。周六 `discuss-to-resources-ideas` 在 Jake 点头后调用同一个写入工具。平日 `📋 Digests/cluster/` 或 Journal 落盘当下不跑。归堆推库＝Cloud Agent 推 `jakeguo117/obsidian-digitalbrain`，不是本路由接的 Action。
 
 用户说「记成事实」：
 

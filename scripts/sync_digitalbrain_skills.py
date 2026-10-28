@@ -46,6 +46,7 @@ SKILL_RELATIVE_PATHS = (
     "cognition/tools/retrieve_cognition.py",
     "cognition/tools/write_cognition.py",
     "ideas/SKILL.md",
+    "discuss-to-resources-ideas/SKILL.md",
     "facts/SKILL.md",
     "content/SKILL.md",
     "content/references/content-record.md",
