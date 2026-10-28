@@ -44,7 +44,7 @@ try:
 
     rc, out = run(vault, base, "--append-digest", rel)
     assert rc == 2 and out["status"] == "unavailable" and out["files_written"] == 0, out
-    assert "--digest-snapshot" in out["message"], out
+    assert "does not attach a digest" in out["message"], out
     assert "本周 digest" not in out["message"]
     assert not (vault / "📝 Journal").exists()
     assert dg.read_bytes() == before
@@ -52,11 +52,11 @@ try:
     stale = dict(base, payload_sha256="0" * 64)
     rc, out = run(vault, stale, "--append-digest", rel)
     assert rc == 2 and out["status"] == "unavailable" and out["files_written"] == 0, out
-    assert "--digest-snapshot" in out["message"], out
+    assert "does not attach a digest" in out["message"], out
     assert not (vault / "📝 Journal").exists()
 
     rc, out = run(vault, base, "--append-digest", str(tmp / "outside.md"))
-    assert rc == 2 and out["status"] == "unavailable" and "--digest-snapshot" in out["message"], out
+    assert rc == 2 and out["status"] == "unavailable" and "does not attach a digest" in out["message"], out
     assert not (vault / "📝 Journal").exists()
 
     rc, out = run(vault, base)

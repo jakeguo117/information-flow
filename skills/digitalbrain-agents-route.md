@@ -18,10 +18,10 @@
 
 用户说「写周记」「周记」或 `/journal`：
 
-- 后台先读最近 2–3 篇旧周记和未解问题（不输出）。旧周记里的状态不能当作本周事实说。
-- 然后第一段列出本周周四快照 `📋 Digests/cycles/{cycle_id}/r{n}.md` 的全部 `D-` 条目，含待归类。一行一条，带编号和该行状态。`cycle_id` 是本周周四（Asia/Hong_Kong）的 `cy-YYYYMMDD`，取编号最大的修订。没有快照就说「本周没有周四汇总快照」，不要凭记忆编，不要回落到 `📋 Digests/daily/`、旧的 `📋 Digests/{YYYY-Wnn}/digest.md` 或 weekly-briefs。周四 schedule 已停，cycles 只作归档，不要为了周记生成新 cycle。平日归堆是 `📋 Digests/cluster/YYYY-MM-DD.md`，不是本路由写的。周记落盘当下不跑 `discuss-to-resources-ideas`。
-- 不把整份汇总贴进周记。自己认周。
-- 客户说「可以写 / 写吧 / OK 写」之前，不要写 `📝 Journal/`。持久写入只走 `.cursor/skills/journal/tools/write_journal.py`。本周快照实际打开时，保存用 `--digest-snapshot <digest_id>@r<n>`，不要 `--append-digest`。不写 Cognition。Journal 仍不自动 push。
+- 先读最近 3–4 篇旧周记（按文件名），给 Jake 一段 recap：未收的线、发生过什么、已点名的项目。旧周记里的状态不能当作本周事实说。
+- 再用本会话的 Notion 连接看正在推进、待办池、可执行计划清单。读不到就用一句话说明，不编，只按 recap 继续。
+- 然后讨论。不读 digest、`📋 Digests/cluster/`、周四快照 `📋 Digests/cycles/` 或周 digest。不要列 `D-` 条目，没有快照也不停。不写 cluster，不改 `📋 Digests/daily/`。周记落盘当下不跑 `discuss-to-resources-ideas`。
+- 客户说「可以写 / 写吧 / OK 写」之前，不要写 `📝 Journal/`。持久写入只走 `.cursor/skills/journal/tools/write_journal.py`，不带 `--digest-snapshot`，不要 `--append-digest`。不写 Cognition。Journal 仍不自动 push。
 
 用户说「记一下：」「想法：」或 `/thought`：
 

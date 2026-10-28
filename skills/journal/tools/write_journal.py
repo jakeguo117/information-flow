@@ -30,12 +30,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--append-digest",
         metavar="PATH",
-        help="unavailable; use --digest-snapshot to record a Thursday snapshot id",
+        help="unavailable; the weekly journal does not attach a digest",
     )
     parser.add_argument(
         "--digest-snapshot",
         metavar="DIGEST_ID@rN",
-        help="record digest_id, snapshot_revision, and input_ids_sha256 from 📋 Digests/cycles/{cycle}/rN.md",
+        help="optional; record digest_id, snapshot_revision, and input_ids_sha256 when a caller still passes a Thursday snapshot. The current journal flow does not pass this",
     )
     args = parser.parse_args(argv)
 
@@ -63,8 +63,7 @@ def main(argv: list[str] | None = None) -> int:
             {
                 "status": "unavailable",
                 "message": (
-                    "--append-digest is unavailable; use --digest-snapshot "
-                    "dg-cy-YYYYMMDD@rN to record the snapshot id without copying the digest"
+                    "--append-digest is unavailable; the weekly journal does not attach a digest"
                 ),
                 "event_id": str(approval.get("event_id") or ""),
                 "files_written": 0,

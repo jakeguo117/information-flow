@@ -5,7 +5,7 @@ Jake only. Daily content in, weekly journal out, durable Cognition in DigitalBra
 ## Skills
 
 - `intake` — collect only, no discussion: Inbox originals stay as they are, and `📥 Inbox/_index/` gets one append-only line per Input. The weekly `📋 Digests/{YYYY-Wnn}/intake.md` is retired. 「看本周汇总」 goes to `digest`, which may read an existing Thursday archive snapshot `📋 Digests/cycles/{cycle_id}/r{n}.md`. Thursday cycle auto-run is stopped. Weekday 归堆 is `📋 Digests/cluster/YYYY-MM-DD.md` (想法梳理 writes it; a Cloud Agent pushes `jakeguo117/obsidian-digitalbrain`). Saturday `discuss-to-resources-ideas` is the weekly Resources / Ideas / Cognition extract. Intake items and concept cards are not Evidence. `📋 Digests/daily/` is not the 归堆 path. Takeaway is already offline; this change does not add a stop-cron and does not delete `scripts/daily_takeaway.py`.
-- `journal` — on demand: find echoes from recent journals / already-linked projects, then write `📝 Journal/` only after Jake says OK. Persistent save goes through `write_journal.py`; without `可以写` / `写吧` / `OK 写` the tool writes 0 files. After a journal is written, hand off to `cognition` propose; journal never writes Cognition files.
+- `journal` — on demand: recap the newest 3–4 `📝 Journal/` files and check Notion (正在推进, 待办池, 可执行计划清单), then discuss. Do not read digest, cluster, or the Thursday snapshot for the journal. Write `📝 Journal/` only after Jake says OK. Persistent save goes through `write_journal.py`; without `可以写` / `写吧` / `OK 写` the tool writes 0 files. After a journal is written, hand off to `cognition` propose; journal never writes Cognition files.
 - `cognition` — propose / promote / retrieve / revise Evidence, Belief, and Principle as Markdown (`schema_version: "1.1"`) under DigitalBrain `📖 Cognition/`. Human gate. Writes go through validator + write coordinator. Retrieval returns `found | no_match | partial | unavailable`.
 
 Skill copies on DigitalBrain (`.cursor/skills/` + the AGENTS.md route block) are overwritten by `scripts/sync_digitalbrain_skills.py` when this repo's `main` changes. Existing notes — including Cognition **content** — are not rewritten.
@@ -22,7 +22,7 @@ python3 skills/journal/tools/write_journal.py save --vault "$VAULT" --approval F
 ## Skills
 
 - `intake` — collect only, no discussion; the weekly `📋 Digests/{YYYY-Wnn}/intake.md` is retired. 「看本周汇总」 reads an archive Thursday snapshot through `digest` when one exists. Thursday auto-run is stopped. Weekday 归堆 is `📋 Digests/cluster/`; Saturday `discuss-to-resources-ideas` does the weekly extract.
-- `journal` — on demand: find echoes from recent journals / already-linked projects, then write `📝 Journal/` only after Jake says OK
+- `journal` — on demand: recap the newest 3–4 journals and check Notion, then write `📝 Journal/` only after Jake says OK. Do not read digest, cluster, or the Thursday snapshot for the journal.
 
 Skill copies on DigitalBrain (`.cursor/skills/` + the AGENTS.md route block) are overwritten by `scripts/sync_digitalbrain_skills.py` when this repo's `main` changes. Existing notes are not rewritten.
 
@@ -39,6 +39,8 @@ python3 scripts/package_journal_pack.py --chatgpt-plugin
 ```
 
 The file is `dist/information-flow-plugin.zip`. `dist/` is not committed.
+
+平日归堆也可在这个 ChatGPT 插件里跑（`skills/daily-cluster`）：一天一份 `📋 Digests/cluster/YYYY-MM-DD.md`。双跑期间定时任务另写 `-gpt` 文件；每晚 21:00 想法梳理看见当天主文件已经在，就跳过，不再写第二份。
 
 Obsidian Git on the iCloud vault is pull-only. Plugins and skill copies land in that working tree before `HEAD` moves, and Git then refuses the whole fast-forward. `scripts/reconcile_live_vault_untracked.py` (on branch `cursor/cognition-v1.1`, not in this tree) clears incoming paths whose bytes already match, then fast-forwards. launchd `com.jake.digitalbrain-reconcile` is the Mac job for that script. This tree's `push_intake_sources.sh` does not call it. Keep or pause that job before switching the checkout to `main`: `docs/onboarding/local-switchover.md`.
 
