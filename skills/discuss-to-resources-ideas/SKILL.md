@@ -38,7 +38,7 @@ Jake 2026-10-28 批的方案纸 v2 用本技能做每周提炼。方案纸原文
 
 `📝 Journal/想法/` 的随手记不是主扫。没有 cluster、也没有符合的 Journal 文件：停。不要编 Resources 或 Ideas。不要改去 `📋 Digests/daily/`，不要改去 `📋 Digests/cycles/`。
 
-`📋 Digests/cluster/` 里带 `plan` 标签的条目（有执行步骤的未来打算）只读来报进度：列出本周每条 plan 做到哪一步、下一步是什么；不当 Resources、Ideas 或 Cognition 的原料。
+周六这个技能除了 Resources、Ideas、Cognition，还要提炼 plan。从本周 `📝 Journal/{YYYY-MM-DD}*.md` 日期篇，和本周 `📋 Digests/cluster/`（含打了 `plan` 标签的条目）里，把「有执行步骤的未来打算」收成一份 plan 清单。每条四栏：计划、下一步、负责人、来源链接。来源链接指回对应的 cluster 或 Journal 文件。
 
 ## 输出
 
@@ -50,8 +50,9 @@ Jake 2026-10-28 批的方案纸 v2 用本技能做每周提炼。方案纸原文
 | Ideas | `💡 Ideas/{Content,Insurance,Life,Tech,Trading}/idea-xxxxxxxxxxxx.md` | `skills/ideas/tools/write_idea.py` | 点头之后。判断用 `nature: judgment`。`source_refs` 写整段引用，指向本周 cluster 或 Journal，以及对应 Resources |
 | Cognition | `📖 Cognition/{Evidence,Beliefs,Principles}/` | `skills/cognition/tools/write_cognition.py` | Evidence 草稿沿用 cognition 现闸。Belief、Principle 须点头 |
 | Facts | 另轨，不并进这次提炼 | `skills/facts/tools/write_fact.py` | 本技能不改 Facts 的规则 |
+| Plan | Notion「可执行计划清单」（经资料管理员写） | 无。本技能只产出清单，交给资料管理员 | plan 清单展示给 Jake，和 Ideas 同一批点头后再交 |
 
-`plan` 标签不写 Ideas，只报进度；不为 plan 另开第四类库或新目录。
+Ideas 和 Resources 照旧写进 Obsidian（DigitalBrain），不变。plan 不写进 `💡 Ideas/`，也不调用 `write_idea.py` 写 plan，不为 plan 另开第四类库或新目录。本技能自己不写 Notion。在 Grok Bot 里，跑这个技能的那次对话把 plan 清单发给资料管理员，由资料管理员写进 Notion「可执行计划清单」（collection://7e171618-6ac3-49f3-aa57-342e896cd0c1）。
 
 ## 互链
 
@@ -66,6 +67,8 @@ Jake 2026-10-28 批的方案纸 v2 用本技能做每周提炼。方案纸原文
 
 须点头：Ideas 落盘、Resources 正式入库、Belief、Principle。
 
+plan 清单和 Ideas 同一批给 Jake 点头，点头之后才交给资料管理员写进 Notion，本技能自己不写 Notion。
+
 禁：平日 right-away；concept 或 intake→Evidence；没有点头就写 Belief 或 Principle。
 
 ## 不要做
@@ -75,4 +78,4 @@ Jake 2026-10-28 批的方案纸 v2 用本技能做每周提炼。方案纸原文
 - 不删除历史 `📋 Digests/cycles/`。
 - 不手写 Markdown 绕过 `write_idea.py` 或 `write_cognition.py`。
 - 工具找不到或拒绝写入时，停在已点头的草稿上，说明这次没有写入。
-- 不把带 `plan` 标签的条目写进 `💡 Ideas/`（也不调用 `write_idea.py` 写 plan），只报进度。
+- 不把带 `plan` 标签的条目或提炼出来的 plan 写进 `💡 Ideas/`（也不调用 `write_idea.py` 写 plan），不另开第四类库或新目录，本技能自己不写 Notion。plan 要提炼成 plan 清单，交给资料管理员写进 Notion。
