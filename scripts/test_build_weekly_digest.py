@@ -414,6 +414,11 @@ class SkillContractTests(unittest.TestCase):
         self.assertTrue(description.strip().strip('"').startswith("写周记"))
         self.assertIn("3–4", description)
         self.assertNotIn("一行一条", description)
+        self.assertIn("jakeguo117/obsidian-digitalbrain", skill)
+        self.assertIn("jakeguo117/obsidian-digitalbrain", brief)
+        self.assertIn("不要问 Jake，也不要猜本机路径", skill)
+        self.assertNotIn("否则停下来问 Jake，不要猜路径", skill)
+        self.assertNotIn("否则当前工作区根（Cursor 云端 clone 的 DigitalBrain，须有 `📝 Journal/`）。", brief)
         self.assertNotIn(snapshot, description)
         body = skill.split("---", 2)[-1]
         self.assertLess(body.index("## 写周记的第一步"), body.index("## 随手记"))

@@ -52,7 +52,7 @@ python3 skills/daily-cluster/tools/write_cluster.py append-discuss --vault "$VAU
 
 ## （ChatGPT 适配·定时）
 
-双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼只读正本；切换之后的做法另行更新。正本就是同夹 `📋 Digests/cluster/` 里没有 `-gpt` 的文件。测试线就是同夹里文件名带 `-gpt` 的文件。周六提炼和提炼想法只读没有 `-gpt` 的正本。不另开文件夹。对话里 Jake 说 `可以写`、`写吧` 或 `OK 写` 之后，`write_cluster.py save` 也只新建 `📋 Digests/cluster/YYYY-MM-DD-gpt.md`（多日 `YYYY-MM-DD_DD-gpt.md`）。不写正本，不写 `📋 Digests/daily/`，不覆盖。`-gpt` 已经在就报错说明已存在，不覆盖。定时任务用 `write_cluster.py save --scheduled`。Jake 说定时任务就是他的保存授权，这条路径不走交互确认短语。它同样只新建这份 `-gpt`。当天 `-gpt` 已在则退出码 0，`skipped: already exists`，字节不动。
+双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼只读正本；切换之后的做法另行更新。正本就是同夹 `📋 Digests/cluster/` 里没有 `-gpt` 的文件。测试线就是同夹里文件名带 `-gpt` 的文件。周六提炼和提炼想法只读没有 `-gpt` 的正本。不另开文件夹。对话里 Jake 说 `可以写`、`写吧` 或 `OK 写` 之后，`write_cluster.py save` 也只新建 `📋 Digests/cluster/YYYY-MM-DD-gpt.md`（多日 `YYYY-MM-DD_DD-gpt.md`）。不写正本，不写 `📋 Digests/daily/`，不覆盖。`-gpt` 已经在就报错说明已存在，不覆盖。定时任务用 `write_cluster.py save --scheduled`。Jake 说定时任务就是他的保存授权，这条路径不走交互确认短语。它同样只新建这份 `-gpt`。当天 `-gpt` 已在则退出码 0，`skipped: already exists`，字节不动。没有本地目录时，定时、`--scheduled` 和 Cloud Runs 仍按「读 Inbox」第 3 步走 GitHub 仓 `jakeguo117/obsidian-digitalbrain` 写当天 `-gpt`。云端应走这座 GitHub 仓，不是等本地 vault，也不问 Jake。这座仓也读不到就报失败，不写。
 
 ## 参考
 
@@ -99,13 +99,14 @@ python3 skills/daily-cluster/tools/write_cluster.py append-discuss --vault "$VAU
 
 ## 读 Inbox
 
-Vault 目录（按这个顺序认，认到就停），与 journal skill 相同：
+Vault 目录（按这个顺序认，认到就停）。顺序和 journal 一样；归堆怎么写只看这一节：
 
 1. `$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain` 若存在且有 `📝 Journal/`
 2. 当前工作区根目录，若有 `📝 Journal/`（Cursor 云端 clone 的 GitHub DigitalBrain）
-3. 否则停下来问 Jake，不要猜路径。这一步只给对话模式。定时任务找不到 vault 就不写，结果里写明 vault missing，不要停下来问 Jake。
+3. 前两步都没有时，不要问 Jake，不要猜本机路径，也不要等本地 vault。改走本会话已授权的 GitHub 仓 `jakeguo117/obsidian-digitalbrain` 的 `main`。仓名就这一座，不要改去搜名叫 DigitalBrain 的别的仓。用会话 GitHub 工具读 `📥 Inbox/` 各来源子夹和 `📝 Journal/想法/`。写入仍先过 `write_cluster.py`：在会话自己建的临时目录上 `save`（这个目录只给工具校验，不是 DigitalBrain，也不向 Jake 要）。对话模式要老板说出 `可以写`、`写吧` 或 `OK 写` 之后才 `save`。定时任务、`--scheduled`、Cloud Runs 用 `save --scheduled`，不走确认短语。然后 `contents-body`。把打出的创建体交给会话 GitHub 写工具，在这座仓的 `main` 上新建那一份 `-gpt`。创建体只有 `message`、`content`、`branch`，没有 `sha`。不要补 `sha`。工具若必须带 `sha` 才肯调，不要调，那是更新。临时目录里的文件不算落盘。GitHub 创建成功才说落盘。没成功就说没存上。创建前先读目标路径 `📋 Digests/cluster/YYYY-MM-DD-gpt.md`（多日 `YYYY-MM-DD_DD-gpt.md`）。文件已在：对话模式报已存在、不覆盖；`--scheduled` 当作 `skipped: already exists`，不发创建。目标文件 404 才创建。响应若不是新建，停，不要改成更新或删除。不写没有 `-gpt` 的正本。不碰 `📋 Digests/daily/`。有本地目录（第 1 或第 2 步）时不要绕到这条，仍在那个目录上 `save`，再 `publish` 或 `contents-body`。
+4. 只有这座仓也读不到（仓库 404、无授权、工具拒绝）才停。对话模式这时问 Jake 要路径。定时任务、`--scheduled`、Cloud Runs 不问人，结果里写明 GitHub 仓读不到，不写文件。云端应走这座 GitHub 仓，不是等本地 vault。目标文件本身 404 表示还没有这份 `-gpt`，可以创建。仓 404 才是读不到。
 
-仓是 `jakeguo117/obsidian-digitalbrain`。在认到的 vault 里打开 `📥 Inbox/` 下这些来源子夹：`X-Bookmarks`、`WeRead`、`Snipd`、`YouTube-Likes`、`Instagram-Saves`，以及 `📝 Journal/想法/` 里的随手记。哪些算香港当日新增，只按下一节。列提交必须翻页直到空页（GitHub 默认每页 30）。每次归堆在文首写一行取料口径：时间窗、读到 N／共 M 个提交（每个短 sha 加香港时间）、涉及的文件数、当天为空的来源。正文没有「读到 N／共 M」就不写。N 不等于 M 时要写「漏掉的文件名：」，用「、」隔开，列出的个数不少于 |M−N|，否则不写。
+仓是 `jakeguo117/obsidian-digitalbrain`。本地目录或这座 GitHub 仓里打开 `📥 Inbox/` 下这些来源子夹：`X-Bookmarks`、`WeRead`、`Snipd`、`YouTube-Likes`、`Instagram-Saves`，以及 `📝 Journal/想法/` 里的随手记。哪些算香港当日新增，只按下一节。列提交必须翻页直到空页（GitHub 默认每页 30）。每次归堆在文首写一行取料口径：时间窗、读到 N／共 M 个提交（每个短 sha 加香港时间）、涉及的文件数、当天为空的来源。正文没有「读到 N／共 M」就不写。N 不等于 M 时要写「漏掉的文件名：」，用「、」隔开，列出的个数不少于 |M−N|，否则不写。
 
 ## 当天新增怎么判
 

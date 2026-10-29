@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "information-flow",
   "version": "0.1.8",
-  "description": "写周记、记想法、平日归堆。Journal and separately confirmed Cognition.",
+  "description": "写周记、记想法、归堆。Journal and separately confirmed Cognition.",
   "author": {
     "name": "Jake Guo",
     "url": "https://github.com/jakeguo117"
@@ -10,9 +10,9 @@
   "extensions": {
     "com.openai": {
       "interface": {
-        "displayName": "Information Flow — Journal",
-        "shortDescription": "写周记、记想法、平日归堆；Cognition 另确认",
-        "longDescription": "通过对话写周记，或把「记一下：」「想法：」的原话记下来；周记仅在明确确认后保存到指定可访问的 vault。Cognition 接受与保存独立确认。平日归堆先给全文，点头后写入带 -gpt 的当天文件，一天一份。归堆之后讨论、深挖某一堆；讨论要中立，不为了反驳而反驳。讨论记录只写回这份带 -gpt 的文件，不写没有后缀的正本。周六整理和提炼想法只读没有后缀的正本。当前包不包含采集器或提醒；云端持久保存路径须另行核验。",
+        "displayName": "Information Flow",
+        "shortDescription": "写周记、记想法、归堆；Cognition 另确认",
+        "longDescription": "三件事：写周记、记想法、归堆。通过对话写周记，或把「记一下：」「想法：」的原话记下来；周记仅在明确确认后保存到指定可访问的 vault。Cognition 接受与保存独立确认。平日归堆先给全文，点头后写入带 -gpt 的当天文件，一天一份。归堆之后讨论、深挖某一堆；讨论要中立，不为了反驳而反驳。讨论记录只写回这份带 -gpt 的文件，不写没有后缀的正本。周六整理和提炼想法只读没有后缀的正本。当前包不包含采集器或提醒；云端持久保存路径须另行核验。",
         "developerName": "Jake Guo",
         "category": "Productivity",
         "capabilities": [

@@ -121,6 +121,12 @@ class SkillTextTests(unittest.TestCase):
         self.assertIn("append-discuss", text)
         self.assertIn("周六提炼和提炼想法只读同夹里没有 `-gpt` 的正本", text)
         self.assertIn("不另开文件夹", text)
+        self.assertIn("jakeguo117/obsidian-digitalbrain", text)
+        self.assertIn("云端应走这座 GitHub 仓，不是等本地 vault", text)
+        self.assertIn("不要问 Jake，不要猜本机路径，也不要等本地 vault", text)
+        self.assertIn("contents-body", text)
+        self.assertNotIn("否则停下来问 Jake，不要猜路径", text)
+        self.assertNotIn("定时任务找不到 vault 就不写", text)
         self.assertIn(
             "双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼只读正本；切换之后的做法另行更新。",
             text,
