@@ -115,6 +115,12 @@ class SkillTextTests(unittest.TestCase):
         self.assertIn("## （ChatGPT 适配）深挖", text)
         self.assertIn("## （ChatGPT 适配·定时）", text)
         self.assertIn("先给全文→点头→落盘→再问深挖", text)
+        self.assertIn("归堆之后讨论", text)
+        self.assertIn("skills/socratic-discuss/SKILL.md", text)
+        self.assertIn("不另写一套讨论说法", text)
+        self.assertIn("append-discuss", text)
+        self.assertIn("周六提炼和提炼想法只读同夹里没有 `-gpt` 的正本", text)
+        self.assertIn("不另开文件夹", text)
         self.assertIn(
             "双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼只读正本；切换之后的做法另行更新。",
             text,
@@ -382,6 +388,119 @@ class ScheduledModeTests(unittest.TestCase):
         self.assertFalse(vault.exists())
 
 
+def discuss_approval(date: str = "2026-10-28", note: str = "这一堆先看住房置换，数字先留着。", **extra: object) -> dict:
+    data: dict = {
+        "confirmed": True,
+        "phrase": "可以写",
+        "date": date,
+        "note": note,
+        "payload_sha256": cluster_lib.fingerprint(note),
+    }
+    data.update(extra)
+    return data
+
+
+def append_discuss(vault: Path, payload: dict, *extra: str) -> tuple[int, dict]:
+    with tempfile.TemporaryDirectory() as raw:
+        path = Path(raw) / "approval.json"
+        path.write_text(json.dumps(payload), encoding="utf-8")
+        return run_json(
+            [
+                sys.executable,
+                str(TOOLS / "write_cluster.py"),
+                "append-discuss",
+                "--vault",
+                str(vault),
+                "--approval",
+                str(path),
+                *extra,
+            ]
+        )
+
+
+class DiscussAppendTests(unittest.TestCase):
+    def test_appends_only_to_gpt_file(self) -> None:
+        note = "这一堆先看住房置换，数字先留着。"
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            rc, data = save(vault, approval())
+            self.assertEqual(rc, 0, data)
+            canonical = vault / "📋 Digests" / "cluster" / "2026-10-28.md"
+            canonical.write_text("正本不能动\n", encoding="utf-8")
+            before = canonical.read_bytes()
+            rc, appended = append_discuss(vault, discuss_approval(note=note))
+            self.assertEqual(rc, 0, appended)
+            self.assertEqual(appended["files_written"], 1)
+            text = Path(appended["path"]).read_text(encoding="utf-8")
+            self.assertIn("## 深挖", text)
+            self.assertIn(note, text)
+            self.assertTrue(text.startswith("# Digests cluster · 2026-10-28\n"))
+            self.assertEqual(canonical.read_bytes(), before)
+            self.assertFalse(any(path.name == "2026-10-28.md" and path.read_bytes() != before for path in canonical.parent.glob("*.md")))
+
+    def test_refuses_main_file_and_daily_and_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            rc, data = save(vault, approval())
+            self.assertEqual(rc, 0, data)
+            gpt = Path(data["path"]).read_bytes()
+            rc, main = append_discuss(vault, discuss_approval(path="📋 Digests/cluster/2026-10-28.md"))
+            self.assertEqual(rc, 2, main)
+            self.assertIn("main file", main["message"])
+            self.assertEqual(main["files_written"], 0)
+            self.assertEqual(Path(data["path"]).read_bytes(), gpt)
+            rc, daily = append_discuss(vault, discuss_approval(path="📋 Digests/daily/2026-10-28-gpt.md"))
+            self.assertEqual(rc, 2, daily)
+            self.assertIn("📋 Digests/daily", daily["message"])
+            self.assertEqual(daily["files_written"], 0)
+            self.assertFalse((vault / "📋 Digests" / "daily").exists())
+
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            rc, missing = append_discuss(vault, discuss_approval())
+            self.assertEqual(rc, 2, missing)
+            self.assertEqual(missing["message"], "还没有这份 -gpt，先归堆")
+            self.assertEqual(missing["files_written"], 0)
+            self.assertFalse((vault / "📋 Digests" / "cluster" / "2026-10-28.md").exists())
+            self.assertFalse((vault / "📋 Digests" / "cluster" / "2026-10-28-gpt.md").exists())
+
+    def test_refuses_without_phrase_scheduled_or_duplicate(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            rc, data = save(vault, approval())
+            self.assertEqual(rc, 0, data)
+            before = Path(data["path"]).read_bytes()
+            rc, quiet = append_discuss(vault, discuss_approval(confirmed=False, phrase=""))
+            self.assertEqual(rc, 2, quiet)
+            self.assertEqual(quiet["files_written"], 0)
+            rc, scheduled = append_discuss(vault, discuss_approval(), "--scheduled")
+            self.assertEqual(rc, 2, scheduled)
+            self.assertIn("not a scheduled write", scheduled["message"])
+            self.assertEqual(Path(data["path"]).read_bytes(), before)
+            rc, once = append_discuss(vault, discuss_approval())
+            self.assertEqual(rc, 0, once)
+            after = Path(data["path"]).read_bytes()
+            rc, again = append_discuss(vault, discuss_approval())
+            self.assertEqual(rc, 2, again)
+            self.assertEqual(again["message"], "已存在，不覆盖")
+            self.assertEqual(again["files_written"], 0)
+            self.assertEqual(Path(data["path"]).read_bytes(), after)
+
+    def test_multiday_and_existing_heading(self) -> None:
+        note = "## 讨论 log\n\n跨了 26 和 27 两天，原话先留着。"
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            rc, data = save(vault, approval("2026-10-26", span_end="27"))
+            self.assertEqual(rc, 0, data)
+            rc, appended = append_discuss(vault, discuss_approval("2026-10-26", note=note, span_end="27"))
+            self.assertEqual(rc, 0, appended)
+            text = Path(appended["path"]).read_text(encoding="utf-8")
+            self.assertEqual(Path(appended["path"]).name, "2026-10-26_27-gpt.md")
+            self.assertEqual(text.count("## 讨论 log"), 1)
+            self.assertNotIn("## 深挖\n\n## 讨论 log", text)
+            self.assertFalse((vault / "📋 Digests" / "cluster" / "2026-10-26_27.md").exists())
+
+
 class PublishTests(unittest.TestCase):
     def test_contents_create_body_has_no_sha_and_rejects_daily(self) -> None:
         body = cluster_lib.github_contents_create_body(
@@ -475,6 +594,70 @@ class PublishTests(unittest.TestCase):
                 subprocess.check_output(["git", "--git-dir", str(remote), "rev-list", "--count", "main"], text=True)
             )
             self.assertEqual(after, before + 1)
+
+    def test_publish_includes_discussion_and_not_the_main_file(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            vault = root / "vault"
+            remote = root / "remote.git"
+            vault.mkdir()
+            subprocess.check_call(["git", "init", "--bare", "-b", "main", str(remote)])
+            subprocess.check_call(["git", "init", "-b", "main", str(vault)])
+            for args in (
+                ["config", "user.email", "synthetic@example.com"],
+                ["config", "user.name", "Synthetic"],
+                ["config", "commit.gpgsign", "false"],
+            ):
+                subprocess.check_call(["git", *args], cwd=vault)
+            (vault / "README.md").write_text("synthetic\n", encoding="utf-8")
+            subprocess.check_call(["git", "add", "README.md"], cwd=vault)
+            subprocess.check_call(["git", "commit", "-m", "init"], cwd=vault)
+            subprocess.check_call(["git", "remote", "add", "origin", str(remote)], cwd=vault)
+            subprocess.check_call(["git", "push", "-u", "origin", "main"], cwd=vault)
+            rc, data = save(vault, approval())
+            self.assertEqual(rc, 0, data)
+            note = "深挖住房置换：原话和数字都留着。"
+            rc, appended = append_discuss(vault, discuss_approval(note=note))
+            self.assertEqual(rc, 0, appended)
+            rc, published = run_json(
+                [
+                    sys.executable,
+                    str(TOOLS / "write_cluster.py"),
+                    "publish",
+                    "--vault",
+                    str(vault),
+                    "--path",
+                    "📋 Digests/cluster/2026-10-28-gpt.md",
+                ]
+            )
+            self.assertEqual(rc, 0, published)
+            self.assertTrue(published["pushed"])
+            shown = subprocess.check_output(
+                ["git", "show", "HEAD:📋 Digests/cluster/2026-10-28-gpt.md"],
+                cwd=vault,
+                text=True,
+            )
+            self.assertIn("## 深挖", shown)
+            self.assertIn(note, shown)
+            missing = subprocess.run(
+                ["git", "cat-file", "-e", "HEAD:📋 Digests/cluster/2026-10-28.md"],
+                cwd=vault,
+                capture_output=True,
+            )
+            self.assertNotEqual(missing.returncode, 0)
+            rc, second = run_json(
+                [
+                    sys.executable,
+                    str(TOOLS / "write_cluster.py"),
+                    "publish",
+                    "--vault",
+                    str(vault),
+                    "--path",
+                    "📋 Digests/cluster/2026-10-28-gpt.md",
+                ]
+            )
+            self.assertEqual(rc, 2, second)
+            self.assertFalse(second["pushed"])
 
 
 if __name__ == "__main__":
