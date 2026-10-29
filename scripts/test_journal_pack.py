@@ -332,6 +332,11 @@ class PackageTests(unittest.TestCase):
                 self.assertIn("两边 cluster 都读", interface["longDescription"])
                 self.assertNotIn("只读没有后缀的正本", interface["longDescription"])
                 self.assertIn("不写没有后缀的正本", interface["longDescription"])
+                self.assertIn("落盘仍只写当天文件，不把旧料重抄进新文件", interface["longDescription"])
+                self.assertIn(
+                    "换地方装上这个 plugin，现行归堆／带到第二天／周六两边都读等功能应能完整跑",
+                    interface["longDescription"],
+                )
                 info = archive.getinfo(entry)
                 self.assertEqual(info.date_time, (1980, 1, 1, 0, 0, 0))
                 self.assertEqual(info.compress_type, zipfile.ZIP_DEFLATED)

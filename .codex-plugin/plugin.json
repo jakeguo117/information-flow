@@ -13,7 +13,7 @@
   "interface": {
     "displayName": "Information Flow",
     "shortDescription": "写周记、记想法、归堆；Cognition 另确认",
-    "longDescription": "三件事：写周记、记想法、归堆。Journal：说「写周记」后讨论，Jake 说可以写才落盘；「记一下：」「想法：」只记原话。Cognition（Evidence / Belief / Principle，schema_version 1.1）是 DigitalBrain 里单独的 Markdown 层，要另一次确认才写入；私人认知不进本仓库。平日归堆：说「归堆」或「每天消化」后先给全文，点头才写入带 -gpt 的当天文件，一天一份。归堆之后讨论：接着深挖某一堆，讨论要中立、不为了反驳而反驳，讨论记录只写回这份带 -gpt 的文件，不写没有后缀的正本。这个包有 journal、cognition 和平日归堆。",
+    "longDescription": "三件事：写周记、记想法、归堆。Journal：说「写周记」后讨论，Jake 说可以写才落盘；「记一下：」「想法：」只记原话。Cognition（Evidence / Belief / Principle，schema_version 1.1）是 DigitalBrain 里单独的 Markdown 层，要另一次确认才写入；私人认知不进本仓库。平日归堆：说「归堆」或「每天消化」后先给全文，点头才写入带 -gpt 的当天文件，一天一份。归堆之后讨论：接着深挖某一堆，讨论要中立、不为了反驳而反驳，讨论记录只写回这份带 -gpt 的文件，不写没有后缀的正本。这个包有 journal、cognition 和平日归堆。「带到第二天」只按本包技能：开过聊且文件里有讨论记录的，没聊到的第二天不翻；完全没开聊、没有任何讨论记录的，整包在第二天的摘要和问句里一起问「你想先聊哪几条」；微信读书 @bot 当天没聊可带到第二天，第二天还没聊就丢掉。落盘仍只写当天文件，不把旧料重抄进新文件。周六两边都读、同日去重。换地方装上这个 plugin，现行归堆／带到第二天／周六两边都读等功能应能完整跑。",
     "developerName": "Jake Guo",
     "category": "Productivity",
     "capabilities": ["Read", "Write"],
