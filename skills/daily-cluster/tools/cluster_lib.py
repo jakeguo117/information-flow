@@ -7,6 +7,10 @@ Conversational saves still require the journal confirmation phrases.
 Scheduled saves skip that phrase. If the ``-gpt`` file already exists,
 a conversational save refuses and a scheduled save reports skipped.
 Neither mode overwrites, and neither writes the main file or ``📋 Digests/daily``.
+
+``append-discuss`` only appends discussion minutes onto an existing ``-gpt``
+file. It uses the same confirmation phrases and the same path gate. A main
+file, a daily path, and a missing ``-gpt`` file are refused.
 """
 
 from __future__ import annotations
@@ -40,6 +44,9 @@ DAILY_MESSAGE = "拒绝写入 📋 Digests/daily"
 MAIN_MESSAGE = "scheduled mode refuses the main file"
 NORMAL_MAIN_MESSAGE = "normal mode refuses the main file"
 GPT_ONLY_MESSAGE = "dual-run accepts only -gpt files"
+MISSING_GPT_MESSAGE = "还没有这份 -gpt，先归堆"
+NOTE_MESSAGE = "note must be the discussion minutes"
+APPEND_SCHEDULED_MESSAGE = "append-discuss is not a scheduled write"
 INTAKE_MESSAGE = "body must include 读到 N／共 M"
 MISSED_MESSAGE = "N≠M 时必须列出漏掉的文件名"
 SCHEDULED_VAULT_MESSAGE = "vault missing; scheduled run did not write"
@@ -227,6 +234,85 @@ def _fail(status: str, message: str, **extra: Any) -> tuple[dict[str, Any], bool
     return payload, False
 
 
+def resolve_gpt_write(vault: Path, approval: dict[str, Any], *, scheduled: bool) -> tuple[str, str]:
+    """Return ``(relative, date)`` for the ``-gpt`` file. Does not write.
+
+    A path without ``-gpt``, or a daily path, raises ``ValueError``.
+    """
+    given = approval.get("path")
+    if isinstance(given, str) and _is_daily(given):
+        raise ValueError(DAILY_MESSAGE)
+    _vault(vault)
+    date = str(approval.get("date") or "")
+    span = approval.get("span_end")
+    if span is None:
+        span = ""
+    filename = checked_filename(date, str(span) if span != "" else None, scheduled)
+    relative = relative_for(filename)
+    if isinstance(given, str) and given.replace("\\", "/") != relative:
+        given_name = Path(given.replace("\\", "/")).name
+        if not given_name.endswith("-gpt.md"):
+            raise ValueError(MAIN_MESSAGE if scheduled else NORMAL_MAIN_MESSAGE)
+        raise ValueError("path does not match the cluster filename for this date")
+    if not filename.endswith("-gpt.md"):
+        raise ValueError(MAIN_MESSAGE if scheduled else NORMAL_MAIN_MESSAGE)
+    _reject_symlink_parents(vault)
+    return relative, date
+
+
+def _path_error(exc: ValueError) -> tuple[dict[str, Any], bool]:
+    message = str(exc)
+    status = (
+        "refused"
+        if message in {DAILY_MESSAGE, MAIN_MESSAGE, NORMAL_MAIN_MESSAGE}
+        else "validation_error"
+    )
+    return _fail(status, message)
+
+
+def discussion_block(note: str) -> str:
+    """Minutes go under ``## 深挖`` unless the note already uses a discussion heading."""
+    body = note.strip()
+    if body.startswith("## 深挖") or body.startswith("## 讨论 log") or body.startswith("## 语音整理"):
+        return f"\n\n{body}\n"
+    return f"\n\n## 深挖\n\n{body}\n"
+
+
+def _append_text(path: Path, text: str) -> None:
+    if path.is_symlink() or not path.is_file():
+        raise OSError("refusing to append")
+    original = path.read_bytes()
+    data = text.encode("utf-8")
+    flags = os.O_WRONLY | os.O_APPEND
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(path, flags)
+    try:
+        os.write(fd, data)
+        os.fsync(fd)
+    except Exception:
+        try:
+            os.ftruncate(fd, len(original))
+            os.fsync(fd)
+        except OSError:
+            pass
+        raise
+    finally:
+        os.close(fd)
+    if path.read_bytes() != original + data:
+        restore = os.O_WRONLY
+        if hasattr(os, "O_NOFOLLOW"):
+            restore |= os.O_NOFOLLOW
+        fd = os.open(path, restore)
+        try:
+            os.ftruncate(fd, 0)
+            os.write(fd, original)
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        raise OSError("readback did not match")
+
+
 def perform(
     vault: Path,
     action: str,
@@ -249,29 +335,9 @@ def perform(
             return _fail("unavailable", SCHEDULED_VAULT_MESSAGE)
         return _fail("unavailable", "vault missing; cluster will not be written elsewhere")
     try:
-        _vault(vault)
-        date = str(approval.get("date") or "")
-        span = approval.get("span_end")
-        if span is None:
-            span = ""
-        filename = checked_filename(date, str(span) if span != "" else None, scheduled)
-        relative = relative_for(filename)
-        if isinstance(given, str) and given.replace("\\", "/") != relative:
-            given_name = Path(given.replace("\\", "/")).name
-            if not given_name.endswith("-gpt.md"):
-                raise ValueError(MAIN_MESSAGE if scheduled else NORMAL_MAIN_MESSAGE)
-            raise ValueError("path does not match the cluster filename for this date")
-        if not filename.endswith("-gpt.md"):
-            raise ValueError(MAIN_MESSAGE if scheduled else NORMAL_MAIN_MESSAGE)
-        _reject_symlink_parents(vault)
+        relative, date = resolve_gpt_write(vault, approval, scheduled=scheduled)
     except ValueError as exc:
-        message = str(exc)
-        status = (
-            "refused"
-            if message in {DAILY_MESSAGE, MAIN_MESSAGE, NORMAL_MAIN_MESSAGE}
-            else "validation_error"
-        )
-        return _fail(status, message)
+        return _path_error(exc)
     except OSError as exc:
         return _fail("unavailable", str(exc))
 
@@ -333,6 +399,67 @@ def perform(
         "relative": relative,
         "fingerprint": fingerprint(readback),
         "files_written": 1,
+    }, True
+
+
+def append_discuss(
+    vault: Path,
+    approval: dict[str, Any],
+    *,
+    scheduled: bool = False,
+) -> tuple[dict[str, Any], bool]:
+    """Append discussion minutes to an existing ``-gpt`` file. Never creates a main file."""
+    if scheduled:
+        return _fail("refused", APPEND_SCHEDULED_MESSAGE)
+    given = approval.get("path")
+    if isinstance(given, str) and _is_daily(given):
+        return _fail("refused", DAILY_MESSAGE)
+    if not confirmation_granted(approval):
+        return _fail(
+            "refused",
+            "cluster save requires confirmed=true and phrase 可以写, 写吧, or OK 写",
+        )
+    if not vault.is_dir():
+        return _fail("unavailable", "vault missing; cluster will not be written elsewhere")
+    try:
+        relative, date = resolve_gpt_write(vault, approval, scheduled=False)
+    except ValueError as exc:
+        return _path_error(exc)
+    except OSError as exc:
+        return _fail("unavailable", str(exc))
+    note = approval.get("note")
+    if not isinstance(note, str) or note.strip() == "":
+        return _fail("validation_error", NOTE_MESSAGE)
+    if note.lstrip().startswith("---"):
+        return _fail("validation_error", "discussion note must not have frontmatter")
+    expected = approval.get("payload_sha256")
+    if not isinstance(expected, str) or expected != fingerprint(note):
+        return _fail("stale_approval", "approval payload_sha256 does not match the discussion note")
+    target = vault / relative
+    if target.is_symlink() or not target.is_file():
+        return _fail("refused", MISSING_GPT_MESSAGE, relative=relative)
+    try:
+        original = target.read_text(encoding="utf-8")
+        _validate_body(date, original)
+    except (OSError, UnicodeError, ValueError) as exc:
+        return _fail("validation_error", str(exc))
+    block = discussion_block(note)
+    if block.strip() in original:
+        return _fail("refused", EXISTS_MESSAGE, path=str(target), relative=relative)
+    try:
+        _append_text(target, block)
+        readback = target.read_text(encoding="utf-8")
+    except OSError as exc:
+        return _fail("unavailable", f"write failed: {exc}")
+    if readback != original + block:
+        return _fail("conflict", "readback did not match the discussion append", path=str(target), relative=relative)
+    return {
+        "status": "success",
+        "path": str(target),
+        "relative": relative,
+        "fingerprint": fingerprint(readback),
+        "files_written": 1,
+        "appended": True,
     }, True
 
 

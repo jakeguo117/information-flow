@@ -1,6 +1,6 @@
 ---
 name: 每天消化
-description: "平日归堆。用户说「归堆」「每天消化」或 digest 时使用。先把全文给老板看，老板点头后才写当天的 -gpt 文件。双跑期间不写正本。"
+description: "平日归堆。用户说「归堆」「每天消化」或 digest 时使用。归堆落盘后说「归堆之后讨论」或要深挖时，接着讨论，纪要只追加进当天的 -gpt 文件。先把全文给老板看，老板点头后才写。双跑期间不写正本。"
 ---
 
 # 每天消化
@@ -36,11 +36,23 @@ ChatGPT 里的平日归堆。例程原文在下面，原句不删。只有标了
 
 ## （ChatGPT 适配）深挖
 
-上段第 4 条「深挖讨论加载 `socratic-discuss`」原句保留，不删。ChatGPT 里加载本包 `skills/socratic-discuss/SKILL.md`（中立客观、不为怼而怼）。共享技能库里的那份是源头。
+上段第 4 条「深挖讨论加载 `socratic-discuss`」原句保留，不删。ChatGPT 里加载本包 `skills/socratic-discuss/SKILL.md`（中立客观、不为怼而怼）。共享技能库里的那份是源头。不另写一套讨论说法。
+
+手机上点「归堆」走归堆。点「归堆之后讨论」，或落盘后 Jake 要深挖某一堆，就接上段第 4 条：先问哪一堆、哪条要深挖，再按本包那份技能讨论。不要问哪几条进想法池。纪要照例程里的 full detail，不另缩。
+
+讨论纪要只追加进同夹里已经写好的 `-gpt` 文件，标题用 `## 深挖`（纪要自己若已以 `## 深挖`、`## 讨论 log` 或 `## 语音整理` 起头，就照写，不另起名）。多日就是那份 `YYYY-MM-DD_DD-gpt.md`。深挖哪一天，就追加进那一天这份 `-gpt`。不写没有 `-gpt` 的正本，不写 `📋 Digests/daily/`，不覆盖已有正文。正本仍由想法梳理写。周六提炼和提炼想法只读同夹里没有 `-gpt` 的正本，不读 `-gpt`。
+
+```bash
+python3 skills/daily-cluster/tools/write_cluster.py append-discuss --vault "$VAULT" --approval FILE
+```
+
+`FILE` 里 `date`（多日再加 `span_end`）、`note` 是纪要正文、`payload_sha256` 是 `note` 的 sha256，还要 `confirmed: true` 和短语正好是 `可以写`、`写吧` 或 `OK 写`。工具只往 `-gpt` 末尾追加。没有这份 `-gpt` 就拒绝，先归堆。路径指向正本就拒绝。
+
+交互顺序仍是：先给全文→点头→落盘→再问深挖。`save` 写入 `-gpt` 之后先讨论，Jake 再说一次可以写，才 `append-discuss`，然后 `publish` 这一份新文件。推上去的仍是只新增的 `-gpt`，不改 main 上已有文件。定时任务只 `save --scheduled`，不写讨论。若 `-gpt` 已经在 main 上，`publish` 照旧拒绝覆盖；本地追加了也要说没推上去。
 
 ## （ChatGPT 适配·定时）
 
-双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼只读正本；切换之后的做法另行更新。对话里 Jake 说 `可以写`、`写吧` 或 `OK 写` 之后，`write_cluster.py save` 也只新建 `📋 Digests/cluster/YYYY-MM-DD-gpt.md`（多日 `YYYY-MM-DD_DD-gpt.md`）。不写正本，不写 `📋 Digests/daily/`，不覆盖。`-gpt` 已经在就报错说明已存在，不覆盖。定时任务用 `write_cluster.py save --scheduled`。Jake 说定时任务就是他的保存授权，这条路径不走交互确认短语。它同样只新建这份 `-gpt`。当天 `-gpt` 已在则退出码 0，`skipped: already exists`，字节不动。没有本地目录时，定时、`--scheduled` 和 Cloud Runs 仍按「读 Inbox」第 3 步走 GitHub 仓 `jakeguo117/obsidian-digitalbrain` 写当天 `-gpt`。云端应走这座 GitHub 仓，不是等本地 vault，也不问 Jake。这座仓也读不到就报失败，不写。
+双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼只读正本；切换之后的做法另行更新。正本就是同夹 `📋 Digests/cluster/` 里没有 `-gpt` 的文件。测试线就是同夹里文件名带 `-gpt` 的文件。周六提炼和提炼想法只读没有 `-gpt` 的正本。不另开文件夹。对话里 Jake 说 `可以写`、`写吧` 或 `OK 写` 之后，`write_cluster.py save` 也只新建 `📋 Digests/cluster/YYYY-MM-DD-gpt.md`（多日 `YYYY-MM-DD_DD-gpt.md`）。不写正本，不写 `📋 Digests/daily/`，不覆盖。`-gpt` 已经在就报错说明已存在，不覆盖。定时任务用 `write_cluster.py save --scheduled`。Jake 说定时任务就是他的保存授权，这条路径不走交互确认短语。它同样只新建这份 `-gpt`。当天 `-gpt` 已在则退出码 0，`skipped: already exists`，字节不动。没有本地目录时，定时、`--scheduled` 和 Cloud Runs 仍按「读 Inbox」第 3 步走 GitHub 仓 `jakeguo117/obsidian-digitalbrain` 写当天 `-gpt`。云端应走这座 GitHub 仓，不是等本地 vault，也不问 Jake。这座仓也读不到就报失败，不写。
 
 ## 参考
 
@@ -117,7 +129,7 @@ python3 skills/daily-cluster/tools/write_cluster.py publish --vault "$VAULT" --p
 python3 skills/daily-cluster/tools/write_cluster.py contents-body --vault "$VAULT" --path '📋 Digests/cluster/YYYY-MM-DD-gpt.md'
 ```
 
-`FILE` 是 JSON：`date` 为 `YYYY-MM-DD`，多日再加 `span_end`（两位日，如 `27`），`body` 是不含 frontmatter 的全文，`payload_sha256` 是 `body` 的 sha256。交互模式还要 `confirmed: true` 和 `phrase` 正好是 `可以写`、`写吧` 或 `OK 写`。路径由工具写成 `📋 Digests/cluster/` 下的 `-gpt` 文件名。对话模式和 `--scheduled` 都只写 `-gpt`，写正本会拒绝。
+`FILE` 是 JSON：`date` 为 `YYYY-MM-DD`，多日再加 `span_end`（两位日，如 `27`），`body` 是不含 frontmatter 的全文，`payload_sha256` 是 `body` 的 sha256。交互模式还要 `confirmed: true` 和 `phrase` 正好是 `可以写`、`写吧` 或 `OK 写`。路径由工具写成 `📋 Digests/cluster/` 下的 `-gpt` 文件名。对话模式和 `--scheduled` 都只写 `-gpt`，写正本会拒绝。`append-discuss` 只往已经存在的 `-gpt` 末尾追加讨论纪要，写正本会拒绝，不覆盖正文。
 
 对话模式：`-gpt` 文件已经在，报错说明已存在，不覆盖，不论正文是否相同。`--scheduled`：目标 `-gpt` 文件已在，退出码 0，`skipped: already exists`，字节不动。`path` 若指向 `📋 Digests/daily`：拒绝，写入数为 0。对话模式或 `--scheduled` 若要写没有 `-gpt` 的正本：拒绝。
 
