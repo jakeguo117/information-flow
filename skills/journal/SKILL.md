@@ -51,7 +51,10 @@ Vault 目录（按这个顺序认，认到就停）：
 
 1. `$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/DigitalBrain` 若存在且有 `📝 Journal/`
 2. 当前工作区根目录，若有 `📝 Journal/`（Cursor 云端 clone 的 GitHub DigitalBrain）
-3. 否则停下来问 Jake，不要猜路径
+3. 前两步都没有时，不要问 Jake，也不要猜本机路径。用本会话已授权的 GitHub 读 `jakeguo117/obsidian-digitalbrain` 的 `main`。仓名就这一座，不要改去搜名叫 DigitalBrain 的别的仓。读 `📝 Journal/` 最近 3–4 篇，以及这些篇里已经出现的 wikilink。
+4. 只有这座仓也读不到（仓库 404、无授权、工具拒绝）才停下来问 Jake 要路径。单个文件 404 是文件不在，不是仓读不到。
+
+周记正文仍只走 `write_journal.py`，并且只在第 1 或第 2 步认到的本地目录上写。不要用 GitHub 创建体写周记正文，那会绕过工具。只有 GitHub、没有本地目录时，讨论照常开始；他说可以写之后说明这篇没落盘，不要再问路径。
 
 按 `references/weekly-brief.md` 读。顺序和那份文件一致：
 
@@ -59,7 +62,7 @@ Vault 目录（按这个顺序认，认到就停）：
 
 ② Notion。用本会话里的 Notion 连接看最近在做什么：正在推进的项、待办池、可执行计划清单。Notion 读不到就用一句话说明，然后只按 ① 继续；不要编 Notion 里的内容。
 
-③ 讨论时才看未消化想法。再跑 `capture_thought.py list-open`。它返回的是全部未消化想法，不限本周。未消化 = `📝 Journal/想法/` 里的想法文件，减去任何消化清单里出现过的 id。清单里标成「看过未展开」的不再出现。想法文件和消化清单都不是周记条目。想法是燃料，不整段贴进周记，也不改原话。这不是第一步，也不代替 recap。
+③ 讨论时才看未消化想法。再跑 `capture_thought.py list-open`。它返回的是全部未消化想法，不限本周。未消化 = `📝 Journal/想法/` 里的想法文件，减去任何消化清单里出现过的 id。清单里标成「看过未展开」的不再出现。想法文件和消化清单都不是周记条目。想法是燃料，不整段贴进周记，也不改原话。这不是第一步，也不代替 recap。第 1、2 步都没有、已经改走 GitHub 时，不要跑 `list-open`，也不要为它问路径。用 GitHub 读 `📝 Journal/想法/` 和 `📝 Journal/想法/digests/`，未消化仍是想法 id 减去任一清单里出现过的 id。
 
 不读 digest，不读 `📋 Digests/cluster/`，不读周四快照 `📋 Digests/cycles/{cycle_id}/r{n}.md`，也不读周 digest。不要改开 `📋 Digests/daily/`、旧路径 `📋 Digests/{YYYY-Wnn}/digest.md` 或 `📋 Digests/weekly-briefs/`。不要自己编条目，也不要为了周记生成快照。
 
