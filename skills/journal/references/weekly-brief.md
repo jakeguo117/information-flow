@@ -37,4 +37,4 @@
 
 ## 交接
 
-周四 `weekly-digest.yml` schedule 已停。周四快照只作归档，写周记不读、没有文件也不要生成。平日归堆是 `📋 Digests/cluster/YYYY-MM-DD.md`（多日 `YYYY-MM-DD_DD.md`），想法梳理落盘，不是本技能读的。周六才扫本周 cluster 主文件和已落盘的 `📝 Journal/{YYYY-MM-DD}*.md`。不接管历史 `📋 Digests/daily/`。takeaway 已 offline，本 PR 不另挂停排程。
+周四 `weekly-digest.yml` schedule 已停。周四快照只作归档，写周记不读、没有文件也不要生成。平日归堆是 `📋 Digests/cluster/YYYY-MM-DD.md`（多日 `YYYY-MM-DD_DD.md`），想法梳理落盘，不是本技能读的。周六才扫本周 cluster 正本和 `-gpt`（有哪份读哪份，同一天两份都在就去重）和已落盘的 `📝 Journal/{YYYY-MM-DD}*.md`。不接管历史 `📋 Digests/daily/`。takeaway 已 offline，本 PR 不另挂停排程。

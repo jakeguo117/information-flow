@@ -1,6 +1,6 @@
 ---
 name: discuss-to-resources-ideas
-description: 周六把本周已落盘的归堆和日期篇提炼成 Resources、Ideas、Cognition 互链，并抽出 plan 清单交给资料管理员。Context 段最多出 Resources 候选；Ideas 只从讨论 log 和 Journal 来；plan 不进 Ideas。想法梳理在周六加载。平日 cluster 或 Journal 落盘当下不跑。只吃库内文件。不读 *-gpt.md。不写、不扫、不接管 📋 Digests/daily/。
+description: 周六把本周已落盘的归堆和日期篇提炼成 Resources、Ideas、Cognition 互链，并抽出 plan 清单交给资料管理员。Context 段最多出 Resources 候选；Ideas 只从讨论 log 和 Journal 来；plan 不进 Ideas。想法梳理在周六加载。平日 cluster 或 Journal 落盘当下不跑。只吃库内文件。正本和 -gpt 都读，同日去重。不写、不扫、不接管 📋 Digests/daily/。
 ---
 
 # discuss-to-resources-ideas
@@ -33,7 +33,7 @@ Jake 2026-10-28 批的方案纸 v2 用本技能做每周提炼。方案纸原文
 
 本周按 Asia/Hong_Kong，周一 00:00 到周日 23:59。
 
-1. 本周 `📋 Digests/cluster/` 下的 `YYYY-MM-DD.md` 与 `YYYY-MM-DD_DD.md`。不读 `*-gpt.md`，只读这些主 cluster 文件。
+1. 本周 `📋 Digests/cluster/` 里的 `YYYY-MM-DD.md`（Grok／想法梳理正本）和 `YYYY-MM-DD-gpt.md`（GPT 线）。多日是 `YYYY-MM-DD_DD.md` 和 `YYYY-MM-DD_DD-gpt.md`。不区分来源。Jake 通常只消化一边，有哪份读哪份。同一天两份都在：两份都读。同一条（同一来源链接、同一段引用、或同一标题）只算一次。同一条两份详略不同，留更详的那份，细节不丢。
 2. 本周 `📝 Journal/{YYYY-MM-DD}*.md`。这是 ChatGPT Work 写好并已落入 DigitalBrain 的日期篇。盘上没有该文件就跳过。
 
 `📝 Journal/想法/` 的随手记不是主扫。没有 cluster、也没有符合的 Journal 文件：停。不要编 Resources 或 Ideas。不要改去 `📋 Digests/daily/`，不要改去 `📋 Digests/cycles/`。
@@ -48,7 +48,7 @@ Context 和讨论 log 的小节标题还没定。在 Jake 选定固定标题之�
 
 ### 暂时用字样认段
 
-只切本周 cluster 主文件里的段：`📋 Digests/cluster/YYYY-MM-DD.md` 和 `YYYY-MM-DD_DD.md`。`*-gpt.md` 整份不读。不拿 gpt 文件认段，也不拿它出 Resources、Ideas、plan 或 Cognition。
+本周正本和 `-gpt` 都切段，路径见「输入」。不区分来源。同一天两份都在，先按上面的同日去重，再认段。两份都可以出 Resources、Ideas、plan 或 Cognition，认段规则相同。
 
 **Context**（Inbox 整理 / 未讨论段）。标题或小标题里出现下面任一字样，就先当成 Context：
 
@@ -108,7 +108,7 @@ Ideas 和 Resources 照旧写进 Obsidian（DigitalBrain），不变。plan 不�
 
 plan 清单和 Ideas 同一批给 Jake 点头，点头之后才交给资料管理员写进 Notion，本技能自己不写 Notion。
 
-禁：平日 right-away；concept 或 intake→Evidence；没有点头就写 Belief 或 Principle；只凭 Context 出 Ideas；读 `*-gpt.md`；把 plan 写进 Ideas。
+禁：平日 right-away；concept 或 intake→Evidence；没有点头就写 Belief 或 Principle；只凭 Context 出 Ideas；把 plan 写进 Ideas。
 
 ## 不要做
 
@@ -117,5 +117,5 @@ plan 清单和 Ideas 同一批给 Jake 点头，点头之后才交给资料管�
 - 不删除历史 `📋 Digests/cycles/`。
 - 不手写 Markdown 绕过 `write_idea.py` 或 `write_cognition.py`。
 - 工具找不到或拒绝写入时，停在已点头的草稿上，说明这次没有写入。
-- 不读 `*-gpt.md`。不从 Context（Inbox 整理 / 未讨论段）单独提 Ideas。认不出是讨论 log 的段，也不出 Ideas。
+- 不从 Context（Inbox 整理 / 未讨论段）单独提 Ideas。认不出是讨论 log 的段，也不出 Ideas。
 - 不把带 `plan` 标签的条目或提炼出来的 plan 写进 `💡 Ideas/`（也不调用 `write_idea.py` 写 plan），不另开第四类库或新目录，本技能自己不写 Notion。plan 要提炼成 plan 清单，交给资料管理员写进 Notion。

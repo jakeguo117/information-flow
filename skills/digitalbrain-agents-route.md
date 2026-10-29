@@ -12,9 +12,9 @@
 3. Jake 接受之前不写来源卡。`/digest` 不把接受之后的来源卡当作每周提炼。每周 Resources／Ideas／Cognition 由周六 `discuss-to-resources-ideas` 做。Resource 页不是 Evidence。
 4. 不写 `📝 Journal/`。不写 Cognition。Agent 发起的受管文件变更遵循当前 Global Governance / project policy：精确路径暂存，禁止 `git add -A`。只新增文件的提交（想法文件、消化清单）可以直接推 main；任何修改或删除都不直推 main，不强推。会修改已有文件的变更走 task branch 和 PR。PR 与 merge 服从当前授权和治理 gate。
 
-平日归堆正本是 `📋 Digests/cluster/YYYY-MM-DD.md`（多日 `YYYY-MM-DD_DD.md`），由想法梳理 21:00 写。双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼只读正本；切换之后的做法另行更新。归堆推库＝Cloud Agent 推 `jakeguo117/obsidian-digitalbrain`，不是 information-flow Actions 写 vault。这里不实现推送接线。不碰、不接管历史 `📋 Digests/daily/`。takeaway 已 offline，本 PR 不另挂停排程。
+平日归堆正本是 `📋 Digests/cluster/YYYY-MM-DD.md`（多日 `YYYY-MM-DD_DD.md`），由想法梳理 21:00 写。双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼两边 cluster 都读、同日去重；切换之后的做法另行更新。归堆推库＝Cloud Agent 推 `jakeguo117/obsidian-digitalbrain`，不是 information-flow Actions 写 vault。这里不实现推送接线。不碰、不接管历史 `📋 Digests/daily/`。takeaway 已 offline，本 PR 不另挂停排程。
 
-周六想法梳理加载 `discuss-to-resources-ideas`：只扫本周 cluster 正本（`YYYY-MM-DD.md` 与 `YYYY-MM-DD_DD.md`，不读 `*-gpt.md`）与已落盘的 `📝 Journal/{YYYY-MM-DD}*.md`。平日落盘当下不跑。
+周六想法梳理加载 `discuss-to-resources-ideas`：本周 cluster 正本（`YYYY-MM-DD.md`、`YYYY-MM-DD_DD.md`）和 GPT 线（`YYYY-MM-DD-gpt.md`、`YYYY-MM-DD_DD-gpt.md`）都扫，不区分来源，有哪份读哪份。同一天两份都在：两份都读。同一条（同一来源链接、同一段引用、或同一标题）只算一次。同一条两份详略不同，留更详的那份，细节不丢。另扫已落盘的 `📝 Journal/{YYYY-MM-DD}*.md`。平日落盘当下不跑。
 
 用户说「写周记」「周记」或 `/journal`：
 

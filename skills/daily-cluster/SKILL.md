@@ -40,7 +40,7 @@ ChatGPT 里的平日归堆。例程原文在下面，原句不删。只有标了
 
 手机上点「归堆」走归堆。点「归堆之后讨论」，或落盘后 Jake 要深挖某一堆，就接上段第 4 条：先问哪一堆、哪条要深挖，再按本包那份技能讨论。不要问哪几条进想法池。纪要照例程里的 full detail，不另缩。
 
-讨论纪要只追加进同夹里已经写好的 `-gpt` 文件，标题用 `## 深挖`（纪要自己若已以 `## 深挖`、`## 讨论 log` 或 `## 语音整理` 起头，就照写，不另起名）。多日就是那份 `YYYY-MM-DD_DD-gpt.md`。深挖哪一天，就追加进那一天这份 `-gpt`。不写没有 `-gpt` 的正本，不写 `📋 Digests/daily/`，不覆盖已有正文。正本仍由想法梳理写。周六提炼和提炼想法只读同夹里没有 `-gpt` 的正本，不读 `-gpt`。
+讨论纪要只追加进同夹里已经写好的 `-gpt` 文件，标题用 `## 深挖`（纪要自己若已以 `## 深挖`、`## 讨论 log` 或 `## 语音整理` 起头，就照写，不另起名）。多日就是那份 `YYYY-MM-DD_DD-gpt.md`。深挖哪一天，就追加进那一天这份 `-gpt`。不写没有 `-gpt` 的正本，不写 `📋 Digests/daily/`，不覆盖已有正文。正本仍由想法梳理写。周六提炼和提炼想法两边都读：同夹里没有 `-gpt` 的正本，和带 `-gpt` 的文件。同一天两份都在：两份都读。同一条（同一来源链接、同一段引用、或同一标题）只算一次。同一条两份详略不同，留更详的那份，细节不丢。
 
 ```bash
 python3 skills/daily-cluster/tools/write_cluster.py append-discuss --vault "$VAULT" --approval FILE
@@ -52,7 +52,11 @@ python3 skills/daily-cluster/tools/write_cluster.py append-discuss --vault "$VAU
 
 ## （ChatGPT 适配·定时）
 
-双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼只读正本；切换之后的做法另行更新。正本就是同夹 `📋 Digests/cluster/` 里没有 `-gpt` 的文件。测试线就是同夹里文件名带 `-gpt` 的文件。周六提炼和提炼想法只读没有 `-gpt` 的正本。不另开文件夹。对话里 Jake 说 `可以写`、`写吧` 或 `OK 写` 之后，`write_cluster.py save` 也只新建 `📋 Digests/cluster/YYYY-MM-DD-gpt.md`（多日 `YYYY-MM-DD_DD-gpt.md`）。不写正本，不写 `📋 Digests/daily/`，不覆盖。`-gpt` 已经在就报错说明已存在，不覆盖。定时任务用 `write_cluster.py save --scheduled`。Jake 说定时任务就是他的保存授权，这条路径不走交互确认短语。它同样只新建这份 `-gpt`。当天 `-gpt` 已在则退出码 0，`skipped: already exists`，字节不动。没有本地目录时，定时、`--scheduled` 和 Cloud Runs 仍按「读 Inbox」第 3 步走 GitHub 仓 `jakeguo117/obsidian-digitalbrain` 写当天 `-gpt`。云端应走这座 GitHub 仓，不是等本地 vault，也不问 Jake。这座仓也读不到就报失败，不写。
+双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼两边 cluster 都读、同日去重；切换之后的做法另行更新。正本就是同夹 `📋 Digests/cluster/` 里没有 `-gpt` 的文件。测试线就是同夹里文件名带 `-gpt` 的文件。周六提炼和提炼想法不区分正本和 `-gpt`，有哪份读哪份，同一天两份都在就去重。不另开文件夹。对话里 Jake 说 `可以写`、`写吧` 或 `OK 写` 之后，`write_cluster.py save` 也只新建 `📋 Digests/cluster/YYYY-MM-DD-gpt.md`（多日 `YYYY-MM-DD_DD-gpt.md`）。不写正本，不写 `📋 Digests/daily/`，不覆盖。`-gpt` 已经在就报错说明已存在，不覆盖。定时任务用 `write_cluster.py save --scheduled`。Jake 说定时任务就是他的保存授权，这条路径不走交互确认短语。它同样只新建这份 `-gpt`。当天 `-gpt` 已在则退出码 0，`skipped: already exists`，字节不动。没有本地目录时，定时、`--scheduled` 和 Cloud Runs 仍按「读 Inbox」第 3 步走 GitHub 仓 `jakeguo117/obsidian-digitalbrain` 写当天 `-gpt`。云端应走这座 GitHub 仓，不是等本地 vault，也不问 Jake。这座仓也读不到就报失败，不写。
+
+## 测试
+
+测试和集成跑不得往 DigitalBrain 正本仓 `jakeguo117/obsidian-digitalbrain` 写入任何带日期的 digest 文件（正本或 `-gpt` 都不行）。用临时目录，或用 `📋 Digests/` 以外、一看就是测试的路径；写完立刻清掉。不得写出比本次运行的 Asia/Hong_Kong 日期更晚的日期文件。必须走真实写入路径的测试，只用当天日期。上面「定时」和 Cloud Runs 写当天 `-gpt` 是正式归堆，不是测试。
 
 ## 参考
 

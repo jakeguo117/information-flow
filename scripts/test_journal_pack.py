@@ -260,6 +260,11 @@ class CognitionPackTests(unittest.TestCase):
 
 
 class PackageTests(unittest.TestCase):
+    def test_readme_forbids_future_dated_digest_in_canonical_repo(self) -> None:
+        text = (ROOT / "packaging" / "JOURNAL_PACK_README.md").read_text(encoding="utf-8")
+        self.assertIn("测试和集成跑不得往 DigitalBrain 正本仓", text)
+        self.assertIn("不得写出比本次运行的 Asia/Hong_Kong 日期更晚的日期文件", text)
+        self.assertIn("必须走真实写入路径的测试，只用当天日期", text)
     def test_zip_hashes_and_excludes_collectors(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             out = Path(raw)
@@ -324,6 +329,9 @@ class PackageTests(unittest.TestCase):
                 self.assertIn("归堆", interface["defaultPrompt"])
                 self.assertIn("归堆之后讨论", interface["defaultPrompt"])
                 self.assertIn("归堆之后讨论", interface["longDescription"])
+                self.assertIn("两边 cluster 都读", interface["longDescription"])
+                self.assertNotIn("只读没有后缀的正本", interface["longDescription"])
+                self.assertIn("不写没有后缀的正本", interface["longDescription"])
                 info = archive.getinfo(entry)
                 self.assertEqual(info.date_time, (1980, 1, 1, 0, 0, 0))
                 self.assertEqual(info.compress_type, zipfile.ZIP_DEFLATED)

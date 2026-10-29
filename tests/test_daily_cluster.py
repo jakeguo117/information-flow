@@ -119,7 +119,14 @@ class SkillTextTests(unittest.TestCase):
         self.assertIn("skills/socratic-discuss/SKILL.md", text)
         self.assertIn("不另写一套讨论说法", text)
         self.assertIn("append-discuss", text)
-        self.assertIn("周六提炼和提炼想法只读同夹里没有 `-gpt` 的正本", text)
+        self.assertIn(
+            "周六提炼和提炼想法两边都读：同夹里没有 `-gpt` 的正本，和带 `-gpt` 的文件。",
+            text,
+        )
+        self.assertIn("测试和集成跑不得往 DigitalBrain 正本仓", text)
+        self.assertIn("不得写出比本次运行的 Asia/Hong_Kong 日期更晚的日期文件", text)
+        self.assertIn("必须走真实写入路径的测试，只用当天日期", text)
+        self.assertNotIn("周六提炼只读正本", text)
         self.assertIn("不另开文件夹", text)
         self.assertIn("jakeguo117/obsidian-digitalbrain", text)
         self.assertIn("云端应走这座 GitHub 仓，不是等本地 vault", text)
@@ -128,7 +135,7 @@ class SkillTextTests(unittest.TestCase):
         self.assertNotIn("否则停下来问 Jake，不要猜路径", text)
         self.assertNotIn("定时任务找不到 vault 就不写", text)
         self.assertIn(
-            "双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼只读正本；切换之后的做法另行更新。",
+            "双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼两边 cluster 都读、同日去重；切换之后的做法另行更新。",
             text,
         )
         self.assertNotIn("今天已归过", text)
@@ -139,11 +146,25 @@ class SkillTextTests(unittest.TestCase):
         raw = (ROOT / "skills" / "socratic-discuss" / "SKILL.md").read_bytes()
         self.assertEqual(hashlib.sha256(raw).hexdigest(), SOCRATIC_SHA)
 
-    def test_saturday_extract_skips_gpt_cluster_files(self) -> None:
+    def test_saturday_extract_reads_both_cluster_lines(self) -> None:
         text = (ROOT / "skills" / "discuss-to-resources-ideas" / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("不读 `*-gpt.md`", text)
-        self.assertIn("只读这些主 cluster 文件", text)
+        self.assertIn("YYYY-MM-DD-gpt.md", text)
+        self.assertIn("同一天两份都在：两份都读。", text)
+        self.assertIn("同一条（同一来源链接、同一段引用、或同一标题）只算一次。", text)
+        self.assertIn("留更详的那份，细节不丢。", text)
         self.assertIn("📋 Digests/cluster/YYYY-MM-DD.md", text)
+        self.assertNotIn("不读 `*-gpt.md`", text)
+        self.assertNotIn("不读 *-gpt.md", text)
+        self.assertNotIn("只读这些主 cluster 文件", text)
+        self.assertNotIn("只读正本", text)
+        self.assertNotIn("不读 GPT", text)
+        route = (ROOT / "skills" / "digitalbrain-agents-route.md").read_text(encoding="utf-8")
+        self.assertIn("周六提炼两边 cluster 都读、同日去重", route)
+        self.assertNotIn("周六提炼只读正本", route)
+        self.assertNotIn("不读 `*-gpt.md`", route)
+        setup = (ROOT / "skills" / "journal" / "references" / "setup.md").read_text(encoding="utf-8")
+        self.assertNotIn("周六提炼只读正本", setup)
+        self.assertNotIn("不读 *-gpt.md", setup)
 
 
 class QuoteAndIntakeTests(unittest.TestCase):
