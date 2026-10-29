@@ -17,7 +17,7 @@ sys.path.insert(0, str(TOOLS))
 
 import cluster_lib  # noqa: E402
 
-A_SHA = "34c66732b7d4004b1e4e116ce3ca7749cf027a7e1ff20f7cc87c2cb1cc2142e7"
+A_SHA = "c7a56799f3f02176c3b475df3fa550a7bfefe4866f9b83859ef45803c0958373"
 SOCRATIC_SHA = "e1e4f68aaead7d4d2a5b3cea414c44bdd5ececc81e8386bd695772d316c0fda2"
 NEW_RULE = (
     "（与 21:00 例程同句）当天新增＝香港时间当日 00:00 到运行时刻内，提交进 `📥 Inbox/` 各来源子夹"
@@ -28,7 +28,8 @@ NEW_RULE = (
 BOT_RULE = (
     "（与 21:00 例程同句）@bot 聊过与否只看此前 7 天加当天 `📋 Digests/cluster/` 正本（不看 `-gpt`）里的一行 "
     "`> 已聊 @bot：<划线原文开头或微信读书链接>；…`，白天聊过的也写入该行；"
-    "该行有这条划线原文开头或微信读书链接即算聊过，不靠正文里是否出现过标题或链接；未聊过的 @bot 不限当天。"
+    "该行有这条划线原文开头或微信读书链接即算聊过，不靠正文里是否出现过标题或链接。"
+    "未聊过的 @bot 只带到第二天：最早出现在昨天或今天的才摆，最早出现在前天或更早的丢掉，不再置顶。"
 )
 PART3_QUOTES = (
     "> 取料口径：HKT 2026-10-28 00:00 至 21:12；按 GitHub 提交时间列 `📥 Inbox/` 各来源子夹当天提交。"
@@ -105,6 +106,27 @@ class SkillTextTests(unittest.TestCase):
         )
         self.assertIn("3a. **plan 标签：**", text)
         self.assertIn("不要问「哪几条进 idea 池」", text)
+        self.assertIn("昨天带到今天，只按这三条", text)
+        self.assertIn("第二天不要再翻出来", text)
+        self.assertIn("今天这些里（含昨天整包还没开过聊的）你想先聊哪几条？", text)
+        self.assertIn("第二天还没聊就丢掉，以后不再带", text)
+        self.assertIn("他没回就停。停的是当天写进选题／资料库。", text)
+        self.assertIn("不另开聊天。不自动写讨论纪要。", text)
+        self.assertIn("落盘仍只写当天文件，不把旧料重抄进新文件。", text)
+        self.assertIn("不是把昨天正文复制进今天的 md。", text)
+        self.assertIn(
+            "换地方装上这个 plugin，现行归堆／带到第二天／周六两边都读等功能应能完整跑",
+            text,
+        )
+        self.assertIn(
+            "昨天整包没开过聊，或还有只带一天、仍没聊的微信读书 @bot，不用这句。",
+            text,
+        )
+        self.assertIn("定时落盘后的归堆提示按开头三条带前一天 `-gpt`", text)
+        self.assertNotIn("未 discuss 完", text)
+        self.assertNotIn("滚次日", text)
+        self.assertNotIn("深挖门", text)
+        self.assertNotIn("顺延未讨论", text)
         self.assertIn("（新定口径，与 21:00 例程同句）", text)
         self.assertIn(NEW_RULE, text)
         self.assertIn(BOT_RULE, text)
@@ -119,7 +141,14 @@ class SkillTextTests(unittest.TestCase):
         self.assertIn("skills/socratic-discuss/SKILL.md", text)
         self.assertIn("不另写一套讨论说法", text)
         self.assertIn("append-discuss", text)
-        self.assertIn("周六提炼和提炼想法只读同夹里没有 `-gpt` 的正本", text)
+        self.assertIn(
+            "周六提炼和提炼想法两边都读：同夹里没有 `-gpt` 的正本，和带 `-gpt` 的文件。",
+            text,
+        )
+        self.assertIn("测试和集成跑不得往 DigitalBrain 正本仓", text)
+        self.assertIn("不得写出比本次运行的 Asia/Hong_Kong 日期更晚的日期文件", text)
+        self.assertIn("必须走真实写入路径的测试，只用当天日期", text)
+        self.assertNotIn("周六提炼只读正本", text)
         self.assertIn("不另开文件夹", text)
         self.assertIn("jakeguo117/obsidian-digitalbrain", text)
         self.assertIn("云端应走这座 GitHub 仓，不是等本地 vault", text)
@@ -128,7 +157,7 @@ class SkillTextTests(unittest.TestCase):
         self.assertNotIn("否则停下来问 Jake，不要猜路径", text)
         self.assertNotIn("定时任务找不到 vault 就不写", text)
         self.assertIn(
-            "双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼只读正本；切换之后的做法另行更新。",
+            "双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼两边 cluster 都读、同日去重；切换之后的做法另行更新。",
             text,
         )
         self.assertNotIn("今天已归过", text)
@@ -139,11 +168,39 @@ class SkillTextTests(unittest.TestCase):
         raw = (ROOT / "skills" / "socratic-discuss" / "SKILL.md").read_bytes()
         self.assertEqual(hashlib.sha256(raw).hexdigest(), SOCRATIC_SHA)
 
-    def test_saturday_extract_skips_gpt_cluster_files(self) -> None:
+    def test_saturday_extract_reads_both_cluster_lines(self) -> None:
         text = (ROOT / "skills" / "discuss-to-resources-ideas" / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("不读 `*-gpt.md`", text)
-        self.assertIn("只读这些主 cluster 文件", text)
+        self.assertIn("YYYY-MM-DD-gpt.md", text)
+        self.assertIn("同一天两份都在：两份都读。", text)
+        self.assertIn("同一条（同一来源链接、同一段引用、或同一标题）只算一次。", text)
+        self.assertIn("留更详的那份，细节不丢。", text)
         self.assertIn("📋 Digests/cluster/YYYY-MM-DD.md", text)
+        self.assertNotIn("不读 `*-gpt.md`", text)
+        self.assertNotIn("不读 *-gpt.md", text)
+        self.assertNotIn("只读这些主 cluster 文件", text)
+        self.assertNotIn("只读正本", text)
+        self.assertNotIn("不读 GPT", text)
+        route = (ROOT / "skills" / "digitalbrain-agents-route.md").read_text(encoding="utf-8")
+        self.assertIn("周六提炼两边 cluster 都读、同日去重", route)
+        self.assertIn("没聊到的条＝他不感兴趣，第二天不要再翻出来", route)
+        self.assertIn("今天这些里（含昨天整包还没开过聊的）你想先聊哪几条？", route)
+        self.assertIn("第二天还没聊就丢掉，以后不再带", route)
+        self.assertIn("落盘仍只写当天文件，不把旧料重抄进新文件", route)
+        self.assertIn(
+            "换地方装上这个 plugin，现行归堆／带到第二天／周六两边都读等功能应能完整跑",
+            route,
+        )
+        self.assertNotIn("未 discuss 完", route)
+        setup_carry = (ROOT / "skills" / "journal" / "references" / "setup.md").read_text(encoding="utf-8")
+        self.assertIn("第二天还没聊就丢掉，以后不再带", setup_carry)
+        self.assertIn("他没回就不写进选题／资料库", setup_carry)
+        self.assertIn("落盘仍只写当天文件，不把旧料重抄进新文件", setup_carry)
+        self.assertNotIn("未 discuss 完", setup_carry)
+        self.assertNotIn("周六提炼只读正本", route)
+        self.assertNotIn("不读 `*-gpt.md`", route)
+        setup = (ROOT / "skills" / "journal" / "references" / "setup.md").read_text(encoding="utf-8")
+        self.assertNotIn("周六提炼只读正本", setup)
+        self.assertNotIn("不读 *-gpt.md", setup)
 
 
 class QuoteAndIntakeTests(unittest.TestCase):
