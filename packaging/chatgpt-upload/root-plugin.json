@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "information-flow",
-  "version": "0.1.6",
-  "description": "写周记、记想法、平日归堆。Journal and separately confirmed Cognition.",
+  "version": "0.1.7",
+  "description": "写周记、记想法、归堆。Journal and separately confirmed Cognition.",
   "author": {
     "name": "Jake Guo",
     "url": "https://github.com/jakeguo117"
@@ -10,9 +10,9 @@
   "extensions": {
     "com.openai": {
       "interface": {
-        "displayName": "Information Flow — Journal",
-        "shortDescription": "写周记、记想法、平日归堆；Cognition 另确认",
-        "longDescription": "通过对话写周记，或把「记一下：」「想法：」的原话记下来；周记仅在明确确认后保存到指定可访问的 vault。Cognition 接受与保存独立确认。平日归堆先给全文，点头后写入 cluster，一天一份。当前包不包含采集器或提醒；云端持久保存路径须另行核验。",
+        "displayName": "Information Flow",
+        "shortDescription": "写周记、记想法、归堆；Cognition 另确认",
+        "longDescription": "三件事：写周记、记想法、归堆。通过对话写周记，或把「记一下：」「想法：」的原话记下来；周记仅在明确确认后保存到指定可访问的 vault。Cognition 接受与保存独立确认。平日归堆先给全文，点头后写入 cluster，一天一份。当前包不包含采集器或提醒；云端持久保存路径须另行核验。",
         "developerName": "Jake Guo",
         "category": "Productivity",
         "capabilities": [
