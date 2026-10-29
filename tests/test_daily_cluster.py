@@ -17,7 +17,7 @@ sys.path.insert(0, str(TOOLS))
 
 import cluster_lib  # noqa: E402
 
-A_SHA = "34c66732b7d4004b1e4e116ce3ca7749cf027a7e1ff20f7cc87c2cb1cc2142e7"
+A_SHA = "ab21046508f0af6511caf6ace2326501a982e57a4aff7dc92baf1447e2e20e81"
 SOCRATIC_SHA = "e1e4f68aaead7d4d2a5b3cea414c44bdd5ececc81e8386bd695772d316c0fda2"
 NEW_RULE = (
     "（与 21:00 例程同句）当天新增＝香港时间当日 00:00 到运行时刻内，提交进 `📥 Inbox/` 各来源子夹"
@@ -105,6 +105,11 @@ class SkillTextTests(unittest.TestCase):
         )
         self.assertIn("3a. **plan 标签：**", text)
         self.assertIn("不要问「哪几条进 idea 池」", text)
+        self.assertIn("未 discuss 完滚次日", text)
+        self.assertIn("他没回就停。停的是当天入库。", text)
+        self.assertIn("不另开聊天。不自动写讨论纪要。", text)
+        self.assertIn("前一天还有未 discuss 完的，不用这句，仍落盘并按 4b 带上。", text)
+        self.assertIn("定时落盘后的归堆提示同样带上前一天 `-gpt` 里未 discuss 完的条", text)
         self.assertIn("（新定口径，与 21:00 例程同句）", text)
         self.assertIn(NEW_RULE, text)
         self.assertIn(BOT_RULE, text)
@@ -160,6 +165,9 @@ class SkillTextTests(unittest.TestCase):
         self.assertNotIn("不读 GPT", text)
         route = (ROOT / "skills" / "digitalbrain-agents-route.md").read_text(encoding="utf-8")
         self.assertIn("周六提炼两边 cluster 都读、同日去重", route)
+        self.assertIn("未 discuss 完＝那份文件里的一条对不上针对这一条的", route)
+        setup_carry = (ROOT / "skills" / "journal" / "references" / "setup.md").read_text(encoding="utf-8")
+        self.assertIn("次日归堆带上前一天未 discuss 完的条", setup_carry)
         self.assertNotIn("周六提炼只读正本", route)
         self.assertNotIn("不读 `*-gpt.md`", route)
         setup = (ROOT / "skills" / "journal" / "references" / "setup.md").read_text(encoding="utf-8")

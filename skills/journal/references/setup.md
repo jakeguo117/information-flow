@@ -36,6 +36,7 @@
   → 归堆推库＝Cloud Agent 推 jakeguo117/obsidian-digitalbrain
   → information-flow Actions 不写这份归堆，本文件不接推送接线
   → 落盘当下不跑 discuss-to-resources-ideas
+  → 次日归堆带上前一天未 discuss 完的条（想法梳理看正本，ChatGPT 看 -gpt），写进归堆和深挖问句。不另开聊天，不自动写讨论纪要。他没回就不入库；这些条次日再带上
 
 周六提炼
   → 想法梳理加载 discuss-to-resources-ideas

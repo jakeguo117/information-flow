@@ -14,6 +14,8 @@
 
 平日归堆正本是 `📋 Digests/cluster/YYYY-MM-DD.md`（多日 `YYYY-MM-DD_DD.md`），由想法梳理 21:00 写。双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼两边 cluster 都读、同日去重；切换之后的做法另行更新。归堆推库＝Cloud Agent 推 `jakeguo117/obsidian-digitalbrain`，不是 information-flow Actions 写 vault。这里不实现推送接线。不碰、不接管历史 `📋 Digests/daily/`。takeaway 已 offline，本 PR 不另挂停排程。
 
+次日归堆：想法梳理读前一个 Asia/Hong_Kong 日历日的正本。未 discuss 完＝那份文件里的一条对不上针对这一条的 `## 深挖`、`## 讨论 log` 或 `## 语音整理`，或仍标着要深挖。这些条并进当天归堆和「哪一堆／哪条要深挖」。不另开聊天，不自动写讨论纪要。他没回就不写 Ideas；这些条次日再带上，不等到周六。周六 `discuss-to-resources-ideas` 仍只在周六跑，只凭 Context 不能出 Ideas。
+
 周六想法梳理加载 `discuss-to-resources-ideas`：本周 cluster 正本（`YYYY-MM-DD.md`、`YYYY-MM-DD_DD.md`）和 GPT 线（`YYYY-MM-DD-gpt.md`、`YYYY-MM-DD_DD-gpt.md`）都扫，不区分来源，有哪份读哪份。同一天两份都在：两份都读。同一条（同一来源链接、同一段引用、或同一标题）只算一次。同一条两份详略不同，留更详的那份，细节不丢。另扫已落盘的 `📝 Journal/{YYYY-MM-DD}*.md`。平日落盘当下不跑。
 
 用户说「写周记」「周记」或 `/journal`：
