@@ -3,13 +3,17 @@
 
 from __future__ import annotations
 
+import datetime
 import hashlib
+import io
 import json
 import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOLS = ROOT / "skills" / "daily-cluster" / "tools"
@@ -449,6 +453,93 @@ class ScheduledModeTests(unittest.TestCase):
         self.assertEqual(data["message"], "vault missing; scheduled run did not write")
         self.assertNotIn("Jake", data["message"])
         self.assertFalse(vault.exists())
+
+
+class FutureDateTests(unittest.TestCase):
+    """The run date is injected; the system clock is never changed."""
+
+    TODAY = datetime.date(2026, 10, 30)
+
+    def _perform(self, vault: Path, payload: dict, *, scheduled: bool) -> tuple[dict, bool]:
+        return cluster_lib.perform(vault, "save", payload, scheduled=scheduled, today=self.TODAY)
+
+    def test_today_is_allowed(self) -> None:
+        for scheduled in (False, True):
+            with tempfile.TemporaryDirectory() as raw:
+                vault = Path(raw)
+                data, ok = self._perform(vault, approval("2026-10-30"), scheduled=scheduled)
+                self.assertTrue(ok, data)
+                self.assertEqual(data["files_written"], 1)
+                self.assertEqual(Path(data["path"]).name, "2026-10-30-gpt.md")
+
+    def test_yesterday_is_allowed(self) -> None:
+        for scheduled in (False, True):
+            with tempfile.TemporaryDirectory() as raw:
+                vault = Path(raw)
+                data, ok = self._perform(vault, approval("2026-10-29"), scheduled=scheduled)
+                self.assertTrue(ok, data)
+                self.assertEqual(data["files_written"], 1)
+
+    def test_tomorrow_is_refused(self) -> None:
+        for scheduled in (False, True):
+            with tempfile.TemporaryDirectory() as raw:
+                vault = Path(raw)
+                data, ok = self._perform(vault, approval("2026-10-31"), scheduled=scheduled)
+                self.assertFalse(ok, data)
+                self.assertEqual(data["status"], "refused")
+                self.assertEqual(data["files_written"], 0)
+                self.assertIn("晚于本次运行的香港日期 2026-10-30", data["message"])
+                self.assertFalse((vault / "📋 Digests" / "cluster").exists())
+
+    def test_span_end_tomorrow_is_refused_and_today_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            data, ok = self._perform(vault, approval("2026-10-29", span_end="31"), scheduled=True)
+            self.assertFalse(ok, data)
+            self.assertIn("2026-10-31", data["message"])
+            self.assertEqual(data["files_written"], 0)
+            data, ok = self._perform(vault, approval("2026-10-29", span_end="30"), scheduled=True)
+            self.assertTrue(ok, data)
+            self.assertEqual(Path(data["path"]).name, "2026-10-29_30-gpt.md")
+
+    def test_check_not_future_ignores_suffix_and_covers_main_dates(self) -> None:
+        cluster_lib.check_not_future("2026-10-30", None, self.TODAY)
+        cluster_lib.check_not_future("2026-10-29", None, self.TODAY)
+        with self.assertRaises(ValueError):
+            cluster_lib.check_not_future("2026-10-31", None, self.TODAY)
+        with self.assertRaises(ValueError):
+            cluster_lib.check_not_future("2026-10-30", "31", self.TODAY)
+
+    def test_hk_today_uses_hong_kong_calendar_day(self) -> None:
+        utc = datetime.timezone.utc
+        self.assertEqual(
+            cluster_lib.hk_today(datetime.datetime(2026, 10, 30, 15, 59, tzinfo=utc)),
+            datetime.date(2026, 10, 30),
+        )
+        self.assertEqual(
+            cluster_lib.hk_today(datetime.datetime(2026, 10, 30, 16, 0, tzinfo=utc)),
+            datetime.date(2026, 10, 31),
+        )
+
+    def test_cli_exits_nonzero_with_chinese_message(self) -> None:
+        sys.path.insert(0, str(TOOLS))
+        import write_cluster  # noqa: E402
+
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw) / "vault"
+            vault.mkdir()
+            path = Path(raw) / "approval.json"
+            path.write_text(json.dumps(approval("2026-10-31", confirmed=False, phrase="")), encoding="utf-8")
+            out = io.StringIO()
+            with mock.patch.object(cluster_lib, "hk_today", return_value=self.TODAY), redirect_stdout(out):
+                rc = write_cluster.main(
+                    ["save", "--vault", str(vault), "--approval", str(path), "--scheduled"]
+                )
+            self.assertNotEqual(rc, 0)
+            data = json.loads(out.getvalue())
+            self.assertEqual(data["files_written"], 0)
+            self.assertIn("拒绝写入：文件日期 2026-10-31 晚于本次运行的香港日期 2026-10-30", data["message"])
+            self.assertFalse((vault / "📋 Digests").exists())
 
 
 def discuss_approval(date: str = "2026-10-28", note: str = "这一堆先看住房置换，数字先留着。", **extra: object) -> dict:

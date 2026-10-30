@@ -63,11 +63,11 @@ python3 skills/daily-cluster/tools/write_cluster.py append-discuss --vault "$VAU
 
 ## （ChatGPT 适配·定时）
 
-双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼两边 cluster 都读、同日去重；切换之后的做法另行更新。正本就是同夹 `📋 Digests/cluster/` 里没有 `-gpt` 的文件。测试线就是同夹里文件名带 `-gpt` 的文件。周六提炼和提炼想法不区分正本和 `-gpt`，有哪份读哪份，同一天两份都在就去重。不另开文件夹。对话里 Jake 说 `可以写`、`写吧` 或 `OK 写` 之后，`write_cluster.py save` 也只新建 `📋 Digests/cluster/YYYY-MM-DD-gpt.md`（多日 `YYYY-MM-DD_DD-gpt.md`）。不写正本，不写 `📋 Digests/daily/`，不覆盖。`-gpt` 已经在就报错说明已存在，不覆盖。定时任务用 `write_cluster.py save --scheduled`。Jake 说定时任务就是他的保存授权，这条路径不走交互确认短语。它同样只新建这份 `-gpt`。当天 `-gpt` 已在则退出码 0，`skipped: already exists`，字节不动。没有本地目录时，定时、`--scheduled` 和 Cloud Runs 仍按「读 Inbox」第 3 步走 GitHub 仓 `jakeguo117/obsidian-digitalbrain` 写当天 `-gpt`。云端应走这座 GitHub 仓，不是等本地 vault，也不问 Jake。这座仓也读不到就报失败，不写。定时落盘后的归堆提示按开头三条带前一天 `-gpt`：没开过聊的整包一起问「今天这些里（含昨天整包还没开过聊的）你想先聊哪几条？」；开过聊的那天，没聊到的条不要再翻出来；微信读书 @bot 最多再带一天。提示只在摘要和问句里摆出来。落盘仍只写当天 `-gpt`，不把旧料重抄进新文件。定时仍不写讨论纪要。
+双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼两边 cluster 都读、同日去重；切换之后的做法另行更新。正本就是同夹 `📋 Digests/cluster/` 里没有 `-gpt` 的文件。测试线就是同夹里文件名带 `-gpt` 的文件。周六提炼和提炼想法不区分正本和 `-gpt`，有哪份读哪份，同一天两份都在就去重。不另开文件夹。对话里 Jake 说 `可以写`、`写吧` 或 `OK 写` 之后，`write_cluster.py save` 也只新建 `📋 Digests/cluster/YYYY-MM-DD-gpt.md`（多日 `YYYY-MM-DD_DD-gpt.md`）。不写正本，不写 `📋 Digests/daily/`，不覆盖。`-gpt` 已经在就报错说明已存在，不覆盖。定时任务用 `write_cluster.py save --scheduled`。Jake 说定时任务就是他的保存授权，这条路径不走交互确认短语。它同样只新建这份 `-gpt`。当天 `-gpt` 已在则退出码 0，`skipped: already exists`，字节不动。定时任务的取料窗口（只对 `-gpt` 线生效）：从 `📋 Digests/cluster/` 里上一份 `-gpt` 文件在 `main` 上第一次提交的时间起（不含该时刻），到这次运行为止，不用「当日 00:00」；上一份 `-gpt` 里已经列过的来源链接不再列；文首取料口径写明起点的短 sha 和香港时间。正本仍按「当天新增怎么判」那句，不受这句影响。没有本地目录时，定时、`--scheduled` 和 Cloud Runs 仍按「读 Inbox」第 3 步走 GitHub 仓 `jakeguo117/obsidian-digitalbrain` 写当天 `-gpt`。云端应走这座 GitHub 仓，不是等本地 vault，也不问 Jake。这座仓也读不到就报失败，不写。定时落盘后的归堆提示按开头三条带前一天 `-gpt`：没开过聊的整包一起问「今天这些里（含昨天整包还没开过聊的）你想先聊哪几条？」；开过聊的那天，没聊到的条不要再翻出来；微信读书 @bot 最多再带一天。提示只在摘要和问句里摆出来。落盘仍只写当天 `-gpt`，不把旧料重抄进新文件。定时仍不写讨论纪要。
 
 ## 测试
 
-测试和集成跑不得往 DigitalBrain 正本仓 `jakeguo117/obsidian-digitalbrain` 写入任何带日期的 digest 文件（正本或 `-gpt` 都不行）。用临时目录，或用 `📋 Digests/` 以外、一看就是测试的路径；写完立刻清掉。不得写出比本次运行的 Asia/Hong_Kong 日期更晚的日期文件。必须走真实写入路径的测试，只用当天日期。上面「定时」和 Cloud Runs 写当天 `-gpt` 是正式归堆，不是测试。
+测试和集成跑不得往 DigitalBrain 正本仓 `jakeguo117/obsidian-digitalbrain` 写入任何带日期的 digest 文件（正本或 `-gpt` 都不行）。用临时目录，或用 `📋 Digests/` 以外、一看就是测试的路径；写完立刻清掉。不得写出比本次运行的 Asia/Hong_Kong 日期更晚的日期文件。必须走真实写入路径的测试，只用当天日期。`write_cluster.py` 的 `save`／`retry` 现在会拦：文件名日期（多日看 `span_end`）晚于运行时的 Asia/Hong_Kong 日期就拒绝，退出码非 0，写入数为 0，正本和 `-gpt` 都一样。上面「定时」和 Cloud Runs 写当天 `-gpt` 是正式归堆，不是测试。
 
 ## 参考
 

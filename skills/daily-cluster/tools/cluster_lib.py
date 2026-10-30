@@ -24,6 +24,7 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 _JOURNAL_TOOLS = Path(__file__).resolve().parents[2] / "journal" / "tools"
 if str(_JOURNAL_TOOLS) not in sys.path:
@@ -53,6 +54,8 @@ SCHEDULED_VAULT_MESSAGE = "vault missing; scheduled run did not write"
 INTAKE_RE = re.compile(r"读到\s*(\d+)／共\s*(\d+)")
 MISSED_RE = re.compile(r"漏掉的文件名[:：]\s*([^\n。]+)")
 BOT_PREFIX = "> 已聊 @bot："
+HK_TZ = ZoneInfo("Asia/Hong_Kong")
+FUTURE_MESSAGE = "拒绝写入：文件日期 {end} 晚于本次运行的香港日期 {today}，不写将来日期的归堆文件。"
 
 
 def fingerprint(text: str) -> str:
@@ -94,6 +97,29 @@ def checked_filename(date: str, span_end: str | None, scheduled: bool) -> str:
     if end <= start:
         raise ValueError("span end day must be after the start date")
     return f"{start.isoformat()}_{span_end}{suffix}.md"
+
+
+def hk_today(now: datetime.datetime | None = None) -> datetime.date:
+    """Asia/Hong_Kong calendar date of ``now`` (default: the current instant)."""
+    if now is None:
+        now = datetime.datetime.now(datetime.timezone.utc)
+    if now.tzinfo is None:
+        raise ValueError("now must be timezone-aware")
+    return now.astimezone(HK_TZ).date()
+
+
+def check_not_future(date: str, span_end: str | None, today: datetime.date) -> None:
+    """Refuse a cluster file dated after ``today`` (the HK run date).
+
+    The last day the file covers is ``date``, or the ``span_end`` day of the
+    same month for a multi-day file. Applies to the main file and ``-gpt``.
+    """
+    start = datetime.date.fromisoformat(date)
+    end = start
+    if span_end not in (None, ""):
+        end = start.replace(day=int(str(span_end)))
+    if start > today or end > today:
+        raise ValueError(FUTURE_MESSAGE.format(end=max(start, end).isoformat(), today=today.isoformat()))
 
 
 def relative_for(filename: str) -> str:
@@ -319,7 +345,9 @@ def perform(
     approval: dict[str, Any],
     *,
     scheduled: bool = False,
+    today: datetime.date | None = None,
 ) -> tuple[dict[str, Any], bool]:
+    """``today`` is the Asia/Hong_Kong run date; tests inject it, else the clock."""
     if action not in {"save", "retry"}:
         return _fail("unavailable", "action must be save or retry")
     given = approval.get("path")
@@ -340,6 +368,11 @@ def perform(
         return _path_error(exc)
     except OSError as exc:
         return _fail("unavailable", str(exc))
+    span = approval.get("span_end")
+    try:
+        check_not_future(date, None if span in (None, "") else str(span), today or hk_today())
+    except ValueError as exc:
+        return _fail("refused", str(exc))
 
     target = vault / relative
     if scheduled and target.is_file() and not target.is_symlink():

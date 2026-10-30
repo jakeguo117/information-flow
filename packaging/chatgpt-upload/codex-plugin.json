@@ -16,7 +16,7 @@
     ]
   },
   "name": "information-flow",
-  "version": "0.1.8",
+  "version": "0.1.10",
   "description": "写周记、记想法、归堆。Journal and separately confirmed Cognition.",
   "author": {
     "name": "Jake Guo",
