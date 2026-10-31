@@ -1,6 +1,6 @@
 ---
 name: discuss-to-resources-ideas
-description: 周六把本周已落盘的归堆和日期篇提炼成 Resources、Ideas、Cognition 互链，并抽出 plan 清单交给资料管理员。动手前先过本周完整性闸：本周日期篇至少 1 篇，周一至周五里有 Inbox 的日子要有归堆正本盖住。闸不过就不生成。若周六因缺被拦，同周周日用同一技能、同一闸补跑一次，不是改成只周日跑。Context 段最多出 Resources 候选；Ideas 只从讨论 log 和 Journal 来；plan 不进 Ideas。想法梳理在周六加载；周六被这道闸拦住时，同周周日可再加载一次。平日 cluster 或 Journal 落盘当下不跑。只吃库内文件。闸过之后正本和 -gpt 都读，同日去重。不写、不扫、不接管 📋 Digests/daily/。
+description: 周六把本周已落盘的归堆和日期篇提炼成 Resources、Ideas、Cognition 互链，另出自媒体选题（按 Idea 写进 💡 Ideas/Content/），并抽出 plan 清单交给资料管理员。动手前先过本周完整性闸：本周日期篇至少 1 篇，周一至周五里有 Inbox 的日子要有归堆正本盖住。闸不过就不生成。若周六因缺被拦，同周周日用同一技能、同一闸补跑一次，不是改成只周日跑。Context 段最多出 Resources 候选；Ideas 只从讨论 log 和 Journal 来；plan 不进 Ideas。想法梳理在周六加载；周六被这道闸拦住时，同周周日可再加载一次。平日 cluster 或 Journal 落盘当下不跑。只吃库内文件。闸过之后正本和 -gpt 都读，同日去重。不写、不扫、不接管 📋 Digests/daily/。
 ---
 
 # discuss-to-resources-ideas
@@ -138,7 +138,7 @@ Jake 2026-10-31 美东 11:24 定：自媒体选题每条当一个 Idea，原始�
 
 - 是什么：具体到能开做的一条内容选题，给内容写手立题用。每天消化里只摆方向和切入角度，不给具体选题；具体选题在周六这里出。
 - 写到哪：每条一个 Idea，用 `skills/ideas/tools/write_idea.py` 写进 `💡 Ideas/Content/`（调用时 `--directory Content`）。不开子目录，不新开库。它是 Idea，所以不违反下面「plan 不另开第四类库或新目录」那几句。
-- 怎么标：`topics` 第一项写 `自媒体选题`，后面每个平台一项，写 `小红书`、`X` 或 `公众号`（可以多个）。`write_idea.py` 不收新字段，所以标签只放在 `topics` 里，不另加 frontmatter 键。
+- 怎么标：`topics` 第一项写 `自媒体选题`，后面每个平台一项，写 `小红书` 或 `X`（可以两个都写）。不写 `公众号`：公众号不另立题，仍从 X 定稿转换（见 content-wechat）。`nature` 统一写 `judgment`，跟下面 Ideas 那行一样。`write_idea.py` 不收新字段，所以标签只放在 `topics` 里，不另加 frontmatter 键。
 - 来源：`source_refs` 第一项必须指到本周讨论 log 那段或 Journal 日期篇；趋势文件（`📥 Inbox/Trends/YYYY-MM-DD-xhs-trends.md` 之类）只能附在后面当参考。只有趋势、没有讨论 log 或 Journal 的，不出。
 - 每条写什么：`expression` 写 Jake 点头的那句选题；`applicability` 写为什么适合我们（拿 Jake 自己同类内容的数据比）；`context` 写参考爆款（标题｜作者｜赞／藏／评｜封面和钩子｜链接）和可借的写法；`limitations` 写反例和本轮采样局限。数字照抄趋势原文，不编。
 - 点头：跟本周其他 Ideas 同一批给 Jake 点头，点头之后才写入；写入之后交内容写手立题。没点头的不写，也不交。
@@ -152,7 +152,7 @@ Jake 2026-10-31 美东 11:24 定：自媒体选题每条当一个 Idea，原始�
 | --- | --- | --- | --- |
 | Resources | `📖 Resources/` 已有领域目录里的 concept 页（`type: concept`） | 与来源卡相同的写法：`sources` 指回原文件，写 `created` / `updated`，正文至少两个 wikilink，更新 `index.md` 与 `log.md`，不新开分类，不改已有页的类型 | 正式入库须 Jake 点头，或他在同一批里点头。Context 段只出候选，见「来源分流」 |
 | Ideas | `💡 Ideas/{Content,Insurance,Life,Tech,Trading}/idea-xxxxxxxxxxxx.md` | `skills/ideas/tools/write_idea.py` | 点头之后。判断用 `nature: judgment`。`source_refs` 写整段引用，指向本周讨论 log 那段或 Journal 日期篇，以及对应 Resources。不能只指 Context |
-| 自媒体选题 | `💡 Ideas/Content/idea-xxxxxxxxxxxx.md`（不开子目录） | `skills/ideas/tools/write_idea.py --directory Content` | 跟 Ideas 同一批点头之后。`topics` 写 `自媒体选题`＋平台。`source_refs` 第一项指讨论 log 那段或 Journal 日期篇，趋势只附在后面当参考。点头写入后交内容写手 |
+| 自媒体选题 | `💡 Ideas/Content/idea-xxxxxxxxxxxx.md`（不开子目录） | `skills/ideas/tools/write_idea.py --directory Content` | 跟 Ideas 同一批点头之后。`topics` 写 `自媒体选题`＋平台（`小红书`／`X`），`nature: judgment`。`source_refs` 第一项指讨论 log 那段或 Journal 日期篇，趋势只附在后面当参考。点头写入后交内容写手 |
 | Cognition | `📖 Cognition/{Evidence,Beliefs,Principles}/` | `skills/cognition/tools/write_cognition.py` | Evidence 草稿沿用 cognition 现闸。Belief、Principle 须点头 |
 | Facts | 另轨，不并进这次提炼 | `skills/facts/tools/write_fact.py` | 本技能不改 Facts 的规则 |
 | Plan | Notion「可执行计划清单」（经资料管理员写） | 无。本技能只产出清单，交给资料管理员 | plan 清单展示给 Jake，和 Ideas 同一批点头后再交 |

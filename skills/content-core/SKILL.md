@@ -1,6 +1,6 @@
 ---
 name: content-core
-description: "内容 foundation（ideology 与表达底线）。写 X、小红书或公众号之前必须先加载。anti-AI-slop；长文要 deeper thought；X 行文更深并保留 1–3 张逻辑链配图；小红书必须有 visual aid；公众号第一段写一个真实场景。整周多渠道包或明确三版交齐才一次交齐三版；任务只要写 X、X Article、X 长文或 X 短帖时只加载 content-x，禁止同轮 Skill load content-xhs 或 content-wechat；禁 Journal 原话；选题是本周 idea 组合（A+B+C / A+B / 单独 A），不是一篇 idea 一篇文；内容写手就该组合做选题与采访，闸门过后经 content-x 写 X 长文 basement；写正文前须采访完＋骨架填满（F1–F7 全勾）＋Jake 认可；冷读在成稿后；正文先列段落因果链，不写流水账；交卡从中心思想写起，并写明我们的看法；正文沿主线展开；敏感五类；不代发。出封面、配图或卡片前必须加载 canvas-design。采访怎么问只加载 interview；成稿怎么编只加载 editor，editor 必加载 humanizer-zh。平台版式在 content-x、content-xhs、content-wechat。谁干什么：写手＝选题②＋包装 brief①＋basement／母稿＋CTA 文案③；视觉＝出图；渠道运营＝落版／叠字／发帖；冷读＝内容审计。动画＝内容动画（可选；过审定稿后出片；不挡图文）。X 长文底稿／母稿由内容写手加载 content-core → content-x 来写。X 运营不再写母稿。发帖、引用再分发、复活计划、渠道落版仍归运营（content-x-ops）。小红书正文、caption、卡片文案也由内容写手写；图归内容视觉，动画归内容动画；周六点头、标了小红书的自媒体选题可直接立小红书题，采访和 F1–F7 闸照旧。公众号编辑从 X 定稿转换，不另写新稿。"
+description: "内容 foundation（ideology 与表达底线）。写 X、小红书或公众号之前必须先加载。anti-AI-slop；长文要 deeper thought；X 行文更深并保留 1–3 张逻辑链配图；小红书必须有 visual aid；公众号第一段写一个真实场景。整周多渠道包或明确三版交齐才一次交齐三版；任务只要写 X、X Article、X 长文或 X 短帖时只加载 content-x，禁止同轮 Skill load content-xhs 或 content-wechat；禁 Journal 原话；选题是本周 idea 组合（A+B+C / A+B / 单独 A），不是一篇 idea 一篇文；内容写手就该组合做选题与采访，闸门过后经 content-x 写 X 长文 basement；写正文前须采访完＋骨架填满（F1–F7 全勾）＋Jake 认可；冷读在成稿后；正文先列段落因果链，不写流水账；交卡从中心思想写起，并写明我们的看法；正文沿主线展开；敏感五类；不代发。出封面、配图或卡片前必须加载 canvas-design。采访怎么问只加载 interview；成稿怎么编只加载 editor，editor 必加载 humanizer-zh。平台版式在 content-x、content-xhs、content-wechat。谁干什么：写手＝选题②＋包装 brief①＋basement／母稿＋CTA 文案③；视觉＝出图；渠道运营＝落版／叠字／发帖；冷读＝内容审计。动画＝内容动画（可选；过审定稿后出片；不挡图文）。X 长文底稿／母稿由内容写手加载 content-core → content-x 来写。X 运营不再写母稿。发帖、引用再分发、复活计划、渠道落版仍归运营（content-x-ops）。小红书正文、caption、卡片文案也由内容写手写；图归内容视觉，动画归内容动画；周六（或同周周日补跑）那一批点头、标了小红书的自媒体选题可直接立小红书题，采访和 F1–F7 闸照旧。公众号编辑从 X 定稿转换，不另写新稿。"
 ---
 
 # content-core
@@ -23,7 +23,7 @@ X 的写法在 `skills/content-x/SKILL.md`（内容写手写 X 长文 basement�
 
 ## 小红书专属选题（例外）
 
-Jake 2026-10-31 美东 11:24 定。周六 `discuss-to-resources-ideas` 出的「自媒体选题」，是写进 `💡 Ideas/Content/` 的 Idea，`topics` 里有 `自媒体选题` 和 `小红书`，并且 Jake 在周六那一批点了头（`confirmation_state: confirmed`）。这样的一条可以直接立一篇小红书专属题：不必先有 X 定稿，也不必先跟别的 idea 凑组合，这一条就算「单独 A」。没点头、没标小红书、或只是趋势原料的，不算。
+Jake 2026-10-31 美东 11:24 定。周六 `discuss-to-resources-ideas` 出的「自媒体选题」，是写进 `💡 Ideas/Content/` 的 Idea，`topics` 里有 `自媒体选题` 和 `小红书`，并且 Jake 在周六（或同周周日补跑）那一批点了头（`confirmation_state: confirmed`）。这样的一条可以直接立一篇小红书专属题：不必先有 X 定稿，也不必先跟别的 idea 凑组合，这一条就算「单独 A」。没点头、没标小红书、或只是趋势原料的，不算。
 
 - 闸门照旧：仍要采访完＋骨架填满（F1–F7 全勾）＋Jake 认可，才写正文。骨架、冷读、销项、敏感五类、禁 Journal 原话都照本技能。
 - 谁写：小红书正文、caption、卡片文案都由内容写手写，加载 content-core → canvas-design（仅出图之前）→ content-xhs。卡片图归内容视觉，动画归内容动画。小红书由 Jake 本人发，不代发。
@@ -33,7 +33,7 @@ Jake 2026-10-31 美东 11:24 定。周六 `discuss-to-resources-ideas` 出的「
 ## 谁加载
 
 - X 长文 basement、X Article、X 短帖：内容写手。成文经 content-core + content-x。①②③分别加载 content-x-article-packaging、content-x-process-topic、content-x-cta-loop。采访时再加载 interview。闸门过后写稿时再加载 editor。不加载 content-xhs、content-wechat。采访完、F1–F7 全勾、Jake 认可之后才写正文。发帖走 content-x-ops。X 母稿的冷读、销项和去 AI 味由内容审计（非作者）做，而且只在成稿之后；内容审计加载 editor，不另写一套去 AI 味。冷读只用 editor 第 4 步「排」，加上第 6 步「查」的第 1–3 项和第 6–8 项；核对骨架和采访原话的第 1 步「准备」、第 6 步第 4 项「追溯检验」和第 5 项「M6 原味检验」，以及第 4 步 W9、M5、W12、W13 和默认顺序第 3–5 条里『是不是他讲过、他答过、他说过、有没有答过反方』的核对，第 6 步第 1 项里『小标题顺序是否跟采访题号一样』的核对，第 6 步第 6 项里『有没有编第一人称经历』的核实，留到销项时对照「我」判断出处表和第 1 步的材料索引，不在冷读里做。冷读做 W12／W13 时只看成稿结构（有没有一个论点、节里有没有「为什么／例子／对读者」、结尾是不是完整一句），不核对是不是他讲过。冷读只看结构有没有起、变、落，疑点列进报告。担任人是内容审计，在审稿报告上写明。
-- 发帖、引用再分发、沉睡号复活、渠道落版：渠道运营。X 这一路加载 content-x-ops。X 运营不再写母稿。一次只做一类。
+- 发帖、引用再分发、沉睡号复活、渠道落版：渠道运营。X 这一路加载 content-x-ops。X 运营不再写母稿。一次只做一类。小红书例外（Jake 2026-10-31 美东 11:50 定）：小红书卡片的排字和最终版式归内容视觉，出图到排字一手做完；小红书由 Jake 本人发，bot 不发。
 - 小红书：内容写手写小红书正文、caption、卡片文案（Jake 2026-10-31 定：文字类全归内容写手，含小红书专属选题正文）。不只靠小红书技能写 X，X 母稿走 content-core → content-x。卡片图归内容视觉，动画归内容动画，小红书由 Jake 本人发。版式仍在 content-xhs。
 - 公众号：公众号编辑。加载 content-wechat，从 X 定稿转换。不另写新稿，不换中心思想，不另起选题。
 - 配图：内容视觉。三渠道共用图按渠道裁（X 5:2；公众号封面 2.35:1、分享图 1:1；小红书按平台比例）。同 topic 只交一份配图需求包，写明各渠道画幅：X 作者交，小红书作者补页序，公众号编辑补公众号行。加载 content-visual。出图前先加载 canvas-design。
@@ -42,12 +42,12 @@ Jake 2026-10-31 美东 11:24 定。周六 `discuss-to-resources-ideas` 出的「
 
 ### 内容侧 ①②③
 
-谁干什么：写手＝选题②＋包装 brief①＋basement／母稿＋CTA 文案③；视觉＝出图；渠道运营＝落版／叠字／发帖；冷读＝内容审计。动画＝内容动画（可选；过审定稿后出片；不挡图文）。
+谁干什么：写手＝选题②＋包装 brief①＋basement／母稿＋CTA 文案③；视觉＝出图；渠道运营＝落版／叠字／发帖（小红书例外：卡片排字和版式归视觉，Jake 本人发）；冷读＝内容审计。动画＝内容动画（可选；过审定稿后出片；不挡图文）。
 
 加载顺序：选题② → 采访／骨架 → Jake 认可 → 包装① → 正文 → CTA③。
 
 - ② 选题：`skills/content-x-process-topic/SKILL.md`。组合原料仍是本周 idea 组合。不另起平行选题流。
-- ① 包装：`skills/content-x-article-packaging/SKILL.md`。封面 brief 和卖点短句交内容视觉。落版／叠不叠字由渠道运营定。
+- ① 包装：`skills/content-x-article-packaging/SKILL.md`。封面 brief 和卖点短句交内容视觉。落版／叠不叠字由渠道运营定（小红书卡片除外：排字和版式归内容视觉）。
 - ③ CTA：`skills/content-x-cta-loop/SKILL.md`。去向链接、转化位与渠道运营对齐。
 - X 长文底稿／母稿由内容写手经 content-core → content-x 写。X 运营不再写母稿。
 

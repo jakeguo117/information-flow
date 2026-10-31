@@ -670,7 +670,7 @@ class SkillFlowContractTests(unittest.TestCase):
         self.assertIn("## 10. X Article 包装三件套 · 封面", visual)
         self.assertIn("封面上的标题字就用方向确认里的终版标题", visual)
         self.assertIn("卖梦想", visual)
-        who = "写手＝选题②＋包装 brief①＋basement／母稿＋CTA 文案③；视觉＝出图；渠道运营＝落版／叠字／发帖；冷读＝内容审计。"
+        who = "写手＝选题②＋包装 brief①＋basement／母稿＋CTA 文案③；视觉＝出图；渠道运营＝落版／叠字／发帖（小红书例外：卡片排字和版式归视觉，Jake 本人发）；冷读＝内容审计。"
         core = (sync.SKILLS_DIR / "content-core" / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn(who, core)
         self.assertIn("X 运营不再写母稿", core)

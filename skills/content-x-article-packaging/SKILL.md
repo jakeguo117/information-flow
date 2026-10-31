@@ -73,7 +73,7 @@ description: "内容写手在 Jake 认可骨架之后、写正文之前加载：
 
 - 封面执行／出图归内容视觉；本岗可写 brief，不出图。
 - 不代发；发帖归 X 运营。
-- 不写小红书正文／caption／卡面；不写公众号。
+- 不写小红书正文／caption／卡面（小红书文案按 content-xhs）；不写公众号。
 - 不发明 Jake 没说过／未确认的观点；不把未确认 paraphrase 当包装承诺。
 - 禁靠 context 才懂的词；新概念用读者懂的话。
 - 与 content-core：**敏感五类**、**禁 Journal 原话**（连续 20 字撞车）对齐——此处不复述全文，加载 content-core 为准。
