@@ -174,6 +174,7 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 ".cursor/skills/cognition/tools/write_cognition.py",
                 ".cursor/skills/ideas/SKILL.md",
                 ".cursor/skills/discuss-to-resources-ideas/SKILL.md",
+                ".cursor/skills/discuss-to-resources-ideas/tools/preflight.py",
                 ".cursor/skills/content/SKILL.md",
                 ".cursor/skills/content/references/content-record.md",
                 ".cursor/skills/content/tools/trace_content.py",
