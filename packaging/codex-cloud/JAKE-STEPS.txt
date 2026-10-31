@@ -1,0 +1,43 @@
+这些事只有 Jake 本人能做。不要把密码或 2FA 码交给别人。
+标了【登录/2FA】的步骤必须你自己在已登录的浏览器或手机上点。
+
+测试用的 information-flow 分支（不要合并那个 PR）：
+cursor/codex-cloud-journal-guard-e437
+环境变量 INFOFLOW_REF 就填这一行。等这条进了 main，再把 INFOFLOW_REF 改成 main。
+
+1. 【登录/2FA】用电脑浏览器打开 https://chatgpt.com 并登录你的 ChatGPT。
+   手机 App 创建不了云端环境。环境只在网页或 ChatGPT 桌面端创建和发布。
+   官方步骤：https://developers.openai.com/codex/cloud
+   环境里 setup 脚本、环境变量、网络：https://developers.openai.com/codex/environments/cloud-environment
+   代理和 agent 阶段联网：https://developers.openai.com/codex/cloud/internet-access
+
+2. 【登录/2FA】若还没连过 GitHub：按提示 Connect GitHub。授权时勾上私有仓 jakeguo117/obsidian-digitalbrain。GitHub 可能再要一次 2FA。
+   这个环境的仓库不要选公开仓 jakeguo117/information-flow。
+
+3. 在 ChatGPT 网页：进入 Codex（或 Work in，再选 Cloud），打开 Select environment，选 Create environment。
+   仓库只选 jakeguo117/obsidian-digitalbrain，然后 Get started。
+
+4. 在该环境的设置里做完再 Publish：
+   a. Setup script：打开 information-flow 这个测试分支里的 packaging/codex-cloud/setup.sh，全文粘贴进去。
+      脚本在 setup 阶段用 git clone 拉取该分支的 journal/cognition/ideas 技能。官方写明 setup 阶段有网，agent 阶段默认没网。
+   b. Environment variables（官方写明 setup 脚本里的 export 不会进入 agent 阶段，所以这里要再写一遍）：
+      INFOFLOW_RUNTIME=codex-cloud
+      INFOFLOW_REF=cursor/codex-cloud-journal-guard-e437
+      INFOFLOW_HOME=/opt/information-flow
+   c. 网络：agent internet 保持 Off 即可，因为拉取发生在 setup 脚本里。
+      若 setup 克隆 GitHub 失败，把 Agent internet access 设为 On，预设选 Common dependencies（列表里有 github.com），或额外允许 github.com 和 githubusercontent.com。不要选 All，除非前一种仍然克隆失败。
+   d. 保存并 Publish，等到 Environment published。
+
+5. 把 packaging/codex-cloud/AGENTS-snippet.md 的正文加进 obsidian-digitalbrain 仓库根的 AGENTS.md。
+   【登录/2FA】用 GitHub 网页或手机 GitHub App 开 PR，你自己看过 diff 再合并。
+   若把这个私有仓的写权限给 Eng，Eng 可以代开 PR；合并仍然要你点。没有写权限就只能你自己提交这段。
+
+6. 手机测试【登录/2FA】：
+   打开 ChatGPT App，进入 Codex，选刚才发布的 obsidian-digitalbrain 环境。不要选 information-flow。
+   提示词示例：写周记：这周只是通路测试，写一句 Codex Cloud 通路测试。
+   它复述并问确认时，只回复：可以写
+   等它在 obsidian-digitalbrain 上开出 PR。不要让它 push main。
+   打开 GitHub App，确认文件在 📝 Journal/ 下、仓库是 jakeguo117/obsidian-digitalbrain，再自己合并。
+   若脚本说公开仓或 information-flow，停。不要换一种写法再写。
+
+information-flow 上标题带 DO-NOT-MERGE 的那个 PR 不要合并，也不要标成 ready。

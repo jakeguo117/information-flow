@@ -164,6 +164,7 @@ class SyncDigitalBrainSkillsTests(unittest.TestCase):
                 ".cursor/skills/journal/tools/write_journal.py",
                 ".cursor/skills/journal/tools/thought_lib.py",
                 ".cursor/skills/journal/tools/capture_thought.py",
+                ".cursor/skills/journal/tools/vault_guard.py",
                 ".cursor/skills/cognition/SKILL.md",
                 ".cursor/skills/cognition/references/schema.md",
                 ".cursor/skills/cognition/references/retrieval.md",
