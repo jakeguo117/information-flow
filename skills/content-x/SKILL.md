@@ -25,7 +25,7 @@ description: "内容写手写 X 长文底稿／母稿（X、X Article、X 长文
 
 X 样例只按本技能写。不用小红书或公众号稿改写成 X 样例。X 样例同样禁止加载 content-xhs 或 content-wechat。
 
-整周多渠道发布包，或他明确要三版交齐：那不是上面这条只要 X 的加载。X 这一版仍只加载 content-core 和本技能，不加载 content-xhs 或 content-wechat。本岗先过骨架闸门，写成 X 定稿。写手不写小红书。公众号由公众号编辑按 content-wechat 从这版 X 定稿转换。本技能仍只负责 X 版式。发帖走 content-x-ops。
+整周多渠道发布包，或他明确要三版交齐：那不是上面这条只要 X 的加载。X 这一版仍只加载 content-core 和本技能，不加载 content-xhs 或 content-wechat。本岗先过骨架闸门，写成 X 定稿。小红书版之后也由内容写手从这版 X 定稿展开，另按 content-xhs 写，不在写 X 的这一轮里加载。公众号由公众号编辑按 content-wechat 从这版 X 定稿转换。本技能仍只负责 X 版式。发帖走 content-x-ops。
 
 出图规则在 `skills/content-visual/SKILL.md`（内容视觉）。出图前仍先加载 canvas-design。运营骨架在 `skills/content-x-ops/SKILL.md`（也是 X 运营；写长文和跑运营可以分线程，一次只做一类）。这两处都不是 content-xhs，也不是 content-wechat。同 topic 的配图需求包由本岗交一份，写明公众号、小红书画幅。
 
