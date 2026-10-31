@@ -14,7 +14,7 @@ description: "已停用。做内容、选题、写帖、发布包或 /content �
 1. 先加载 `skills/content-core/SKILL.md`
 2. 出封面、配图或卡片之前，加载并遵守 `skills/canvas-design/SKILL.md`。三渠道图由内容视觉按 content-visual 按渠道裁。
 3. 只要 X：内容写手加载 `skills/content-x/SKILL.md` 写 basement。①②③另见 content-x-process-topic、content-x-article-packaging、content-x-cta-loop。到此停止，不加载下面两步。
-4. 小红书：正文、caption、卡片文案由内容写手按 `skills/content-xhs/SKILL.md` 写（Jake 2026-10-31 定）；卡片图归内容视觉。
+4. 小红书：正文、caption、卡片文案由内容写手按 `skills/content-xhs/SKILL.md` 写（Jake 2026-10-31 定）；卡片图、排字和版式归内容视觉。交接顺序：写手交定稿字 → 内容视觉出图并排字、定版式（只排不改字）→ 整包过一次内容审计（审计改了字，视觉重排）→ 视觉把成品卡交小红书运营，按页序在 Drive 组好整包交 Jake → Jake 本人发（见 content-xhs「交接顺序」）。
 5. 公众号：公众号编辑加载 `skills/content-wechat/SKILL.md`（从 X 定稿转换，或整周包 / 三版交齐里的公众号）
 
 发帖、引用再分发、沉睡号复活由 X 运营加载 content-x-ops。写长文和跑运营可以分线程，一次只做一类。采访加载 `skills/interview/SKILL.md`。成稿编辑加载 `skills/editor/SKILL.md`（其中必加载 humanizer-zh）。编辑审稿仍是编辑（非作者），不写死 bot。
