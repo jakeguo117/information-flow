@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>GIT_TERMINAL_PROMPT</key>
+		<string>0</string>
+		<key>HOME</key>
+		<string>__HOME__</string>
+		<key>LANG</key>
+		<string>en_US.UTF-8</string>
+		<key>PATH</key>
+		<string>/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin</string>
+	</dict>
+	<key>Label</key>
+	<string>com.jake.digitalbrain-imac-push.cutover</string>
+	<key>LowPriorityIO</key>
+	<true/>
+	<key>Nice</key>
+	<integer>10</integer>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>__PUSH_PYTHON__</string>
+		<string>__PUSHER_ROOT__/bin/push_from_icloud.py</string>
+		<string>--vault</string>
+		<string>__VAULT__</string>
+		<string>--repo</string>
+		<string>__PUSHER_ROOT__/repo</string>
+		<string>--pull-gitdir</string>
+		<string>__PULL_GITDIR__</string>
+		<string>--state</string>
+		<string>__PUSHER_ROOT__/state</string>
+		<string>--log</string>
+		<string>__PUSHER_ROOT__/logs/push.log</string>
+		<string>--git</string>
+		<string>/usr/bin/git</string>
+		<string>--only-paths</string>
+		<string>__PUSHER_ROOT__/state/cutover-5-paths.txt</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardErrorPath</key>
+	<string>__PUSHER_ROOT__/logs/cutover.err.log</string>
+	<key>StandardOutPath</key>
+	<string>__PUSHER_ROOT__/logs/cutover.out.log</string>
+	<key>WorkingDirectory</key>
+	<string>__PUSHER_ROOT__</string>
+</dict>
+</plist>
