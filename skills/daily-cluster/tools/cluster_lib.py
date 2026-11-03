@@ -51,6 +51,44 @@ APPEND_SCHEDULED_MESSAGE = "append-discuss is not a scheduled write"
 INTAKE_MESSAGE = "body must include 读到 N／共 M"
 MISSED_MESSAGE = "N≠M 时必须列出漏掉的文件名"
 SCHEDULED_VAULT_MESSAGE = "vault missing; scheduled run did not write"
+OUTSIDE_HEADING = "## 外面在聊什么"
+OUTSIDE_ABSENT = "Trends 当天没有"
+OUTSIDE_REQUIRED = (
+    "香港周二或周五必须在七类之后写独立二级标题「## 外面在聊什么」；"
+    "两份 Trends 都没有才可以不写这块，并在文首取料口径写「Trends 当天没有」"
+)
+OUTSIDE_ONE_SOURCE = (
+    "只有 x 或只有 xhs 一份 Trends 也要写独立二级标题「## 外面在聊什么」。"
+    "缺 xhs 不能当省略整块的理由"
+)
+OUTSIDE_NOTE = (
+    "只有一份 Trends 时，文首取料口径要注明缺哪份（「缺 xhs」或「缺 x」）。"
+    "缺 xhs 不能当省略整块的理由"
+)
+OUTSIDE_ABSENT_CONFLICT = "写了「## 外面在聊什么」就不能再写「Trends 当天没有」"
+OUTSIDE_AFTER = "「## 外面在聊什么」必须放在七类之后，不能放进七类，也不算进七类"
+OUTSIDE_FOLD = (
+    "七类里不能写「### Trends」或「今日一个趋势方向」，也不能把趋势条混进 Jake 自己的料；"
+    "趋势只放在「## 外面在聊什么」"
+)
+OUTSIDE_OTHER_DAY = "周二、周五以外不摆「## 外面在聊什么」"
+OUTSIDE_ONCE = "「## 外面在聊什么」只能有一块，标题必须正好是这七个字"
+OUTSIDE_SHAPE = (
+    "「外面在聊什么」里只放一个方向、两到三个切入角度、一两条参考爆款"
+    "（标题｜作者｜赞／藏／评｜链接，数字照抄）、一个开聊问题"
+)
+CATEGORY_HEADINGS = (
+    "## 宏观",
+    "## 交易",
+    "## 内容与个人品牌",
+    "## 用 AI 做事",
+    "## 做事业／变现",
+    "## 团队与工作法",
+    "## 人生方向／个人想法",
+)
+_FOLD_RE = re.compile(r"###\s*(?:Trends|今日一个趋势方向|外面在聊什么)")
+_LEAK_TOKENS = ("📥 Inbox/Trends", "xhs-trends", "x-trends")
+_TREND_WEEKDAYS = (1, 4)  # Tuesday, Friday
 INTAKE_RE = re.compile(r"读到\s*(\d+)／共\s*(\d+)")
 MISSED_RE = re.compile(r"漏掉的文件名[:：]\s*([^\n。]+)")
 BOT_PREFIX = "> 已聊 @bot："
@@ -201,6 +239,147 @@ def _validate_body(date: str, body: str) -> None:
     if not any(line.startswith("## ") for line in lines[index:]):
         raise ValueError("cluster file needs ## sections")
     _validate_intake_count(body)
+
+
+def covers_trend_day(date: str, span_end: str | None) -> bool:
+    """True when the Hong Kong dates this file covers include a Tuesday or Friday."""
+    start = datetime.date.fromisoformat(date)
+    end = start
+    if span_end not in (None, ""):
+        if not isinstance(span_end, str) or SPAN_RE.fullmatch(span_end) is None:
+            raise ValueError("span end must be DD")
+        try:
+            end = start.replace(day=int(span_end))
+        except ValueError as exc:
+            raise ValueError("span end day is not in this month") from exc
+        if end <= start:
+            raise ValueError("span end day must be after the start date")
+    day = start
+    while day <= end:
+        if day.weekday() in _TREND_WEEKDAYS:
+            return True
+        day += datetime.timedelta(days=1)
+    return False
+
+
+def _normalize_heading(line: str) -> str:
+    return re.sub(r"\s+", " ", line.strip())
+
+
+def _leading_quotes(body: str) -> str:
+    lines = body.splitlines()
+    index = 1
+    while index < len(lines) and lines[index].strip() == "":
+        index += 1
+    quotes: list[str] = []
+    while index < len(lines) and lines[index].startswith(">"):
+        quotes.append(lines[index])
+        index += 1
+    return "\n".join(quotes)
+
+
+def _h2_blocks(body: str) -> list[tuple[str, str]]:
+    matches = list(re.finditer(r"(?m)^## .+$", body))
+    blocks: list[tuple[str, str]] = []
+    for index, match in enumerate(matches):
+        heading = _normalize_heading(match.group(0))
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(body)
+        blocks.append((heading, body[match.end() : end]))
+    return blocks
+
+
+def _gap_notes(quotes: str) -> tuple[bool, bool]:
+    """Return (noted missing x, noted missing xhs). ``缺 xhs`` is not ``缺 x``."""
+    noted_xhs = "缺 xhs" in quotes or "缺小红书" in quotes
+    scrubbed = quotes.replace("缺 xhs", "").replace("缺小红书", "")
+    return "缺 x" in scrubbed, noted_xhs
+
+
+def _shape_error(detail: str) -> ValueError:
+    return ValueError(f"{OUTSIDE_SHAPE}：{detail}")
+
+
+def _validate_outside_section(section: str) -> None:
+    lines = [line.strip() for line in section.splitlines() if line.strip()]
+    if sum(line.startswith("方向：") for line in lines) != 1:
+        raise _shape_error("方向只能有一行，写成「方向：」加一句话")
+    if lines.count("切入角度：") != 1 or lines.count("参考爆款：") != 1:
+        raise _shape_error("「切入角度：」和「参考爆款：」各写一次")
+    if sum(line.startswith("开聊问题：") for line in lines) != 1:
+        raise _shape_error("开聊问题只能有一条")
+    angle_at = lines.index("切入角度：")
+    ref_at = lines.index("参考爆款：")
+    ask_at = next(index for index, line in enumerate(lines) if line.startswith("开聊问题："))
+    if lines[0] in {"方向："} or not lines[0].startswith("方向："):
+        raise _shape_error("方向只能有一行，写成「方向：」加一句话")
+    if lines[ask_at] == "开聊问题：":
+        raise _shape_error("开聊问题要有内容")
+    if not (angle_at == 1 and angle_at < ref_at < ask_at == len(lines) - 1):
+        raise _shape_error("顺序是方向、切入角度、参考爆款、开聊问题")
+    angles = lines[angle_at + 1 : ref_at]
+    refs = lines[ref_at + 1 : ask_at]
+    if not 2 <= len(angles) <= 3 or any(not item.startswith("- ") or item == "- " for item in angles):
+        raise _shape_error("切入角度要两条或三条，每条以「- 」开头")
+    if not 1 <= len(refs) <= 2:
+        raise _shape_error("参考爆款要一条或两条")
+    for item in refs:
+        if not item.startswith("- "):
+            raise _shape_error("参考爆款每条以「- 」开头")
+        fields = [part.strip() for part in item[2:].split("｜")]
+        if len(fields) != 4 or any(part == "" for part in fields):
+            raise _shape_error("参考爆款每条写成「标题｜作者｜赞／藏／评｜链接」，数字照抄")
+
+
+def validate_outside_talk(date: str, span_end: str | None, body: str) -> None:
+    """Refuse a cluster body that folds Trends into the seven categories.
+
+    On a Hong Kong Tuesday or Friday the body must either end the seven
+    categories with ``## 外面在聊什么``, or say ``Trends 当天没有`` in the
+    leading quotes and omit that heading. ``append-discuss`` does not call
+    this: minutes can still land on a file written before the gate.
+    """
+    if not isinstance(body, str):
+        raise ValueError("body must be the cluster markdown")
+    for line in body.splitlines():
+        if _FOLD_RE.search(line):
+            raise ValueError(OUTSIDE_FOLD)
+    blocks = _h2_blocks(body)
+    owned = CATEGORY_HEADINGS + ("## @bot",)
+    for heading, section in blocks:
+        if heading in owned and any(token in section for token in _LEAK_TOKENS):
+            raise ValueError(OUTSIDE_FOLD)
+    outside = [
+        (index, heading, section)
+        for index, (heading, section) in enumerate(blocks)
+        if heading.startswith("## 外面在聊什么")
+    ]
+    trend_day = covers_trend_day(date, span_end)
+    if not trend_day:
+        if outside:
+            raise ValueError(OUTSIDE_OTHER_DAY)
+        return
+    if len(outside) > 1 or any(heading != OUTSIDE_HEADING for _, heading, _ in outside):
+        raise ValueError(OUTSIDE_ONCE)
+    quotes = _leading_quotes(body)
+    named_x = "x-trends" in quotes
+    named_xhs = "xhs-trends" in quotes
+    noted_x, noted_xhs = _gap_notes(quotes)
+    if not outside:
+        if named_x or named_xhs or noted_x or noted_xhs:
+            raise ValueError(OUTSIDE_ONE_SOURCE)
+        if OUTSIDE_ABSENT not in quotes:
+            raise ValueError(OUTSIDE_REQUIRED)
+        return
+    if OUTSIDE_ABSENT in body:
+        raise ValueError(OUTSIDE_ABSENT_CONFLICT)
+    outside_index = outside[0][0]
+    if any(heading in CATEGORY_HEADINGS for heading, _ in blocks[outside_index + 1 :]):
+        raise ValueError(OUTSIDE_AFTER)
+    if named_x and not named_xhs and not noted_xhs:
+        raise ValueError(OUTSIDE_NOTE)
+    if named_xhs and not named_x and not noted_x:
+        raise ValueError(OUTSIDE_NOTE)
+    _validate_outside_section(outside[0][2])
 
 
 def _vault(vault: Path) -> Path:
@@ -388,6 +567,8 @@ def perform(
         if not isinstance(body, str):
             raise ValueError("body must be the cluster markdown")
         _validate_body(date, body)
+        span_raw = approval.get("span_end")
+        validate_outside_talk(date, None if span_raw in (None, "") else str(span_raw), body)
     except ValueError as exc:
         return _fail("validation_error", str(exc))
     expected = approval.get("payload_sha256")
@@ -474,6 +655,7 @@ def append_discuss(
     try:
         original = target.read_text(encoding="utf-8")
         _validate_body(date, original)
+        # Shape gate stays on save/publish. Append still accepts a file written before it.
     except (OSError, UnicodeError, ValueError) as exc:
         return _fail("validation_error", str(exc))
     block = discussion_block(note)
@@ -531,6 +713,7 @@ def contents_body_for(vault: Path, relative: str) -> dict[str, str]:
     if match is None:
         raise ValueError("cluster filename must be YYYY-MM-DD.md or YYYY-MM-DD_DD.md")
     _validate_body(match.group("date"), text)
+    validate_outside_talk(match.group("date"), match.group("span"), text)
     message = commit_message_for(Path(posix).name)
     return github_contents_create_body(posix, data, message)
 
@@ -621,6 +804,7 @@ def publish_exact(vault: Path, relative: str) -> tuple[dict[str, Any], bool]:
         if match is None:
             raise ValueError("cluster filename must be YYYY-MM-DD.md or YYYY-MM-DD_DD.md")
         _validate_body(match.group("date"), text)
+        validate_outside_talk(match.group("date"), match.group("span"), text)
         message = commit_message_for(Path(posix).name)
     except (OSError, UnicodeError, ValueError) as exc:
         return _pub("refused", str(exc), path=str(target), relative=posix)

@@ -63,8 +63,31 @@ def body_for(date: str, line: str = "一条合成子料。") -> str:
     )
 
 
+OUTSIDE_EXAMPLE = """## 外面在聊什么
+
+方向：一句话。
+
+切入角度：
+- 角度一
+- 角度二
+
+参考爆款：
+- 标题｜作者｜赞／藏／评｜链接
+
+开聊问题：一个问题？
+"""
+
+
 def approval(date: str = "2026-10-28", line: str = "一条合成子料。", **extra: object) -> dict:
     body = body_for(date, line)
+    span = extra.get("span_end")
+    span_text = span if isinstance(span, str) and span != "" else None
+    try:
+        trend_day = cluster_lib.covers_trend_day(date, span_text)
+    except ValueError:
+        trend_day = False
+    if trend_day and "Trends 当天没有" not in body and "## 外面在聊什么" not in body:
+        body = body.replace("> 取料口径：", "> 取料口径：Trends 当天没有。", 1)
     data: dict = {
         "confirmed": True,
         "phrase": "可以写",
@@ -167,6 +190,15 @@ class SkillTextTests(unittest.TestCase):
         self.assertNotIn("今天已归过", text)
         self.assertNotIn("看见当天主文件已经在", text)
         self.assertNotIn("交互模式写主文件", text)
+        self.assertIn(OUTSIDE_EXAMPLE, text)
+        self.assertIn("七类之后必须有独立二级标题 `## 外面在聊什么`", text)
+        self.assertIn("只有 x 或只有 xhs 一份 Trends 也要写", text)
+        self.assertIn("缺 xhs 不能当省略整块的理由", text)
+        self.assertIn("### Trends · …", text)
+        self.assertIn("### 今日一个趋势方向", text)
+        self.assertIn("这一块不算进七类", text)
+        self.assertEqual(len(cluster_lib.CATEGORY_HEADINGS), 7)
+        self.assertNotIn("## 外面在聊什么", cluster_lib.CATEGORY_HEADINGS)
 
     def test_socratic_skill_matches_source_hash(self) -> None:
         raw = (ROOT / "skills" / "socratic-discuss" / "SKILL.md").read_bytes()
@@ -812,6 +844,227 @@ class PublishTests(unittest.TestCase):
             )
             self.assertEqual(rc, 2, second)
             self.assertFalse(second["pushed"])
+
+
+def _cluster_body(date: str, quote: str, sections: str) -> str:
+    return f"# Digests cluster · {date}\n\n{quote}\n{sections}"
+
+
+def _outside_block(angles: int = 2, refs: int = 1) -> str:
+    angle_lines = "\n".join(f"- 角度{index}" for index in range(1, angles + 1))
+    ref_lines = "\n".join(
+        f"- 标题{index}｜作者{index}｜赞 {index}／藏 {index}／评 {index}｜https://example.test/{index}"
+        for index in range(1, refs + 1)
+    )
+    return (
+        "## 外面在聊什么\n\n"
+        "方向：一句话。\n\n"
+        "切入角度：\n"
+        f"{angle_lines}\n\n"
+        "参考爆款：\n"
+        f"{ref_lines}\n\n"
+        "开聊问题：一个问题？\n"
+    )
+
+
+class OutsideTalkTests(unittest.TestCase):
+    TUESDAY = "2026-11-03"
+    TODAY = datetime.date(2026, 11, 3)
+    INTAKE = (
+        "> 取料口径：HKT 当日 00:00 到运行时刻。读到 1／共 1 个提交（`a1b2c3d` 09:00），涉及 1 个文件。\n"
+    )
+    BOTH = (
+        "> 取料口径：`2026-11-03-x-trends.md`、`2026-11-03-xhs-trends.md`。"
+        "读到 1／共 1 个提交（`a1b2c3d` 09:00），涉及 1 个文件。\n"
+    )
+    ONLY_X = (
+        "> 取料口径：`2026-11-03-x-trends.md`。缺 xhs。"
+        "读到 1／共 1 个提交（`a1b2c3d` 09:00），涉及 1 个文件。\n"
+    )
+    ONLY_XHS = (
+        "> 取料口径：`2026-11-03-xhs-trends.md`。缺 x。"
+        "读到 1／共 1 个提交（`a1b2c3d` 09:00），涉及 1 个文件。\n"
+    )
+    ABSENT = (
+        "> 取料口径：Trends 当天没有。读到 1／共 1 个提交（`a1b2c3d` 09:00），涉及 1 个文件。\n"
+    )
+
+    def test_tuesday_and_friday_are_the_trend_days(self) -> None:
+        self.assertEqual(datetime.date(2026, 11, 3).weekday(), 1)
+        self.assertEqual(datetime.date(2026, 10, 30).weekday(), 4)
+        self.assertEqual(datetime.date(2026, 10, 28).weekday(), 2)
+        self.assertTrue(cluster_lib.covers_trend_day("2026-11-03", None))
+        self.assertTrue(cluster_lib.covers_trend_day("2026-10-30", None))
+        self.assertFalse(cluster_lib.covers_trend_day("2026-10-28", None))
+        self.assertFalse(cluster_lib.covers_trend_day("2026-11-02", None))
+        self.assertTrue(cluster_lib.covers_trend_day("2026-10-26", "27"))
+        self.assertTrue(cluster_lib.covers_trend_day("2026-11-02", "03"))
+        self.assertNotIn("Trends 当天没有", approval("2026-10-28")["body"])
+        self.assertIn("Trends 当天没有", approval("2026-11-03")["body"])
+
+    def test_skill_example_passes_and_historical_folds_fail(self) -> None:
+        copied = _cluster_body(self.TUESDAY, self.BOTH, "## 宏观\n\n一条合成子料。\n\n" + OUTSIDE_EXAMPLE)
+        cluster_lib.validate_outside_talk(self.TUESDAY, None, copied)
+        folded = _cluster_body(self.TUESDAY, self.INTAKE, "## 宏观\n\n### Trends · 方向 1\n\n折进来了。\n")
+        with self.assertRaises(ValueError) as trends:
+            cluster_lib.validate_outside_talk(self.TUESDAY, None, folded)
+        self.assertEqual(str(trends.exception), cluster_lib.OUTSIDE_FOLD)
+        gpt = _cluster_body(self.TUESDAY, self.INTAKE, "## 内容与个人品牌\n\n### 今日一个趋势方向：代理人\n")
+        with self.assertRaises(ValueError) as direction:
+            cluster_lib.validate_outside_talk(self.TUESDAY, None, gpt)
+        self.assertEqual(str(direction.exception), cluster_lib.OUTSIDE_FOLD)
+        with self.assertRaises(ValueError) as nested:
+            cluster_lib.validate_outside_talk(
+                self.TUESDAY,
+                None,
+                _cluster_body(self.TUESDAY, self.BOTH, "## 宏观\n\n### 外面在聊什么\n"),
+            )
+        self.assertEqual(str(nested.exception), cluster_lib.OUTSIDE_FOLD)
+
+    def test_one_source_still_requires_the_heading(self) -> None:
+        missing = _cluster_body(self.TUESDAY, self.ONLY_X, "## 宏观\n\n一条。\n")
+        with self.assertRaises(ValueError) as omitted:
+            cluster_lib.validate_outside_talk(self.TUESDAY, None, missing)
+        self.assertIn("缺 xhs 不能当省略整块的理由", str(omitted.exception))
+        noted_only = self.ONLY_X.replace("缺 xhs。", "")
+        with self.assertRaises(ValueError) as unnamed:
+            cluster_lib.validate_outside_talk(
+                self.TUESDAY,
+                None,
+                _cluster_body(self.TUESDAY, noted_only, "## 宏观\n\n一条。\n\n" + OUTSIDE_EXAMPLE),
+            )
+        self.assertEqual(str(unnamed.exception), cluster_lib.OUTSIDE_NOTE)
+        cluster_lib.validate_outside_talk(
+            self.TUESDAY,
+            None,
+            _cluster_body(self.TUESDAY, self.ONLY_X, "## 宏观\n\n一条。\n\n" + OUTSIDE_EXAMPLE),
+        )
+        cluster_lib.validate_outside_talk(
+            self.TUESDAY,
+            None,
+            _cluster_body(self.TUESDAY, self.ONLY_XHS, "## 宏观\n\n一条。\n\n" + _outside_block(3, 2)),
+        )
+        xhs_without_gap = self.ONLY_XHS.replace("缺 x。", "")
+        with self.assertRaises(ValueError) as missing_x:
+            cluster_lib.validate_outside_talk(
+                self.TUESDAY,
+                None,
+                _cluster_body(self.TUESDAY, xhs_without_gap, "## 宏观\n\n一条。\n\n" + OUTSIDE_EXAMPLE),
+            )
+        self.assertEqual(str(missing_x.exception), cluster_lib.OUTSIDE_NOTE)
+        self.assertNotIn("x-trends", "xhs-trends")
+
+    def test_both_missing_omits_the_block_and_a_heading_cannot_precede_a_category(self) -> None:
+        cluster_lib.validate_outside_talk(
+            self.TUESDAY,
+            None,
+            _cluster_body(self.TUESDAY, self.ABSENT, "## 宏观\n\n一条。\n"),
+        )
+        with self.assertRaises(ValueError) as required:
+            cluster_lib.validate_outside_talk(
+                self.TUESDAY,
+                None,
+                _cluster_body(self.TUESDAY, self.INTAKE, "## 宏观\n\n一条。\n"),
+            )
+        self.assertEqual(str(required.exception), cluster_lib.OUTSIDE_REQUIRED)
+        with self.assertRaises(ValueError) as conflict:
+            cluster_lib.validate_outside_talk(
+                self.TUESDAY,
+                None,
+                _cluster_body(self.TUESDAY, self.ABSENT, OUTSIDE_EXAMPLE),
+            )
+        self.assertEqual(str(conflict.exception), cluster_lib.OUTSIDE_ABSENT_CONFLICT)
+        with self.assertRaises(ValueError) as order:
+            cluster_lib.validate_outside_talk(
+                self.TUESDAY,
+                None,
+                _cluster_body(self.TUESDAY, self.BOTH, OUTSIDE_EXAMPLE + "\n## 交易\n\n一条。\n"),
+            )
+        self.assertEqual(str(order.exception), cluster_lib.OUTSIDE_AFTER)
+        cluster_lib.validate_outside_talk(self.TUESDAY, None, _cluster_body(self.TUESDAY, self.BOTH, OUTSIDE_EXAMPLE))
+        with self.assertRaises(ValueError) as other_day:
+            cluster_lib.validate_outside_talk(
+                "2026-10-28",
+                None,
+                _cluster_body("2026-10-28", self.INTAKE, OUTSIDE_EXAMPLE),
+            )
+        self.assertEqual(str(other_day.exception), cluster_lib.OUTSIDE_OTHER_DAY)
+        with self.assertRaises(ValueError) as span:
+            cluster_lib.validate_outside_talk(
+                "2026-11-02",
+                "03",
+                _cluster_body("2026-11-02", self.INTAKE, "## 宏观\n\n一条。\n"),
+            )
+        self.assertEqual(str(span.exception), cluster_lib.OUTSIDE_REQUIRED)
+
+    def test_block_shape_counts(self) -> None:
+        cluster_lib.validate_outside_talk(
+            self.TUESDAY,
+            None,
+            _cluster_body(self.TUESDAY, self.BOTH, _outside_block(3, 2)),
+        )
+        for angles, refs in ((1, 1), (4, 1), (2, 0), (2, 3)):
+            with self.assertRaises(ValueError) as bad:
+                cluster_lib.validate_outside_talk(
+                    self.TUESDAY,
+                    None,
+                    _cluster_body(self.TUESDAY, self.BOTH, _outside_block(angles, refs)),
+                )
+            self.assertIn(cluster_lib.OUTSIDE_SHAPE, str(bad.exception))
+        halfwidth = OUTSIDE_EXAMPLE.replace("标题｜作者｜赞／藏／评｜链接", "标题|作者|赞|链接")
+        with self.assertRaises(ValueError) as pipes:
+            cluster_lib.validate_outside_talk(
+                self.TUESDAY,
+                None,
+                _cluster_body(self.TUESDAY, self.BOTH, halfwidth),
+            )
+        self.assertIn("标题｜作者｜赞／藏／评｜链接", str(pipes.exception))
+        leaked = _cluster_body(
+            self.TUESDAY,
+            self.BOTH,
+            "## 宏观\n\n见 `2026-11-03-x-trends.md`。\n\n" + OUTSIDE_EXAMPLE,
+        )
+        with self.assertRaises(ValueError) as leak:
+            cluster_lib.validate_outside_talk(self.TUESDAY, None, leaked)
+        self.assertEqual(str(leak.exception), cluster_lib.OUTSIDE_FOLD)
+
+    def test_save_refuses_the_fold_and_accepts_the_heading(self) -> None:
+        folded = _cluster_body(self.TUESDAY, self.INTAKE, "## 宏观\n\n### Trends · 方向 1\n")
+        payload = approval(self.TUESDAY)
+        payload["body"] = folded
+        payload["payload_sha256"] = cluster_lib.fingerprint(folded)
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            data, ok = cluster_lib.perform(vault, "save", payload, scheduled=False, today=self.TODAY)
+            self.assertFalse(ok, data)
+            self.assertEqual(data["status"], "validation_error")
+            self.assertEqual(data["files_written"], 0)
+            self.assertIn("### Trends", data["message"])
+            self.assertFalse((vault / "📋 Digests").exists())
+        kept = _cluster_body(self.TUESDAY, self.ONLY_X, "## 宏观\n\n一条。\n\n" + _outside_block(2, 1))
+        payload = approval(self.TUESDAY)
+        payload["body"] = kept
+        payload["payload_sha256"] = cluster_lib.fingerprint(kept)
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            data, ok = cluster_lib.perform(vault, "save", payload, scheduled=True, today=self.TODAY)
+            self.assertTrue(ok, data)
+            self.assertEqual(data["files_written"], 1)
+            self.assertIn("## 外面在聊什么", Path(data["path"]).read_text(encoding="utf-8"))
+
+    def test_append_keeps_an_old_tuesday_file_and_publish_paths_reject_it(self) -> None:
+        folded = _cluster_body(self.TUESDAY, self.INTAKE, "## 宏观\n\n### 今日一个趋势方向：代理人\n")
+        with tempfile.TemporaryDirectory() as raw:
+            vault = Path(raw)
+            target = vault / "📋 Digests" / "cluster" / "2026-11-03-gpt.md"
+            target.parent.mkdir(parents=True)
+            target.write_text(folded, encoding="utf-8")
+            rc, appended = append_discuss(vault, discuss_approval(self.TUESDAY))
+            self.assertEqual(rc, 0, appended)
+            self.assertIn("## 深挖", target.read_text(encoding="utf-8"))
+            with self.assertRaises(ValueError) as contents:
+                cluster_lib.contents_body_for(vault, "📋 Digests/cluster/2026-11-03-gpt.md")
+            self.assertEqual(str(contents.exception), cluster_lib.OUTSIDE_FOLD)
 
 
 if __name__ == "__main__":
