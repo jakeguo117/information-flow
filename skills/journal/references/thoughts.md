@@ -71,6 +71,8 @@ consumed_count: 2
 
 决定：只新增文件的提交（想法文件、消化清单）可以直接推 main。任何修改或删除都不直推 main，不强推。周记正文不自动推。
 
+写入只许进 obsidian-digitalbrain，发现是公开仓就拒绝并停下。`INFOFLOW_RUNTIME=codex-cloud` 时不跑 `git push origin HEAD:main`，文件留在工作区，提交交给 Codex 的 PR。确认短语和 `event_id` 去重不变。
+
 `capture_thought.py publish` 只接受 `📝 Journal/想法/` 下面的一个想法文件或一份消化清单。推送命令只有 `git push origin HEAD:main`，不带 force，也不使用 `+` refspec。
 
 发布前：

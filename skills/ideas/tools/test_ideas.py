@@ -672,4 +672,8 @@ class IdeaWriteTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "tests"))
+    import vault_remote_fixture
+
+    vault_remote_fixture.install()
     unittest.main()

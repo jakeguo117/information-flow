@@ -16,6 +16,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+import vault_guard
+
 CONFIRM_PHRASES = ("可以写", "写吧", "OK 写")
 JOURNAL_DIR_NAME = "📝 Journal"
 COGNITION_DIR_NAME = "📖 Cognition"
@@ -406,6 +408,16 @@ def perform(
         return {
             "status": "unavailable" if confirmation_granted(approval) else "refused",
             "message": "vault missing; journal will not be written elsewhere",
+            "event_id": event_id,
+            "files_written": 0,
+        }, False
+
+    rejected = vault_guard.rejection(vault)
+    if rejected is not None:
+        status, message = rejected
+        return {
+            "status": status,
+            "message": message,
             "event_id": event_id,
             "files_written": 0,
         }, False

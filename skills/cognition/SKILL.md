@@ -9,7 +9,7 @@ description: Promote, retrieve, and revise DigitalBrain Cognition (Evidence, Bel
 
 规则源在 `information-flow`。DigitalBrain `.cursor/skills/cognition/` 是同步副本。改行为只改这个仓库。
 
-schema_version 永远是 `"1.1"`。字段、关系、检索结果状态见 `references/schema.md`、`references/retrieval.md`、`references/layout.md`。**落盘只走 tools，不要手改 Cognition 文件。**
+schema_version 永远是 `"1.1"`。字段、关系、检索结果状态见 `references/schema.md`、`references/retrieval.md`、`references/layout.md`。**落盘只走 tools，不要手改 Cognition 文件。** 写入只许进 obsidian-digitalbrain，发现是公开仓就拒绝并停下。
 
 ```bash
 python3 .cursor/skills/cognition/tools/retrieve_cognition.py --vault "$VAULT" --query "..."

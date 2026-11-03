@@ -353,4 +353,8 @@ class JournalSnapshotTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    sys.path.insert(0, str(ROOT / "tests"))
+    import vault_remote_fixture
+
+    vault_remote_fixture.install()
     unittest.main()

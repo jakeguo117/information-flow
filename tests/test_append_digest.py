@@ -5,6 +5,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent.parent
 TOOLS = HERE / "skills/journal/tools"
 sys.path.insert(0, str(TOOLS))
+sys.path.insert(0, str(HERE / "tests"))
+import vault_remote_fixture
 from journal_lib import render_journal, read_digest, fingerprint
 
 def run(vault, approval, *extra):
@@ -21,6 +23,7 @@ tmp = Path(tempfile.mkdtemp())
 vault = tmp / "vault"
 try:
     vault.mkdir()
+    vault_remote_fixture.stamp(vault)
     (vault / "📋 Digests/2026-W42").mkdir(parents=True)
     dg = vault / "📋 Digests/2026-W42/digest.md"
     dg.write_text(

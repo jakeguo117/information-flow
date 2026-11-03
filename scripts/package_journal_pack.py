@@ -25,6 +25,7 @@ ALLOWLIST = (
     "skills/journal/references/weekly-brief.md",
     "skills/journal/tools/journal_lib.py",
     "skills/journal/tools/write_journal.py",
+    "skills/journal/tools/vault_guard.py",
     "skills/cognition/SKILL.md",
     "skills/cognition/references/schema.md",
     "skills/cognition/references/retrieval.md",
