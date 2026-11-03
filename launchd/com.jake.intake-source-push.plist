@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- 2026-11-01 起停用，留作备份，不要再装。现在由另一台常开的 Mac 唯一推送 Snipd、WeRead、Books，见 docs/digitalbrain-sync.md。 -->
 <plist version="1.0">
 <dict>
   <key>Label</key>

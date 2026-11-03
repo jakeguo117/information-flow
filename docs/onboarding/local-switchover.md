@@ -1,5 +1,7 @@
 # 本机切换清单
 
+> 2026-11-01 更新：本文写的是原来那台 Mac 上 `com.jake.intake-source-push` 和 `com.jake.digitalbrain-reconcile` 的切换步骤。这两个任务已在 2026-11-01 停用，现在由另一台常开的 Mac 唯一推送 Snipd／WeRead／📚 Books。现状和告警见 `docs/digitalbrain-sync.md`。下面的步骤留作备查，不要照着重新装这两个任务。
+
 现有 Mac 的插件检出在分支 `cursor/cognition-v1.1`。把它改回合并后的 `main` 之前，先放好显式配置并按第 6 节验证。合之前不要把真实路径、账号、邮箱写进仓库。
 
 本文件只写占位符。`vault_root` 填你已经在用的那一个绝对路径。
@@ -96,7 +98,7 @@ python3 scripts/youtube_oauth.py
 
 | 已安装 label | 仓内文件 | 这次怎么处理 |
 | --- | --- | --- |
-| `com.jake.intake-source-push` | `launchd/com.jake.intake-source-push.plist` | 要改环境或重载。见下文 |
+| `com.jake.intake-source-push` | `launchd/com.jake.intake-source-push.plist` | 2026-11-01 起停用，不要重载。下文留作备查 |
 | `com.jake.digitalbrain-reconcile` | 仓内没有这份 plist | 见第 4.1 节。不要删 |
 | `com.jake.journal-daily-digest` | 仓内没有 plist。`docs/plan-weekly-intake.md` 写明保持卸载 | 不要 load |
 | `com.jake.digitalbrain-backup` | `ops/digitalbrain-backup/launchd/com.jake.digitalbrain-backup.plist` | 不读 `infoflow_config.py`。这次不要动 |

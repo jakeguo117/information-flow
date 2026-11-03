@@ -11,8 +11,9 @@
   → GitHub Actions daily-intake，07:30 Asia/Hong_Kong，只收集 YouTube-Likes
   → 写入 📥 Inbox/YouTube-Likes/，不写日摘要
   → Snipd / WeRead 仍由本机插件落到 iCloud vault
-  → 开机/登录后 com.jake.intake-source-push 只推 📥 Inbox/Snipd/ 与 Inbox/WeRead 上 main
-  → 电脑关着时这两路不会自己上 GitHub
+  → 2026-11-01 起只有一台常开的 Mac 推：每 10 分钟只推 📥 Inbox/Snipd/、📥 Inbox/WeRead/、📚 Books/ 上 main，提交说明以 imac: sync 开头
+  → 那台 Mac 关着或插件没同步时，这几路不会自己上 GitHub；每天 08:30（香港时间）从 GitHub 查超过 48 小时没有 imac: sync 提交
+  → 原来的 com.jake.intake-source-push 已停用；见 information-flow 的 docs/digitalbrain-sync.md
 
 周四整理（process）— schedule 已停，只留救急
   → weekly-digest.yml 不再按周四自动跑
@@ -92,8 +93,8 @@ Daily Briefing / Weekly Synthesis / Journal Briefs 不再作为输出。不硬�
 | AGENTS 硬路由 | DigitalBrain `AGENTS.md` 里 `information-flow:digest-route` 段，由 Actions 覆盖 |
 | 主文件 | 平日归堆 `📋 Digests/cluster/YYYY-MM-DD.md`。写周记不读它，也不读周四快照。周四快照 `📋 Digests/cycles/{cycle_id}/r{n}.md` 只作归档。`--digest-snapshot` 只留给旧调用。历史 `📋 Digests/daily/` 不接管。旧的 `📋 Digests/{YYYY-Wnn}/digest.md` 不是主文件 |
 | Actions | daily-intake 只收集 YouTube-Likes（07:30 Asia/Hong_Kong）。周四 process／digest 的 schedule 已停，`workflow_dispatch` 只作救急。归堆不由 information-flow Actions 写入。skill 变更另走 sync-digitalbrain-skills |
-| 本机 source push | `com.jake.intake-source-push`：登录 + 每 4 小时，只推 `📥 Inbox/Snipd/` 与 `Inbox/WeRead` |
-| Obsidian Git | `disablePush: true`，不整仓 push |
+| 本机 source push | 2026-11-01 起只有一台常开的 Mac 推：每 10 分钟，只推 `📥 Inbox/Snipd/`、`📥 Inbox/WeRead/`、`📚 Books/`。原来的 `com.jake.intake-source-push` 已停用 |
+| Obsidian Git | `disablePush: true`，不整仓 push。推送那台 Mac 上每 2 分钟只快进拉取；另一台 Mac 上已停用 |
 | 日摘要 / takeaway | takeaway 已 offline，本 PR 不另挂停排程。`scripts/daily_takeaway.py` 留作 dead code，不在本变更删除。历史 `📋 Digests/daily/` 文件不改 |
 | 公开 journal-skill | 已 private |
 

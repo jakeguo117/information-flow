@@ -1,4 +1,7 @@
 #!/bin/sh
+# 2026-11-01 起停用，留作备份，不要再装进定时任务。现在由另一台常开的 Mac
+# 唯一推送 Snipd、WeRead、Books，见 docs/digitalbrain-sync.md。
+#
 # Copy Inbox/Snipd and Inbox/WeRead from the vault onto a standalone
 # origin/main clone, then commit and push only those paths. Never runs git
 # inside the source vault, and never touches Journal or Digests.
