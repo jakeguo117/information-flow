@@ -3,7 +3,9 @@
 
 这个脚本只判断本周日期篇和归堆正本齐不齐，不写文件，不提炼。
 带 ``-gpt`` 的归堆文件不拿来补覆盖。无 Inbox 的工作日必须由调用方用
-``--empty-inbox-day`` 明确标出；没标又没有正本的日子按缺漏拦，不算豁免。
+``--empty-inbox-day`` 明确标出。本周至少 1 篇 Journal 时，缺正本的日子
+只记在 ``cluster_gaps``，不拦。本周没有 Journal 时，没标空日又没有正本
+的日子仍按缺漏拦，不算豁免。
 """
 
 from __future__ import annotations
@@ -167,6 +169,7 @@ def evaluate(
     missing: list[str] = []
     remind = ""
     exempt: list[str] = []
+    cluster_gaps: list[str] = []
 
     if day.weekday() <= 4:
         missing.append(WEEKDAY_BLOCK)
@@ -186,6 +189,9 @@ def evaluate(
                 continue
             if item in empty_set:
                 exempt.append(item.isoformat())
+                continue
+            cluster_gaps.append(item.isoformat())
+            if journal_hits:
                 continue
             if item in inbox_set:
                 missing.append(
@@ -215,6 +221,7 @@ def evaluate(
         "journal_count": len(journal_hits),
         "journal_files": journal_hits,
         "exempt_empty_inbox": exempt,
+        "cluster_gaps": cluster_gaps,
         "missing": missing,
         "remind": remind,
     }
