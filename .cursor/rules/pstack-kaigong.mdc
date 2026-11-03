@@ -1,0 +1,6 @@
+---
+description: 开工先加载 pstack 技能（技能原文在 .cursor/skills/）
+alwaysApply: true
+---
+
+开工先加载（读 `.cursor/skills/<名>/SKILL.md` 照做）：改代码／合 PR 前 blast-radius＋interrogate；修 bug figure-it-out＋principle-fix-root-causes；交验收前 principle-prove-it-works，仓里没有可重复验收检查的用 create-verification-skill。
