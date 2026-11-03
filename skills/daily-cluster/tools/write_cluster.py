@@ -3,7 +3,8 @@
 
 save and retry create a file. They do not overwrite. publish commits and
 pushes that one new file. contents-body prints a GitHub contents create body
-and does not send it. The body never carries sha.
+and does not send it. The body never carries sha. append-discuss only appends
+discussion minutes to an existing -gpt file and still refuses the main file.
 """
 
 from __future__ import annotations
@@ -37,7 +38,10 @@ def _load_approval(path: Path) -> tuple[dict[str, Any] | None, dict[str, Any] | 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Write one cluster file")
-    parser.add_argument("action", choices=["save", "retry", "publish", "contents-body"])
+    parser.add_argument(
+        "action",
+        choices=["save", "retry", "publish", "contents-body", "append-discuss"],
+    )
     parser.add_argument("--vault", required=True)
     parser.add_argument("--approval")
     parser.add_argument("--path", help="vault-relative cluster path")
@@ -78,12 +82,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if not args.approval:
         return emit(
-            {"status": "unauthorized", "message": "save requires --approval", "files_written": 0},
+            {"status": "unauthorized", "message": f"{args.action} requires --approval", "files_written": 0},
             False,
         )
     approval, problem = _load_approval(Path(args.approval).expanduser())
     if problem is not None or approval is None:
         return emit(problem or {"status": "unauthorized", "message": "approval missing", "files_written": 0}, False)
+    if args.action == "append-discuss":
+        result, ok = cluster_lib.append_discuss(vault, approval, scheduled=args.scheduled)
+        return emit(result, ok)
     result, ok = cluster_lib.perform(vault, args.action, approval, scheduled=args.scheduled)
     return emit(result, ok)
 
