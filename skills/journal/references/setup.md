@@ -32,14 +32,15 @@
 
 平日归堆
   → 正本路径 📋 Digests/cluster/YYYY-MM-DD.md（多日 YYYY-MM-DD_DD.md），由想法梳理 21:00 写
-  → 双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼只读正本；切换之后的做法另行更新
+  → 双跑期间 ChatGPT 只写 -gpt，正本由想法梳理 21:00 写，两份由 Workflow 每天对比，周六提炼两边 cluster 都读、同日去重；切换之后的做法另行更新
   → 归堆推库＝Cloud Agent 推 jakeguo117/obsidian-digitalbrain
   → information-flow Actions 不写这份归堆，本文件不接推送接线
   → 落盘当下不跑 discuss-to-resources-ideas
+  → 第二天归堆以 skills/daily-cluster/SKILL.md 开头三条为准，不另写岗位职责。前一天文件里已有讨论块（## 深挖、## 讨论 log 或 ## 语音整理）就是开过聊，没聊到的条不要再翻出来。完全没有这类块，整包带到第二天，跟新收的一起问「今天这些里（含昨天整包还没开过聊的）你想先聊哪几条？」。正本例程看没有 -gpt 的文件，本插件看 -gpt。微信读书／@bot 当天没聊可以带到第二天；第二天还没聊就丢掉，以后不再带。带到第二天只在摘要和问句里摆出来。落盘仍只写当天文件，不把旧料重抄进新文件。不另开聊天，不自动写讨论纪要。他没回就不写进选题／资料库
 
 周六提炼
   → 想法梳理加载 discuss-to-resources-ideas
-  → 只扫本周 cluster 正本与 📝 Journal/{YYYY-MM-DD}*.md（文件不在盘上就跳过；不读 *-gpt.md）
+  → 本周 cluster 正本和 -gpt 都扫（有哪份读哪份）。同一天两份都在：两份都读。同一条（同一来源链接、同一段引用、或同一标题）只算一次。同一条两份详略不同，留更详的那份，细节不丢。另扫 📝 Journal/{YYYY-MM-DD}*.md（文件不在盘上就跳过）
   → Resources / Ideas / Cognition 互链；Ideas、Belief、Principle、Resources 正式入库仍要点头
   → 禁 concept→Evidence
 

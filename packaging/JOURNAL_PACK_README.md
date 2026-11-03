@@ -4,6 +4,8 @@ Installable subset of `information-flow` for the first batch. It contains the jo
 
 This archive is not an installation. Unpacking it does not enable journaling, reminders, or schedules. Do not point it at a real DigitalBrain vault.
 
+测试和集成跑不得往 DigitalBrain 正本仓 `jakeguo117/obsidian-digitalbrain` 写入任何带日期的 digest 文件（正本或 `-gpt` 都不行）。用临时目录，或用 `📋 Digests/` 以外、一看就是测试的路径；写完立刻清掉。不得写出比本次运行的 Asia/Hong_Kong 日期更晚的日期文件。必须走真实写入路径的测试，只用当天日期。
+
 Journal files are written only by `skills/journal/tools/write_journal.py` after `confirmed: true` and phrase `可以写`, `写吧`, or `OK 写`. Cognition files are written only by `skills/cognition/tools/write_cognition.py` after a per-object approval. Reject writes nothing.
 
 Synthetic inputs live under `tests/synthetic/journal_pack/`. Local checks are `python3 scripts/test_journal_pack.py`.

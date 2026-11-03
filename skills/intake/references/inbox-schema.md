@@ -10,6 +10,8 @@ PM 10-20 定：开工包文件本身不在 Drive 上。23:57 是它在 box 上�
 
 不改各插件写出来的 Inbox 笔记（Snipd 和 WeRead 插件会覆盖它们）。另建机器索引，放在 DigitalBrain：`📥 Inbox/_index/sources.jsonl`、`📥 Inbox/_index/inputs.jsonl`，一行一条，只追加。状态变化另写一行 `state` 事件（`record_type` = `state`），由 `inbox_index.append_state` 追加，读取时取该 `input_id` 最新那行。私人内容不进 information-flow 仓（AC14）。
 
+`📥 Inbox/Trends/`（小红书运营、X 运营落的趋势原料，2026-10-31 起）不进这份机器索引，`platform` 枚举也不为它加值。它不是 Jake 自己收的料，只给每天消化周二、周五摆「外面在聊什么」和周六自媒体选题当参考。理由写在 `skills/daily-cluster/SKILL.md`「外面在聊什么（周二、周五）」。
+
 时区：显示和分周统一用 Asia/Hong_Kong。存储一律用带时区偏移的 ISO 8601。
 
 ## Source
