@@ -6,14 +6,14 @@
 - **仓库**: https://github.com/cursor/plugins （目录 `pstack/skills/<名>/`）
 - **Commit SHA**: `1ba91fc25c0977741dd0e267849e6234b037ed0a`（2026-10-29T01:25:55Z）
 - **raw 基址**: https://raw.githubusercontent.com/cursor/plugins/1ba91fc25c0977741dd0e267849e6234b037ed0a/pstack/skills/
-- **许可证**: MIT（同目录 `LICENSE`，Copyright (c) 2026 Lauren Tan）
+- **许可证**: MIT（`.cursor/pstack-vendor/LICENSE-pstack`，Copyright (c) 2026 Lauren Tan）
 - **收录日期**: 2026-11-01
 
 ## 收录了什么
 
 blast-radius、interrogate、figure-it-out、principle-fix-root-causes、principle-prove-it-works、create-verification-skill（含 `references/feature-map-example/` 三份）、maintain-verification-skill。
 
-每个文件与上面 SHA 的上游逐字节一致，未改。sha256 见同目录 `SHA256SUMS.txt`。
+每个文件与上面 SHA 的上游逐字节一致，未改。sha256 见 `.cursor/pstack-vendor/SHA256SUMS.txt`。
 
 ## 没收录什么
 
