@@ -120,10 +120,12 @@ class ClusterTests(unittest.TestCase):
         result = gate(
             cluster_names=names,
             inbox_days=[dt.date(2026, 10, 27)],
+            journal_paths=[],
         )
         self.assertFalse(result["passed"])
         self.assertTrue(any("缺归堆正本：2026-10-27" in item for item in result["missing"]))
-        self.assertTrue(all("2026-10-26" not in item for item in result["missing"]))
+        self.assertFalse(any(item.startswith("缺归堆正本：2026-10-26") for item in result["missing"]))
+        self.assertEqual(result["cluster_gaps"], ["2026-10-27"])
 
     def test_empty_inbox_day_is_exempt(self) -> None:
         result = gate(
@@ -140,18 +142,20 @@ class ClusterTests(unittest.TestCase):
         self.assertEqual(result["exempt_empty_inbox"], ["2026-10-27"])
 
     def test_unchecked_inbox_is_not_treated_as_empty(self) -> None:
-        result = gate(cluster_names=["2026-10-26.md"])
+        result = gate(cluster_names=["2026-10-26.md"], journal_paths=[])
         self.assertFalse(result["passed"])
         text = "\n".join(result["missing"])
         self.assertIn("未查清 Inbox：2026-10-27", text)
         self.assertIn("未查清 Inbox：2026-10-30", text)
-        self.assertNotIn("2026-10-26", text)
+        self.assertNotIn("未查清 Inbox：2026-10-26", text)
+        self.assertNotIn("2026-10-26", result["cluster_gaps"])
 
     def test_inbox_day_without_main_file_blocks(self) -> None:
         result = gate(
             cluster_names=["2026-10-26_27.md", "2026-10-28.md", "2026-10-29.md"],
             inbox_days=[dt.date(2026, 10, 30)],
             empty_inbox_days=[dt.date(2026, 10, 28)],
+            journal_paths=[],
         )
         self.assertFalse(result["passed"])
         self.assertTrue(any(item.startswith("缺归堆正本：2026-10-30") for item in result["missing"]))
@@ -160,9 +164,10 @@ class ClusterTests(unittest.TestCase):
         result = gate(
             cluster_names=["📋 Digests/daily/2026-10-26.md"] + WEEKDAYS[1:],
             inbox_days=[dt.date(2026, 10, 26)],
+            journal_paths=[],
         )
         self.assertFalse(result["passed"])
-        self.assertTrue(any("2026-10-26" in item for item in result["missing"]))
+        self.assertTrue(any(item.startswith("缺归堆正本：2026-10-26") for item in result["missing"]))
 
     def test_invalid_span_does_not_cover(self) -> None:
         covered = preflight.cluster_covered_dates("2026-10-30_02.md")
@@ -231,6 +236,102 @@ class CliTests(unittest.TestCase):
         self.assertTrue(json.loads(passed.stdout)["passed"])
 
 
+class JournalPresentClusterGapTests(unittest.TestCase):
+    """有 Journal 时缺归堆只记录；没有 Journal 时拦法不变。"""
+
+    TWO_DAY_CLUSTERS = ["2026-10-28.md", "2026-10-29.md", "2026-10-30.md"]
+    TWO_GAP_INBOX = [dt.date(2026, 10, 26), dt.date(2026, 10, 27)]
+
+    def test_journal_and_two_missing_cluster_days_passes_and_lists_them(self) -> None:
+        result = gate(
+            cluster_names=self.TWO_DAY_CLUSTERS,
+            inbox_days=self.TWO_GAP_INBOX
+            + [dt.date(2026, 10, 28), dt.date(2026, 10, 29), dt.date(2026, 10, 30)],
+        )
+        self.assertTrue(result["passed"])
+        self.assertTrue(result["produce"])
+        self.assertEqual(result["journal_count"], 1)
+        self.assertEqual(result["cluster_gaps"], ["2026-10-26", "2026-10-27"])
+        self.assertEqual(result["missing"], [])
+        self.assertEqual(result["remind"], "")
+        script = TOOL_DIR / "preflight.py"
+        cli = subprocess.run(
+            [
+                sys.executable,
+                str(script),
+                "--run-at",
+                "2026-10-31T12:00:00+08:00",
+                "--journal",
+                JOURNAL,
+                "--cluster-name",
+                "2026-10-28.md",
+                "--cluster-name",
+                "2026-10-29.md",
+                "--cluster-name",
+                "2026-10-30.md",
+                "--inbox-day",
+                "2026-10-26",
+                "--inbox-day",
+                "2026-10-27",
+                "--inbox-day",
+                "2026-10-28",
+                "--inbox-day",
+                "2026-10-29",
+                "--inbox-day",
+                "2026-10-30",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(cli.returncode, 0, cli.stderr)
+        payload = json.loads(cli.stdout)
+        self.assertEqual(payload["cluster_gaps"], ["2026-10-26", "2026-10-27"])
+        self.assertTrue(payload["passed"])
+
+    def test_journal_and_complete_clusters_passes(self) -> None:
+        result = gate()
+        self.assertTrue(result["passed"])
+        self.assertTrue(result["produce"])
+        self.assertEqual(result["journal_count"], 1)
+        self.assertEqual(result["cluster_gaps"], [])
+        self.assertEqual(result["missing"], [])
+
+    def test_no_journal_and_missing_cluster_still_blocks(self) -> None:
+        result = gate(
+            journal_paths=[],
+            cluster_names=self.TWO_DAY_CLUSTERS,
+            inbox_days=self.TWO_GAP_INBOX
+            + [dt.date(2026, 10, 28), dt.date(2026, 10, 29), dt.date(2026, 10, 30)],
+        )
+        self.assertFalse(result["passed"])
+        self.assertFalse(result["produce"])
+        self.assertEqual(result["cluster_gaps"], ["2026-10-26", "2026-10-27"])
+        self.assertTrue(any("0 篇" in item for item in result["missing"]))
+        self.assertTrue(any(item.startswith("缺归堆正本：2026-10-26") for item in result["missing"]))
+        self.assertTrue(any(item.startswith("缺归堆正本：2026-10-27") for item in result["missing"]))
+        self.assertIn("write_idea.py", result["remind"])
+
+    def test_no_journal_and_no_inbox_keeps_journal_block_only(self) -> None:
+        empty = [dt.date(2026, 10, 26) + dt.timedelta(days=i) for i in range(5)]
+        result = gate(
+            journal_paths=[],
+            cluster_names=[],
+            inbox_days=[],
+            empty_inbox_days=empty,
+        )
+        self.assertFalse(result["passed"])
+        self.assertFalse(result["produce"])
+        self.assertEqual(result["journal_count"], 0)
+        self.assertEqual(result["cluster_gaps"], [])
+        self.assertEqual(result["exempt_empty_inbox"], [item.isoformat() for item in empty])
+        self.assertEqual(len(result["missing"]), 1)
+        self.assertIn("0 篇", result["missing"][0])
+        self.assertNotIn("缺归堆正本", result["missing"][0])
+        self.assertNotIn("未查清 Inbox", result["missing"][0])
+        self.assertIn("write_idea.py", result["remind"])
+
+
 class SkillTextTests(unittest.TestCase):
     def test_skill_states_the_gate_without_dropping_both_read(self) -> None:
         text = SKILL.read_text(encoding="utf-8")
@@ -247,6 +348,8 @@ class SkillTextTests(unittest.TestCase):
         self.assertNotIn("不读 *-gpt.md", text)
         self.assertNotIn("只读正本", text)
         self.assertNotIn("不读 GPT", text)
+        self.assertIn("已有至少 1 篇时，缺归堆正本只记在 cluster_gaps，不拦。", text)
+        self.assertIn("本周 Journal 为 0 篇时，这些天仍记入缺漏并拦住", text)
 
     def test_route_allows_the_sunday_catch_up(self) -> None:
         route = (ROOT / "skills" / "digitalbrain-agents-route.md").read_text(encoding="utf-8")
