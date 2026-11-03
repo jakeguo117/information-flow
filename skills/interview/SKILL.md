@@ -1,7 +1,7 @@
 ---
 name: interview
 description: |
-  内容写手采访 Jake 时加载。就本周 idea 组合设计问题和追问，把开场、中心、分论点、证据和顾虑问到能填满骨架。逻辑和结论必须是 Jake 说出来的。题干只在本技能，content-core 和 content-x 不复述。认可后母稿／basement 由写手本人加载 content-core → content-x 来写；editor 是成文手法，也由写手本人加载，不交 X 运营。
+  内容写手采访 Jake 时加载。就本周 idea 组合设计问题和追问，把开场、中心、分论点、证据和顾虑问到能填满骨架。逻辑和结论必须是 Jake 说出来的。题干只在本技能，content-core 和 content-x 不复述。认可后同一写手分叉：中文版加载 editor；英文 X 按 content-x 独立成文并过 EN 自检闸。editor 是中文成文手法，由写手本人加载，不交 X 运营，不另设英编岗。
 ---
 
 # interview
@@ -150,7 +150,7 @@ description: |
 | F6 | 用语：无他已否的绕词，无没头没尾的金句；标题方向不假威严 |
 | F7 | 认可：他明确说可开写（「行」「就这样写」「认可」）。「再想想」等于未过。某一节要不要写进正文，也要这句明确认可，不能默认写上 |
 
-填满不等于可以发帖。填满加认可之后，内容写手加载 content-core → content-x 写母稿／basement，并本人加载 `skills/editor/SKILL.md` 把采访收成文。不交 X 运营，也不交另一岗。
+填满不等于可以发帖。填满加认可之后，内容写手加载 content-core → content-x 分叉成文：中文版本人加载 `skills/editor/SKILL.md`；英文 X 按 content-x 从骨架＋证据独立成文，交前过 EN 自检闸。不交 X 运营写母稿，也不另设英编岗。骨架仍中文，不整栏双写。可选在笔记末另起两行：EN 中心草稿｜须换英例。不在采访当场做双语。
 
 ## 采完产物
 
