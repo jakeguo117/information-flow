@@ -77,7 +77,7 @@ description: "内容写手在 Jake 认可骨架之后、写正文之前加载：
 - 不发明 Jake 没说过／未确认的观点；不把未确认 paraphrase 当包装承诺。
 - 禁靠 context 才懂的词；新概念用读者懂的话。
 - 与 content-core：**敏感五类**、**禁 Journal 原话**（连续 20 字撞车）对齐——此处不复述全文，加载 content-core 为准。
-- 不写 ④ 引用再分发文案。文案进写手成稿包，见 content-x。排期与网页代发归 X 运营／content-x-ops。⑤ 沉睡号复活计划仍归 X 运营／content-x-ops。
+- 不写 ④ 引用再分发文案。文案进写手成稿包，见 content-x。排期与 Composio 代发归 X 运营／content-x-ops。⑤ 沉睡号复活计划仍归 X 运营／content-x-ops。
 - 不把作者宣称倍率（如「70 倍」）写进包装承诺或验收数字。
 
 ## 与邻 skill 关系
