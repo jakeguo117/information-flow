@@ -7,7 +7,7 @@
 | 谁写 | 何时 | 进哪里 |
 |---|---|---|
 | GitHub Actions | 12:00 和 21:00 上海 | checkout `main` → YouTube 走 API；有 `main` 上已有的 Snipd/WeRead/YouTube 才 append `📋 Digests/{YYYY-Wnn}/intake.md` → `git push` 回 `main` |
-| 本机 `com.jake.intake-source-push` | 登录后；Mac 开着每 4 小时 | 只把 `Snipd/` 和 `📥 Inbox/WeRead` 从 iCloud vault 精确推到 `main`。不打开 Obsidian Git 全仓 push。 |
+| 常开的那台 Mac 上的 `com.jake.digitalbrain-imac-push` | 每 10 分钟；开机也跑一次 | 只把 `📥 Inbox/Snipd/`、`📥 Inbox/WeRead/`、`📚 Books/` 从 iCloud vault 精确推到 `main`，提交说明以 `imac: sync` 开头。不打开 Obsidian Git 全仓 push。原来的 `com.jake.intake-source-push`（登录后＋每 4 小时）2026-11-01 起停用。分工见 `docs/digitalbrain-sync.md` |
 | skill 同步 | information-flow `main` 上 skills 变更；每天 intake 再兜一层 | 只覆盖 DigitalBrain `.cursor/skills/{intake,journal}/` 和 `AGENTS.md` 硬路由。**不改**已写成的 intake / 周记 |
 | 手机说「记下」 | 讨论完一条 | 只暂存该条 `intake.md` 勾选/reflection，以及有引用时的 `📖 Resources/concepts/` 卡片；精确路径 commit。这些是修改，不直推 `main`，走 task branch 和 PR |
 | 写周记 | 你明确说「可以写 / 写吧 / OK 写」 | 改 `📝 Journal/`。**不自动 push** |
@@ -26,7 +26,7 @@ Skill 在仓库内：`.cursor/skills/{intake,journal}/`。源在 information-flo
 
 「今天 Digest」：先自己认周，再读最近周记和已挂上的老项目，从那一周 intake 挑一条呼应。禁止整周附录出文。客户没说可以写之前，不写周记。
 
-**YouTube** 由 Actions 自己拉 API，不依赖开机。**Snipd / WeRead** 没有同等云 API：本机插件先落到 iCloud vault，登录后 `com.jake.intake-source-push` 只把这两棵树推上 `main`，再等下一次 12:00/21:00 Actions 才会 append 进周 `intake.md`。一周没开机，手机 Digest 就还是上次 `main` 上的源。Obsidian Git 保持 `disablePush: true`。`com.jake.journal-daily-digest` 保持卸载，避免和 Actions 双写。
+**YouTube** 由 Actions 自己拉 API，不依赖开机。**Snipd / WeRead** 没有同等云 API：本机插件先落到 iCloud vault，常开的那台 Mac 上的 `com.jake.digitalbrain-imac-push` 每 10 分钟把这两棵树（连同 `📚 Books/`）推上 `main`，再等下一次 12:00/21:00 Actions 才会 append 进周 `intake.md`。那台 Mac 一直关着，手机 Digest 就还是上次 `main` 上的源。Obsidian Git 保持 `disablePush: true`。`com.jake.journal-daily-digest` 保持卸载，避免和 Actions 双写。
 
 ## 电脑开着 vs 关着
 
